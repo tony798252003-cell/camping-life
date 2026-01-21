@@ -105,7 +105,7 @@ const fetchWeather = async () => {
       const dateStr = currentDate.toISOString().split('T')[0]
       
       // 找到這一天的所有小時資料
-      const dayHours: { hour: number; code: number; temp: number }[] = []
+      const dayHours: { hour: number; code: number; temp: number; type: 'day' | 'night' }[] = []
       
       // 需要包含跨夜的資料來計算晚上的最低溫 (當天 18:00 到 隔天 06:00)
       const nextDate = new Date(currentDate)
@@ -140,8 +140,6 @@ const fetchWeather = async () => {
       
       if (dayHours.length === 0) continue
       
-      if (dayHours.length === 0) continue
-      
       const dayData = dayHours.filter(d => d.type === 'day')
       const nightData = dayHours.filter(d => d.type === 'night')
       
@@ -155,7 +153,7 @@ const fetchWeather = async () => {
       if (dayTemps.length === 0 && nightTemps.length === 0) continue
 
       dailyWeather.push({
-        date: dateStr,
+        date: dateStr || '', // Ensure string
         dateLabel: `${currentDate.getMonth() + 1}/${currentDate.getDate()}`,
         day: {
           code: getMostFrequentCode(dayData.map(h => h.code)),
@@ -172,6 +170,7 @@ const fetchWeather = async () => {
       })
     }
     
+    // console.log('Weather Debug Log:', debugLog)
     weather.value = dailyWeather
     
   } catch (e) {
@@ -184,20 +183,17 @@ const fetchWeather = async () => {
 
 // 取得最常出現的天氣代碼
 const getMostFrequentCode = (codes: number[]): number => {
-  if (codes.length === 0) return 0
+  if (codes.length === 0) return 0 // Default to clear sky (0) if no codes
   
-  const frequency: { [key: number]: number } = {}
+  const frequency: Record<number, number> = {}
+  let maxFreq = 0
+  let mostFrequent = codes[0]! // Assert non-undefined since length > 0
+  
   codes.forEach(code => {
     frequency[code] = (frequency[code] || 0) + 1
-  })
-  
-  let maxCount = 0
-  let mostFrequent = codes[0]
-  
-  Object.entries(frequency).forEach(([code, count]) => {
-    if (count > maxCount) {
-      maxCount = count
-      mostFrequent = parseInt(code)
+    if (frequency[code] > maxFreq) {
+      maxFreq = frequency[code]
+      mostFrequent = code
     }
   })
   
@@ -214,14 +210,7 @@ const getWeatherIcon = (code: number) => {
   return CloudSun
 }
 
-const getWeatherLabel = (code: number) => {
-   if (code === 0) return '晴朗'
-   if (code <= 3) return '多雲'
-   if (code <= 45) return '有霧'
-   if (code <= 65) return '下雨'
-   if (code <= 82) return '陣雨'
-   return '陰天'
-}
+
 
 const dateRange = computed(() => {
   if (!props.trip) return ''

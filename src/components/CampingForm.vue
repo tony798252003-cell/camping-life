@@ -49,9 +49,14 @@ const parseCoordinates = () => {
     alert('座標格式錯誤。請使用格式：緯度, 經度\n例如：24.624689990617433, 121.00618568650518')
     return
   }
-  
-  const lat = parseFloat(parts[0])
-  const lng = parseFloat(parts[1])
+
+  // Ensure parts are defined (TS check)
+  const latStr = parts[0]
+  const lngStr = parts[1]
+  if (!latStr || !lngStr) return
+
+  const lat = parseFloat(latStr)
+  const lng = parseFloat(lngStr)
   
   // 驗證座標範圍（台灣大致範圍）
   if (isNaN(lat) || isNaN(lng)) {
