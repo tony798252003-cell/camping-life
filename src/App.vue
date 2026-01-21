@@ -105,6 +105,23 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
   }
 }
 
+const handleUpdateNightRush = async ({ id, value }: { id: number, value: boolean }) => {
+  try {
+    const { error } = await (supabase
+      .from('camping_trips') as any)
+      .update({ night_rush: value })
+      .eq('id', id)
+      
+    if (error) throw error
+    
+    // Optimistic update or refetch
+    await fetchTrips()
+  } catch (error) {
+    console.error('更新夜衝狀態失敗:', error)
+    alert('更新失敗，請檢查網路')
+  }
+}
+
 onMounted(() => {
   fetchTrips()
 })
@@ -123,6 +140,7 @@ onMounted(() => {
         v-if="activeTab === 'home'" 
         :trips="trips" 
         @view-detail="handleViewDetail"
+        @update-night-rush="handleUpdateNightRush"
       />
 
       <TripListView 
