@@ -9,8 +9,25 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const weather = ref<any>(null)
+// 天氣資料結構：支援多天，每天有白天和晚上
+interface DayWeather {
+  date: string
+  dateLabel: string // 格式化的日期顯示，例如 "1/24"
+  day: {
+    code: number
+    temp_max: number
+    temp_min: number
+  }
+  night: {
+    code: number
+    temp_max: number
+    temp_min: number
+  }
+}
+
+const weather = ref<DayWeather[]>([])
 const loadingWeather = ref(false)
+const weatherError = ref<string | null>(null)
 
 const countdown = computed(() => {
   const today = new Date()
@@ -26,39 +43,165 @@ const countdown = computed(() => {
 
 // 取得天氣資訊
 const fetchWeather = async () => {
-  if (!props.trip.latitude || !props.trip.longitude) return
+  if (!props.trip.latitude || !props.trip.longitude) {
+    weatherError.value = 'no_coords'
+    return
+  }
 
   loadingWeather.value = true
+  weatherError.value = null
+  
   try {
-    // Open-Meteo API
-    // 取得未來天氣。如果日期太遠，這裡可能拿不到準確的。預設拿 7 天預報，或是看日期與今天的差距。
-    // 這裡簡單抓取目前預報，並嘗試對應日期。
-    const response = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${props.trip.latitude}&longitude=${props.trip.longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`
-    )
+    const tripDate = new Date(props.trip.trip_date)
+    const duration = props.trip.duration_days || 1
+    
+    // 1. 取得精確海拔 (如果行程沒有設定)
+    let elevation = props.trip.altitude
+    
+    if (!elevation) {
+      try {
+        const elevResponse = await fetch(
+          `https://api.open-meteo.com/v1/elevation?latitude=${props.trip.latitude}&longitude=${props.trip.longitude}`
+        )
+        const elevData = await elevResponse.json()
+        if (elevData.elevation && elevData.elevation.length > 0) {
+          elevation = elevData.elevation[0]
+          console.log('Auto-detected elevation:', elevation)
+        }
+      } catch (e) {
+        console.warn('Failed to fetch elevation', e)
+      }
+    }
+
+    // 2. 準備 API 參數
+    // 2. 準備 API 參數
+    // 經測試 GEM (加拿大) 模型在這個地點最準確
+    // 移除 timezone=auto，強制收 UTC 時間，由前端處理時區轉換
+    let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${props.trip.latitude}&longitude=${props.trip.longitude}&hourly=weather_code,temperature_2m&forecast_days=16&models=gem_global`
+    
+    // 加入海拔參數以校正溫度
+    if (elevation) {
+      apiUrl += `&elevation=${elevation}`
+    }
+
+    const response = await fetch(apiUrl)
     const data = await response.json()
     
-    // 嘗試找對應日期的天氣
-    if (data.daily && data.daily.time) {
-       const tripDateStr = props.trip.trip_date.split('T')[0] // Assuming YYYY-MM-DD format
-       const index = data.daily.time.findIndex((t: string) => t === tripDateStr)
-       
-       if (index !== -1) {
-         weather.value = {
-           code: data.daily.weather_code[index],
-           max: data.daily.temperature_2m_max[index],
-           min: data.daily.temperature_2m_min[index]
-         }
-       } else {
-         // 日期太遠或是過去，顯示「當前預報」作為參考? 不，顯示無法預測或隱藏
-         weather.value = null 
-       }
+    if (!data.hourly || !data.hourly.time) {
+      console.error('API Error: No hourly data', data)
+      weatherError.value = 'api_error'
+      return
     }
+
+    // 解析每天的天氣
+    const dailyWeather: DayWeather[] = []
+    
+    // Debug 收集器
+    const debugLog: any[] = []
+
+    for (let dayOffset = 0; dayOffset < duration; dayOffset++) {
+      const currentDate = new Date(tripDate)
+      currentDate.setDate(currentDate.getDate() + dayOffset)
+      const dateStr = currentDate.toISOString().split('T')[0]
+      
+      // 找到這一天的所有小時資料
+      const dayHours: { hour: number; code: number; temp: number }[] = []
+      
+      // 需要包含跨夜的資料來計算晚上的最低溫 (當天 18:00 到 隔天 06:00)
+      const nextDate = new Date(currentDate)
+      nextDate.setDate(nextDate.getDate() + 1)
+      const nextDateStr = nextDate.toISOString().split('T')[0]
+      
+      data.hourly.time.forEach((timeStr: string, index: number) => {
+        // 強制解析為 UTC
+        const utcTime = new Date(timeStr + 'Z')
+        
+        // 轉為使用者當地時間 (Browser Local Time)
+        const localYear = utcTime.getFullYear()
+        const localMonth = String(utcTime.getMonth() + 1).padStart(2, '0')
+        const localDay = String(utcTime.getDate()).padStart(2, '0')
+        const localDateStr = `${localYear}-${localMonth}-${localDay}`
+        const localHour = utcTime.getHours()
+        
+        const temp = data.hourly.temperature_2m[index]
+        
+        // 收集 "白天" 資料 (當地 06:00 - 18:00)
+        if (localDateStr === dateStr && localHour >= 6 && localHour < 18) {
+           dayHours.push({ hour: localHour, code: data.hourly.weather_code[index], temp, type: 'day' })
+           debugLog.push({ orig: timeStr, local: `${localDateStr} ${localHour}:00`, temp, type: 'Day', matchDate: dateStr })
+        }
+        
+        // 收集 "晚上" 資料 (當地 18:00 - 隔天 06:00)
+        if ((localDateStr === dateStr && localHour >= 18) || (localDateStr === nextDateStr && localHour < 6)) {
+           dayHours.push({ hour: localHour, code: data.hourly.weather_code[index], temp, type: 'night' })
+           debugLog.push({ orig: timeStr, local: `${localDateStr} ${localHour}:00`, temp, type: 'Night', matchDate: dateStr })
+        }
+      })
+      
+      if (dayHours.length === 0) continue
+      
+      if (dayHours.length === 0) continue
+      
+      const dayData = dayHours.filter(d => d.type === 'day')
+      const nightData = dayHours.filter(d => d.type === 'night')
+      
+      // 白天：使用者最在意 "最高溫" (多熱)
+      // 晚上：使用者最在意 "最低溫" (多冷)
+      
+      const dayTemps = dayData.map(h => h.temp)
+      const nightTemps = nightData.map(h => h.temp)
+      
+      // 如果沒有當天資料，就跳過
+      if (dayTemps.length === 0 && nightTemps.length === 0) continue
+
+      dailyWeather.push({
+        date: dateStr,
+        dateLabel: `${currentDate.getMonth() + 1}/${currentDate.getDate()}`,
+        day: {
+          code: getMostFrequentCode(dayData.map(h => h.code)),
+          // 白天顯示：平均 ~ 最高
+          temp_max: Math.round(Math.max(...dayTemps)),
+          temp_min: Math.round(Math.min(...dayTemps))
+        },
+        night: {
+          code: getMostFrequentCode(nightData.map(h => h.code)),
+          // 晚上顯示：最低 ~ 平均
+          temp_max: nightTemps.length > 0 ? Math.round(Math.max(...nightTemps)) : 0,
+          temp_min: nightTemps.length > 0 ? Math.round(Math.min(...nightTemps)) : 0
+        }
+      })
+    }
+    
+    weather.value = dailyWeather
+    
   } catch (e) {
     console.error('Weather fetch error', e)
+    weatherError.value = 'fetch_error'
   } finally {
     loadingWeather.value = false
   }
+}
+
+// 取得最常出現的天氣代碼
+const getMostFrequentCode = (codes: number[]): number => {
+  if (codes.length === 0) return 0
+  
+  const frequency: { [key: number]: number } = {}
+  codes.forEach(code => {
+    frequency[code] = (frequency[code] || 0) + 1
+  })
+  
+  let maxCount = 0
+  let mostFrequent = codes[0]
+  
+  Object.entries(frequency).forEach(([code, count]) => {
+    if (count > maxCount) {
+      maxCount = count
+      mostFrequent = parseInt(code)
+    }
+  })
+  
+  return mostFrequent
 }
 
 // Weather Code mapping simple
@@ -147,22 +290,65 @@ watch(() => props.trip, () => {
         </div>
       </div>
 
-      <!-- 右側：倒數與天氣 -->
-      <div class="flex flex-col items-center md:items-end justify-center space-y-6">
-        
-         <!-- 天氣預報 -->
-         <div v-if="weather" class="flex items-center bg-white shadow-sm px-6 py-3 rounded-2xl border border-gray-100 text-gray-900 mt-4">
-            <component :is="getWeatherIcon(weather.code)" class="w-8 h-8 mr-4 text-yellow-500" />
-            <div class="text-right">
-              <p class="text-sm font-bold text-gray-500">{{ getWeatherLabel(weather.code) }}</p>
-              <p class="text-xl font-bold">{{ weather.min }}° - {{ weather.max }}°C</p>
-            </div>
+      <!-- 右側：天氣 -->
+      <div class="flex flex-col items-center md:items-end justify-center space-y-4 w-full">
+         
+         <!-- 天氣預報 - 多天顯示 -->
+         <div v-if="weather.length > 0" class="w-full">
+           <div class="text-xs text-gray-500 mb-2 text-center md:text-right">天氣預報</div>
+           <div class="flex gap-3 overflow-x-auto pb-2 justify-center md:justify-end">
+             <div 
+               v-for="day in weather" 
+               :key="day.date"
+               class="flex-shrink-0 bg-white rounded-xl border border-gray-100 shadow-sm p-3 min-w-[140px]"
+             >
+               <!-- 日期 -->
+               <div class="text-xs font-bold text-gray-600 mb-2 text-center">{{ day.dateLabel }}</div>
+               
+               <!-- 白天 -->
+               <div class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
+                 <div class="flex items-center gap-1 flex-1">
+                   <component :is="getWeatherIcon(day.day.code)" class="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                   <div class="text-xs">
+                     <div class="text-gray-400">白天</div>
+                     <div class="font-bold text-gray-900 text-sm">{{ day.day.temp_min }}° - {{ day.day.temp_max }}°</div>
+                   </div>
+                 </div>
+               </div>
+               
+               <!-- 晚上 -->
+               <div class="flex items-center gap-2">
+                 <div class="flex items-center gap-1 flex-1">
+                   <component :is="getWeatherIcon(day.night.code)" class="w-5 h-5 text-blue-400 flex-shrink-0" />
+                   <div class="text-xs">
+                     <div class="text-gray-400">晚上</div>
+                     <div class="font-bold text-gray-900 text-sm">{{ day.night.temp_min }}° - {{ day.night.temp_max }}°</div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </div>
          </div>
-         <div v-else-if="loadingWeather" class="text-sm animate-pulse text-gray-400 mt-4">
+         
+         <!-- 載入中 -->
+         <div v-else-if="loadingWeather" class="text-sm animate-pulse text-gray-400">
            正在查詢天氣...
          </div>
-         <div v-else-if="trip.latitude" class="text-xs text-gray-400 bg-gray-50 border border-gray-100 px-3 py-1 rounded-full mt-4">
-           (日期太遠，暫無天氣預報)
+         
+         <!-- 沒有座標提示 -->
+         <div v-else-if="weatherError === 'no_coords'" class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-center">
+           <div class="text-sm text-gray-600 mb-1">📍 未設定座標</div>
+           <div class="text-xs text-gray-500">請編輯行程以新增座標，即可查看天氣預報</div>
+         </div>
+         
+         <!-- 日期太遠 -->
+         <div v-else-if="weatherError === 'api_error'" class="text-xs text-gray-400 bg-gray-50 border border-gray-100 px-3 py-2 rounded-full">
+           日期超出預報範圍
+         </div>
+         
+         <!-- 其他錯誤 -->
+         <div v-else-if="weatherError === 'fetch_error'" class="text-xs text-gray-400">
+           天氣查詢失敗
          </div>
       </div>
     </div>

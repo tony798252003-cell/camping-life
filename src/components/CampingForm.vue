@@ -30,6 +30,50 @@ const formData = ref<NewCampingTrip>({
 })
 
 const isGeocoding = ref(false)
+const coordPaste = ref('')
+
+// 解析貼上的座標字串
+const parseCoordinates = () => {
+  const input = coordPaste.value.trim()
+  if (!input) return
+
+  // 支援多種格式：
+  // 1. "24.624689990617433, 121.00618568650518" (Google Maps 格式)
+  // 2. "24.624689990617433 121.00618568650518" (空格分隔)
+  // 3. "24.624689990617433,121.00618568650518" (無空格逗號)
+  
+  // 移除多餘空格，統一用逗號或空格分隔
+  const parts = input.split(/[,\s]+/).filter(p => p.length > 0)
+  
+  if (parts.length !== 2) {
+    alert('座標格式錯誤。請使用格式：緯度, 經度\n例如：24.624689990617433, 121.00618568650518')
+    return
+  }
+  
+  const lat = parseFloat(parts[0])
+  const lng = parseFloat(parts[1])
+  
+  // 驗證座標範圍（台灣大致範圍）
+  if (isNaN(lat) || isNaN(lng)) {
+    alert('座標格式錯誤。請確認數字格式正確。')
+    return
+  }
+  
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    alert('座標超出有效範圍。\n緯度應在 -90 到 90 之間\n經度應在 -180 到 180 之間')
+    return
+  }
+  
+  // 填入欄位
+  formData.value.latitude = lat
+  formData.value.longitude = lng
+  
+  // 清空貼上欄位
+  coordPaste.value = ''
+  
+  // 顯示成功提示
+  alert(`✅ 座標已填入！\n緯度: ${lat}\n經度: ${lng}`)
+}
 
 const isFuture = computed(() => {
   if (!formData.value.trip_date) return false
@@ -450,6 +494,41 @@ const openMapSearch = () => {
                       <Search class="w-4 h-4 mr-1" />
                       {{ isGeocoding ? '搜尋中...' : '自動搜尋座標' }}
                     </button>
+                  </div>
+                </div>
+                
+                <!-- 快速貼上座標 -->
+                <div class="bg-gradient-to-r from-blue-50 to-teal-50 border border-blue-200 rounded-xl p-4">
+                  <label class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                    📋 快速貼上座標
+                    <span class="ml-2 text-xs text-gray-500 font-normal">(從 Google Maps 複製後直接貼上)</span>
+                  </label>
+                  <div class="flex gap-2">
+                    <input 
+                      v-model="coordPaste"
+                      type="text"
+                      class="flex-1 px-4 py-2.5 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all outline-none"
+                      placeholder="貼上格式：24.624689990617433, 121.00618568650518"
+                      @keydown.enter.prevent="parseCoordinates"
+                    />
+                    <button 
+                      type="button"
+                      @click="parseCoordinates"
+                      class="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-medium whitespace-nowrap"
+                    >
+                      解析
+                    </button>
+                  </div>
+                  <p class="text-xs text-gray-500 mt-2">💡 提示：在 Google Maps 上點擊地點，複製顯示的座標後貼上即可</p>
+                </div>
+                
+                <!-- 分隔線 -->
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-gray-200"></div>
+                  </div>
+                  <div class="relative flex justify-center text-xs">
+                    <span class="px-2 bg-white text-gray-400">或手動輸入</span>
                   </div>
                 </div>
                 
