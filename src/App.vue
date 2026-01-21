@@ -159,7 +159,7 @@ onMounted(() => {
         :class="activeTab === 'home' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'"
       >
         <Home class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'home'}" />
-        <span class="text-[10px] font-bold">首頁</span>
+        <span class="text-[10px] font-bold mb-1">首頁</span>
       </button>
 
       <button 
@@ -168,7 +168,7 @@ onMounted(() => {
         :class="activeTab === 'list' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'"
       >
         <ListIcon class="w-6 h-6" />
-        <span class="text-[10px] font-bold">列表</span>
+        <span class="text-[10px] font-bold mb-1">列表</span>
       </button>
 
       <!-- FAB (Floating Action Button) for Add -->
@@ -185,7 +185,7 @@ onMounted(() => {
         :class="activeTab === 'map' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'"
       >
         <MapIcon class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'map'}" />
-        <span class="text-[10px] font-bold">地圖</span>
+        <span class="text-[10px] font-bold mb-1">地圖</span>
       </button>
 
       <button 
@@ -194,7 +194,7 @@ onMounted(() => {
         :class="activeTab === 'calendar' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'"
       >
         <CalendarIcon class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'calendar'}" />
-        <span class="text-[10px] font-bold">行事曆</span>
+        <span class="text-[10px] font-bold mb-1">行事曆</span>
       </button>
     </nav>
 

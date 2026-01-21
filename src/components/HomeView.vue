@@ -26,16 +26,15 @@ const nextTrip = computed(() => {
 </script>
 
 <template>
-  <div class="space-y-6 pb-24 md:max-w-4xl md:mx-auto md:pb-8">
+  <div class="space-y-3 pb-32 md:max-w-4xl md:mx-auto md:pb-8">
     <!-- 統計區塊 -->
-    <StatsHeader :trips="trips" />
+    <div class="px-4 mt-6">
+      <StatsHeader :trips="trips" />
+    </div>
 
     <!-- 下次露營 (如果有的話) -->
     <div v-if="nextTrip" class="px-4">
-      <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
-        <span class="bg-primary-500 w-1.5 h-6 rounded-full mr-3"></span>
-        倒數計時
-      </h2>
+
       <NextTripCard :trip="nextTrip" @click="emit('view-detail', nextTrip)" />
     </div>
 
