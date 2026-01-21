@@ -112,6 +112,11 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-surface-50 flex flex-col">
+    <!-- Global Header -->
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100 px-6 py-4 text-center">
+      <h1 class="text-2xl font-black text-gray-900 tracking-tight font-['Outfit']">Camping Life</h1>
+    </header>
+
     <!-- Main Content -->
     <main v-if="!loading" class="pb-24 flex-1 overflow-y-auto">
       <HomeView 

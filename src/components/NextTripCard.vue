@@ -12,22 +12,17 @@ const props = defineProps<Props>()
 const weather = ref<any>(null)
 const loadingWeather = ref(false)
 
-const daysUntil = computed(() => {
+const countdown = computed(() => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const tripDate = new Date(props.trip.trip_date)
+  tripDate.setHours(0,0,0,0)
   const diffTime = tripDate.getTime() - today.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  return diffDays
+  if (diffDays < 0) return '已出發'
+  if (diffDays === 0) return 'GO!'
+  return `${diffDays}`
 })
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('zh-TW', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric'
-  })
-}
 
 // 取得天氣資訊
 const fetchWeather = async () => {
@@ -85,6 +80,18 @@ const getWeatherLabel = (code: number) => {
    return '陰天'
 }
 
+const dateRange = computed(() => {
+  if (!props.trip) return ''
+  const start = new Date(props.trip.trip_date)
+  const duration = props.trip.duration_days || 1
+  const end = new Date(start.getTime())
+  end.setDate(start.getDate() + Math.max(0, duration - 1))
+  
+  const format = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`
+  if (duration <= 1) return format(start)
+  return `${format(start)} - ${format(end)}`
+})
+
 watch(() => props.trip, () => {
   fetchWeather()
 }, { immediate: true })
@@ -92,35 +99,49 @@ watch(() => props.trip, () => {
 </script>
 
 <template>
-  <div class="relative overflow-hidden rounded-[2rem] shadow-2xl mb-12 group transition-all hover:shadow-orange-200/50">
-    <!-- 活潑背景：動態漸層 + 圖樣 -->
-    <div class="absolute inset-0 bg-gradient-to-br from-orange-400 via-pink-500 to-purple-600"></div>
+  <div v-if="trip" class="relative w-full overflow-hidden rounded-[2.5rem] shadow-2xl transition-all duration-500 hover:shadow-blue-500/20 group">
+    <!-- 背景特效 -->
+    <!-- 背景特效 (Mobile default, PC adjusted) -->
+    <div class="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 md:from-blue-50/80 md:via-blue-50/80 md:to-white md:border md:border-blue-100"></div>
     <div class="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
     
     <!-- 裝飾光暈 -->
     <div class="absolute top-0 right-0 w-80 h-80 bg-yellow-300 rounded-full blur-[100px] opacity-30 -mr-20 -mt-20 animate-pulse"></div>
     <div class="absolute bottom-0 left-0 w-60 h-60 bg-blue-400 rounded-full blur-[80px] opacity-30 -ml-20 -mb-20"></div>
 
-    <div class="relative z-10 p-8 md:p-10 text-white grid md:grid-cols-2 gap-8">
+    <div class="relative z-10 p-8 md:p-10 text-white md:text-gray-900 grid md:grid-cols-1 gap-8 md:gap-4 md:place-items-center">
       
       <!-- 左側：主要資訊 -->
       <div class="flex flex-col justify-center">
-        <div class="inline-flex self-start items-center px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full text-sm font-bold mb-6 border border-white/30 shadow-sm">
-          <span class="animate-bounce mr-2">🚀</span>
-          NEXT ADVENTURE
+        <!-- 標題與日期 -->
+        <div class="relative z-10 flex flex-col items-center text-center mb-8">
+           <div class="mb-4">
+             <span class="px-3 py-1 rounded-full bg-blue-400/30 backdrop-blur-md text-white md:text-blue-600 md:bg-blue-100/50 md:border-blue-200 border border-white/20 text-sm font-bold tracking-wider uppercase shadow-sm">
+               即將出發
+             </span>
+           </div>
+           
+           <h2 class="text-5xl font-black text-white md:text-gray-800 tracking-tight drop-shadow-lg md:drop-shadow-none mb-4 leading-tight">
+             {{ trip.campsite_name }}
+           </h2>
+
+           <div class="text-white/90 md:text-gray-600 text-2xl font-bold backdrop-blur-sm bg-black/10 md:bg-transparent px-4 py-2 rounded-xl border border-white/10 md:border-none">
+             {{ dateRange }}
+           </div>
         </div>
         
-        <h2 class="text-4xl md:text-5xl font-black mb-4 leading-tight tracking-tight drop-shadow-md">
-          {{ trip.campsite_name }}
-        </h2>
-        
-        <div class="space-y-3 text-lg font-medium text-white/90">
-          <div class="flex items-center">
-            <Calendar class="w-6 h-6 mr-3 text-yellow-200" />
-            {{ formatDate(trip.trip_date) }}
-          </div>
+        <div class="flex justify-center mb-6">
+           <div class="text-center">
+              <div class="text-8xl font-black text-white md:text-blue-500 leading-none tracking-tighter drop-shadow-xl md:drop-shadow-none font-['Outfit']">
+                 {{ countdown }}
+              </div>
+              <div class="text-blue-100 md:text-gray-400 text-lg font-medium tracking-widest mt-1">倒數</div>
+           </div>
+        </div>
+
+        <div class="space-y-3 text-lg font-medium text-white/90 md:text-gray-600 flex flex-col items-center">
           <div v-if="trip.location" class="flex items-center">
-            <MapPin class="w-6 h-6 mr-3 text-green-200" />
+            <MapPin class="w-6 h-6 mr-3 text-green-200 md:text-green-500" />
             {{ trip.location }}
           </div>
         </div>
@@ -130,23 +151,17 @@ watch(() => props.trip, () => {
       <div class="flex flex-col items-center md:items-end justify-center space-y-6">
         
         <!-- 倒數計時器 -->
-        <div class="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20 text-center min-w-[180px] transform group-hover:scale-105 transition-transform duration-300">
-          <p class="text-white/80 text-sm font-bold uppercase tracking-widest mb-1">倒數計時</p>
-          <div class="text-6xl font-black tabular-nums tracking-tighter">
-            {{ daysUntil }}
-          </div>
-          <p class="text-white/80 font-medium">天後出發</p>
-        </div>
+
 
         <!-- 天氣預報 -->
-         <div v-if="weather" class="flex items-center bg-black/20 backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/10 text-white">
-            <component :is="getWeatherIcon(weather.code)" class="w-8 h-8 mr-4 text-yellow-300" />
+         <div v-if="weather" class="flex items-center bg-black/20 md:bg-white md:shadow-sm backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/10 md:border-gray-100 text-white md:text-gray-900 mt-4">
+            <component :is="getWeatherIcon(weather.code)" class="w-8 h-8 mr-4 text-yellow-300 md:text-yellow-500" />
             <div class="text-right">
-              <p class="text-sm font-bold text-white/80">{{ getWeatherLabel(weather.code) }}</p>
+              <p class="text-sm font-bold text-white/80 md:text-gray-500">{{ getWeatherLabel(weather.code) }}</p>
               <p class="text-xl font-bold">{{ weather.min }}° - {{ weather.max }}°C</p>
             </div>
          </div>
-         <div v-else-if="loadingWeather" class="text-sm animate-pulse text-white/60">
+         <div v-else-if="loadingWeather" class="text-sm animate-pulse text-white/60 md:text-gray-400 mt-4">
            正在查詢天氣...
          </div>
          <div v-else-if="trip.latitude" class="text-xs text-white/50 bg-black/10 px-3 py-1 rounded-full">

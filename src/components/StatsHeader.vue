@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Tent } from 'lucide-vue-next'
 import type { CampingTrip } from '../types/database'
 
 interface Props {
@@ -23,13 +22,11 @@ const stats = computed(() => {
 
 <template>
   <div class="mb-8">
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
-      <div>
-        <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">累計露營</p>
-        <p class="text-5xl font-black text-gray-800 tracking-tight">{{ stats.totalTrips }} <span class="text-xl font-medium text-gray-400">次</span></p>
-      </div>
-      <div class="w-20 h-20 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-500 shadow-sm border border-blue-100">
-        <Tent class="w-10 h-10" />
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 flex flex-col items-center justify-center text-center">
+      <div class="text-gray-400 text-sm font-medium uppercase tracking-widest mb-2 font-['Outfit']">累計露營</div>
+      <div class="flex items-baseline justify-center">
+        <span class="text-8xl font-black text-primary-600 tracking-tighter leading-none font-['Outfit']">{{ stats.totalTrips }}</span>
+        <span class="text-2xl font-bold text-gray-300 ml-2">次</span>
       </div>
     </div>
   </div>
