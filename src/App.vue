@@ -131,7 +131,9 @@ onMounted(() => {
   <div class="min-h-screen bg-surface-50 flex flex-col font-sans text-primary-900">
     <!-- Global Header -->
     <header class="bg-white/70 backdrop-blur-lg sticky top-0 z-50 border-b border-primary-100 px-6 py-4 text-center supports-[backdrop-filter]:bg-white/60">
-      <h1 class="text-2xl font-bold text-primary-900 tracking-tight">Camping Life</h1>
+      <div class="flex justify-center items-center">
+        <img src="/images/title_logo.png" alt="搭帳日誌" class="h-8 md:h-10 w-auto object-contain" />
+      </div>
     </header>
 
     <!-- Main Content -->

@@ -139,20 +139,9 @@ export function useTravelTime() {
             let sLon = startLon
 
             if (!sLat || !sLon) {
-                try {
-                    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                            timeout: 3000,
-                            enableHighAccuracy: false // 降低精度但加快速度
-                        })
-                    })
-                    sLat = position.coords.latitude
-                    sLon = position.coords.longitude
-                } catch (e) {
-                    // 定位失敗，使用預設起點
-                    sLat = DEFAULT_ORIGIN.lat
-                    sLon = DEFAULT_ORIGIN.lng
-                }
+                // 不使用定位，直接使用預設起點
+                sLat = DEFAULT_ORIGIN.lat
+                sLon = DEFAULT_ORIGIN.lng
             }
 
             // === 2. 檢查快取 ===
