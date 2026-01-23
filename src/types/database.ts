@@ -27,6 +27,8 @@ export interface CampingTrip {
   user_id: string | null
   photos: string[] | null
   created_at: string
+  zone: string | null
+  companions: string | null
 }
 
 export interface NewCampingTrip {
@@ -56,6 +58,8 @@ export interface NewCampingTrip {
   start_longitude?: number
   user_id?: string
   photos?: string[]
+  zone?: string
+  companions?: string
 }
 
 export interface CampingGear {

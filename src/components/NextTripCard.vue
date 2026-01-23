@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { CloudSun, CloudRain, Sun, Cloud, Moon, Tent, MapPin, Calendar } from 'lucide-vue-next'
+import { CloudSun, CloudRain, Sun, Cloud, Moon, Tent, MapPin, Calendar, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import type { CampingTrip } from '../types/database'
 
 interface Props {
   trip: CampingTrip
+  hasPrev?: boolean
+  hasNext?: boolean
 }
 // ... (keep start of script)
 
@@ -13,6 +15,8 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update-night-rush', payload: { id: number, value: boolean }): void
+  (e: 'prev'): void
+  (e: 'next'): void
 }>()
 
 // 天氣資料結構：僅需保存摘要
@@ -328,6 +332,14 @@ const dateRange = computed(() => {
   return `${format(start)} - ${format(end)}`
 })
 
+// Title Font Size Logic (Binary: Normal vs Small)
+const titleClass = computed(() => {
+  const len = props.trip.campsite_name.length
+  // Regular size for most names, smaller for long ones
+  if (len <= 8) return 'text-3xl md:text-5xl'
+  return 'text-2xl md:text-4xl'
+})
+
 watch(() => props.trip, () => {
   fetchWeather()
 }, { immediate: true })
@@ -352,8 +364,8 @@ watch(() => props.trip, () => {
     
     <!-- Illustration Removed as per request -->
 
-    <!-- Main Content Container -->
-    <div class="relative z-10 p-6 md:p-8 flex flex-col items-center justify-center min-h-[340px] md:min-h-[420px]">
+    <!-- Main Content Container with optimized spacing -->
+    <div class="relative z-10 p-4 pb-10 md:p-8 md:pb-14 flex flex-col items-center justify-center min-h-[300px] md:min-h-[420px]">
       
       <!-- Top Pill: Status -->
       <div class="mb-2 md:mb-4">
@@ -362,20 +374,26 @@ watch(() => props.trip, () => {
          </span>
       </div>
 
-      <!-- Title (Centered) -->
-      <h2 class="text-3xl md:text-5xl font-black text-primary-900 tracking-tight leading-tight text-center mb-1 md:mb-2 drop-shadow-sm px-4">
-           {{ trip.campsite_name }}
-      </h2>
+      <!-- Title (Centered) with Fixed Height -->
+      <div class="h-10 md:h-16 flex items-center justify-center mb-0.5 md:mb-2 px-4 w-full">
+        <h2 :class="titleClass" class="font-black text-primary-900 tracking-tight leading-none text-center drop-shadow-sm whitespace-nowrap overflow-hidden text-ellipsis w-full">
+             {{ trip.campsite_name }}
+        </h2>
+      </div>
+
+
+
+
 
       <!-- Date (Centered) -->
-      <div class="relative mb-4 md:mb-8 w-full flex justify-center">
-         <div class="relative text-xl font-bold text-primary-800 font-mono tracking-tight">
+      <div class="relative mb-2 md:mb-6 w-full flex justify-center">
+         <div class="relative text-lg md:text-xl font-bold text-primary-800 font-mono tracking-tight">
            {{ dateRange }}
          </div>
       </div>
 
       <!-- Top Right Actions (Night Rush) -->
-      <div class="absolute top-6 right-6 md:top-8 md:right-8 z-20">
+      <div class="absolute top-4 right-4 md:top-8 md:right-8 z-20">
           <button 
             :disabled="isPastTrip"
             @click.stop="toggleNightRush"
@@ -394,29 +412,36 @@ watch(() => props.trip, () => {
       </div>
 
       <!-- Countdown (Big Number) -->
-      <div class="flex flex-col items-center mb-6 md:mb-10 relative h-[8rem] md:h-[11rem] justify-center w-full">
-          <div v-if="isPastTrip" class="text-[3.5rem] md:text-[5rem] leading-none font-black text-primary-400 drop-shadow-sm tracking-tighter z-10 font-sans uppercase opacity-80 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap">
+      <div class="flex flex-col items-center mb-4 md:mb-8 relative h-[6rem] md:h-[11rem] justify-center w-full">
+          <div v-if="isPastTrip" class="text-[3rem] md:text-[5rem] leading-none font-black text-primary-400 drop-shadow-sm tracking-tighter z-10 font-sans uppercase opacity-80 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap">
               COMPLETE
           </div>
-          <div v-else class="text-[5.5rem] md:text-[8rem] leading-none font-black text-accent-sky drop-shadow-sm tracking-tighter z-10 font-sans absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div v-else class="text-[4.5rem] md:text-[8rem] leading-none font-black text-accent-sky drop-shadow-sm tracking-tighter z-10 font-sans absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
                {{ countdown }}
           </div>
           
-          <div v-if="!isPastTrip && countdown !== 'GO!' && countdown !== 'ING'" class="text-primary-600 font-bold tracking-[0.2em] text-[10px] md:text-sm uppercase absolute bottom-0 md:bottom-2">
+          <div v-if="!isPastTrip && countdown !== 'GO!' && countdown !== 'ING'" class="text-primary-600 font-bold tracking-[0.2em] text-[9px] md:text-sm uppercase absolute bottom-0 md:bottom-2">
               DAYS TO GO
           </div>
       </div>
 
 
-      <div class="mb-4 md:mb-6">
-        <div class="flex items-center gap-2 text-primary-700 bg-white/60 px-3 py-1.5 md:px-4 md:py-2 rounded-xl backdrop-blur-md border border-white/50 shadow-sm">
-          <MapPin class="w-3.5 h-3.5 md:w-4 md:h-4 text-green-600" />
-          <span class="font-bold text-xs md:text-sm">{{ trip.location || '未設定地點' }}</span>
+
+
+
+
+
+
+      <!-- Location (Standalone Line) -->
+      <div class="mb-3 md:mb-8">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-white/50 text-primary-700 rounded-lg backdrop-blur-sm border border-white/40 text-sm md:text-base font-bold shadow-sm hover:bg-white/70 transition-colors">
+          <MapPin class="w-3.5 h-3.5 md:w-4 md:h-4 text-emerald-600" />
+          <span>{{ trip.location || '未設定地點' }}</span>
         </div>
       </div>
 
       <!-- Content Area with Fixed Height to prevent jumping -->
-      <div class="w-full flex justify-center min-h-[6rem] items-center mt-auto">
+      <div class="w-full flex justify-center min-h-[5rem] items-center mt-auto">
         
          <!-- Rating Card for Past Trips (Detail Modal Style) -->
          <div v-if="isPastTrip" class="w-full max-w-sm bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-sm border border-white/60">
@@ -461,27 +486,28 @@ watch(() => props.trip, () => {
                    </div>
                 </div>
              </div>
-             
-             <!-- 分隔線 -->
-             <div v-if="packingStatus" class="w-px h-8 md:h-10 bg-primary-100 flex-shrink-0"></div>
+              
+              <!-- 分隔線 -->
+              <div v-if="packingStatus" class="w-px h-8 md:h-10 bg-primary-100 flex-shrink-0"></div>
 
-             <!-- 撤收狀態 -->
-             <div v-if="packingStatus" class="flex items-center gap-2 md:gap-3 min-w-0">
-                 <div class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full flex-shrink-0"
-                      :class="packingStatus === 'dry' ? 'bg-emerald-100/50 text-emerald-600' : 'bg-red-100/50 text-red-600'"
-                 >
-                    <Tent class="w-5 h-5 md:w-6 md:h-6" />
-                 </div>
-                 <div class="text-left min-w-0">
-                     <div class="text-[10px] md:text-xs text-primary-500 mb-0.5 whitespace-nowrap">收帳預測</div>
-                     <div class="text-lg md:text-xl font-black leading-none whitespace-nowrap"
-                          :class="packingStatus === 'dry' ? 'text-emerald-700' : 'text-red-700'"
-                     >
-                         {{ packingStatus === 'dry' ? '乾燥撤收' : '濕帳撤收' }}
-                     </div>
-                 </div>
+              <!-- 撤收狀態 -->
+              <div v-if="packingStatus" class="flex items-center gap-2 md:gap-3 min-w-0">
+                  <div class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full flex-shrink-0"
+                       :class="packingStatus === 'dry' ? 'bg-emerald-100/50 text-emerald-600' : 'bg-red-100/50 text-red-600'"
+                  >
+                     <Tent class="w-5 h-5 md:w-6 md:h-6" />
+                  </div>
+                  <div class="text-left min-w-0">
+                      <div class="text-[10px] md:text-xs text-primary-500 mb-0.5 whitespace-nowrap">收帳預測</div>
+                      <div class="text-lg md:text-xl font-black leading-none whitespace-nowrap"
+                           :class="packingStatus === 'dry' ? 'text-emerald-700' : 'text-red-700'"
+                      >
+                          {{ packingStatus === 'dry' ? '乾燥撤收' : '濕帳撤收' }}
+                      </div>
+                  </div>
+              </div>
              </div>
-          </div>
+
           
           <!-- Future No Weather State -->
           <div v-else class="flex items-center justify-center bg-white/60 backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/40 gap-3 w-full max-w-sm h-[4.5rem]">
@@ -491,6 +517,42 @@ watch(() => props.trip, () => {
               </div>
           </div>
           
+      </div>
+
+      <!-- Zone & Companions (Bottom Right Corner) -->
+      <div v-if="trip.zone || trip.companions" class="absolute bottom-2 right-3 md:bottom-4 md:right-6 flex flex-row items-center gap-2 z-20">
+        <!-- Zone -->
+        <div v-if="trip.zone" class="flex items-center gap-1.5 bg-white/40 backdrop-blur-md rounded-lg border border-white/30 py-1 px-2.5 text-primary-800 shadow-sm">
+           <Tent class="w-3 h-3 md:w-3.5 md:h-3.5 text-orange-600" />
+           <span class="font-bold text-[10px] md:text-xs whitespace-nowrap">{{ trip.zone }}</span>
+        </div>
+
+        <!-- Companions -->
+        <div v-if="trip.companions" class="flex items-center gap-1.5 bg-white/40 backdrop-blur-md rounded-lg border border-white/30 py-1 px-2.5 text-primary-800 shadow-sm">
+          <span class="text-[10px] md:text-xs">👥</span>
+          <span class="font-bold text-[10px] md:text-xs max-w-[100px] truncate">{{ trip.companions }}</span>
+        </div>
+      </div>
+
+      <!-- Navigation Zones (1/3 Width) -->
+      <div 
+        v-if="hasPrev"
+        @click.stop="$emit('prev')"
+        class="absolute left-0 top-0 w-1/3 h-full z-30 flex items-center justify-start pl-1 md:pl-2 cursor-pointer group"
+      >
+         <div class="p-2 text-white/50 group-hover:text-white transition-all duration-300 drop-shadow-xl group-hover:scale-110 group-active:scale-95">
+            <ChevronLeft class="w-10 h-10 md:w-12 md:h-12 drop-shadow-md" />
+         </div>
+      </div>
+
+      <div 
+        v-if="hasNext"
+        @click.stop="$emit('next')"
+        class="absolute right-0 top-0 w-1/3 h-full z-30 flex items-center justify-end pr-1 md:pr-2 cursor-pointer group"
+      >
+         <div class="p-2 text-white/50 group-hover:text-white transition-all duration-300 drop-shadow-xl group-hover:scale-110 group-active:scale-95">
+            <ChevronRight class="w-10 h-10 md:w-12 md:h-12 drop-shadow-md" />
+         </div>
       </div>
 
     </div>
