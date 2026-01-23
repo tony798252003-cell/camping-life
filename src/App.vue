@@ -21,9 +21,127 @@ const isAuthReady = ref(false)
 const session = ref<Session | null>(null)
 const trips = ref<CampingTrip[]>([])
 const loading = ref(true)
-// ... (rest of state)
+const isModalOpen = ref(false)
+const editingTrip = ref<CampingTrip | null>(null)
+const viewingTrip = ref<CampingTrip | null>(null)
+const isDetailModalOpen = ref(false)
 
-// ...
+const activeTab = ref<'home' | 'list' | 'calendar' | 'roi'>('home')
+
+// Fetch Trips
+const fetchTrips = async () => {
+  if (!session.value) return 
+  
+  loading.value = true
+  try {
+    const { data, error } = await supabase
+      .from('camping_trips')
+      .select('*')
+      .eq('user_id', session.value.user.id) // Filter by User ID
+      .order('trip_date', { ascending: false })
+
+    if (error) throw error
+    trips.value = data || []
+  } catch (error) {
+    console.error('獲取資料失敗:', error)
+    alert('無法載入露營記錄，請檢查 Supabase 連線設定')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Actions
+const handleViewDetail = (trip: CampingTrip) => {
+  viewingTrip.value = trip
+  isDetailModalOpen.value = true
+}
+
+const handleAdd = () => {
+  editingTrip.value = null
+  isModalOpen.value = true
+}
+
+const handleEdit = (trip: CampingTrip) => {
+  editingTrip.value = trip
+  isModalOpen.value = true
+}
+
+const deleteTrip = async (id: number) => {
+  if (!confirm('確定要刪除這筆記錄嗎？')) return
+
+  try {
+    const { error } = await supabase
+      .from('camping_trips')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+    
+    await fetchTrips()
+    alert('刪除成功！')
+  } catch (error) {
+    console.error('刪除失敗:', error)
+    alert('刪除失敗，請稍後再試')
+  }
+}
+
+const handleSubmit = async (tripData: NewCampingTrip) => {
+  if (!session.value) return
+
+  try {
+    // Attach User ID to the new trip data
+    const dataToSave = {
+      ...tripData,
+      user_id: session.value.user.id
+    }
+
+    if (editingTrip.value) {
+      // Update
+      const { error } = await (supabase
+        .from('camping_trips') as any)
+        .update(dataToSave)
+        .eq('id', editingTrip.value.id)
+      if (error) throw error
+      alert('更新成功！')
+    } else {
+      // Create
+      const { error } = await (supabase
+        .from('camping_trips') as any)
+        .insert([dataToSave])
+      if (error) throw error
+      alert('新增成功！')
+    }
+    await fetchTrips()
+    isModalOpen.value = false
+    editingTrip.value = null
+  } catch (error) {
+    console.error('儲存失敗:', error)
+    alert('儲存失敗，請稍後再試')
+  }
+}
+
+const handleUpdateNightRush = async ({ id, value }: { id: number, value: boolean }) => {
+  try {
+    const { error } = await (supabase
+      .from('camping_trips') as any)
+      .update({ night_rush: value })
+      .eq('id', id)
+      
+    if (error) throw error
+    
+    // Optimistic update or refetch
+    await fetchTrips()
+  } catch (error) {
+    console.error('更新夜衝狀態失敗:', error)
+    alert('更新失敗，請檢查網路')
+  }
+}
+
+const handleLogout = async () => {
+  await supabase.auth.signOut()
+  session.value = null
+  trips.value = []
+}
 
 onMounted(() => {
   // Get initial session
