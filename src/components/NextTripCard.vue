@@ -288,55 +288,56 @@ watch(() => props.trip, () => {
     <!-- Illustration Removed as per request -->
 
     <!-- Main Content Container -->
-    <div class="relative z-10 p-8 flex flex-col items-center justify-center min-h-[420px]">
+    <div class="relative z-10 p-6 md:p-8 flex flex-col items-center justify-center min-h-[340px] md:min-h-[420px]">
       
       <!-- Top Pill: Status -->
-      <div class="mb-4">
-         <span class="inline-block px-4 py-1.5 rounded-full text-sm font-bold tracking-wider bg-white/80 backdrop-blur-md text-primary-700 shadow-sm border border-white/50">
+      <div class="mb-2 md:mb-4">
+         <span class="inline-block px-3 py-1 md:px-4 md:py-1.5 rounded-full text-xs md:text-sm font-bold tracking-wider bg-white/80 backdrop-blur-md text-primary-700 shadow-sm border border-white/50">
            {{ statusLabel }}
          </span>
       </div>
 
       <!-- Title (Centered) -->
-      <h2 class="text-4xl md:text-5xl font-black text-primary-900 tracking-tight leading-tight text-center mb-2 drop-shadow-sm">
+      <h2 class="text-3xl md:text-5xl font-black text-primary-900 tracking-tight leading-tight text-center mb-1 md:mb-2 drop-shadow-sm px-4">
            {{ trip.campsite_name }}
       </h2>
 
       <!-- Date (Centered) -->
-      <div class="relative mb-8 w-full flex justify-center">
+      <div class="relative mb-4 md:mb-8 w-full flex justify-center">
          <div class="relative text-xl font-bold text-primary-800 font-mono tracking-tight">
            {{ dateRange }}
-           
-           <div class="absolute left-full top-1/2 -translate-y-1/2 ml-4">
-              <button 
-                @click.stop="toggleNightRush"
-                class="group flex items-center justify-center w-9 h-9 rounded-full transition-all duration-500 shadow-sm border backdrop-blur-md"
-                :class="trip.night_rush 
-                  ? 'bg-indigo-500/80 border-indigo-400/50 text-yellow-200 shadow-[0_0_15px_rgba(99,102,241,0.4)] scale-110 ring-2 ring-indigo-200/30' 
-                  : 'bg-white/60 border-white/60 text-primary-300 hover:bg-white hover:text-primary-600 hover:shadow-md'"
-                title="切換夜衝狀態"
-              >
-                <Moon class="w-4 h-4 transition-transform duration-500" 
-                      :class="{ '-rotate-12 fill-current drop-shadow-sm': trip.night_rush, 'group-hover:rotate-12': !trip.night_rush }" />
-              </button>
-           </div>
          </div>
       </div>
 
+      <!-- Top Right Actions (Night Rush) -->
+      <div class="absolute top-6 right-6 md:top-8 md:right-8 z-20">
+          <button 
+            @click.stop="toggleNightRush"
+            class="group flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full transition-all duration-500 shadow-md border backdrop-blur-md"
+            :class="trip.night_rush 
+              ? 'bg-indigo-500/80 border-indigo-400/50 text-yellow-200 shadow-[0_0_15px_rgba(99,102,241,0.4)] scale-110 ring-2 ring-indigo-200/30' 
+              : 'bg-white/60 border-white/60 text-primary-300 hover:bg-white hover:text-primary-600 hover:shadow-lg'"
+            title="切換夜衝狀態"
+          >
+            <Moon class="w-5 h-5 md:w-6 md:h-6 transition-transform duration-500" 
+                  :class="{ '-rotate-12 fill-current drop-shadow-sm': trip.night_rush, 'group-hover:rotate-12': !trip.night_rush }" />
+          </button>
+      </div>
+
       <!-- Countdown (Big Number) -->
-      <div class="flex flex-col items-center mb-10 relative">
-          <div class="text-[8rem] leading-none font-black text-accent-sky drop-shadow-sm tracking-tighter relative z-10 font-sans">
+      <div class="flex flex-col items-center mb-6 md:mb-10 relative">
+          <div class="text-[5.5rem] md:text-[8rem] leading-none font-black text-accent-sky drop-shadow-sm tracking-tighter relative z-10 font-sans">
                {{ countdown }}
           </div>
-          <div v-if="countdown !== 'GO!'" class="text-primary-600 font-bold tracking-[0.2em] text-sm uppercase mt-0">
+          <div v-if="countdown !== 'GO!'" class="text-primary-600 font-bold tracking-[0.2em] text-[10px] md:text-sm uppercase mt-0">
                {{ (countdown === 'ING' || countdown === '已出發') ? '露營進行中' : '倒數天數' }}
           </div>
       </div>
 
       <!-- Location (Bottom Center) -->
-      <div class="flex items-center gap-2 text-primary-700 bg-white/60 px-4 py-2 rounded-xl backdrop-blur-md border border-white/50 mb-6 shadow-sm">
-        <MapPin class="w-4 h-4 text-green-600" />
-        <span class="font-bold text-sm">{{ trip.location || '未設定地點' }}</span>
+      <div class="flex items-center gap-2 text-primary-700 bg-white/60 px-3 py-1.5 md:px-4 md:py-2 rounded-xl backdrop-blur-md border border-white/50 mb-4 md:mb-6 shadow-sm">
+        <MapPin class="w-3.5 h-3.5 md:w-4 md:h-4 text-green-600" />
+        <span class="font-bold text-xs md:text-sm">{{ trip.location || '未設定地點' }}</span>
       </div>
 
       <!-- Weather Card (Compact at bottom, transparent) -->
@@ -374,7 +375,6 @@ watch(() => props.trip, () => {
                      </div>
                  </div>
              </div>
-
           </div>
        </div>
 

@@ -1,7 +1,7 @@
 ```
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { X, Search } from 'lucide-vue-next'
+import { X, Search, Sparkles } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { CampingTrip, NewCampingTrip, CampingGear } from '../types/database'
 
@@ -48,6 +48,7 @@ onMounted(async () => {
 })
 
 const isGeocoding = ref(false)
+const isAiLoading = ref(false)
 const coordPaste = ref('')
 
 // 解析貼上的座標字串
@@ -228,6 +229,47 @@ const handleClose = () => {
   resetForm()
 }
 
+import { fetchCampsiteInfo } from '../services/aiService'
+
+const autoFillAI = async () => {
+  if (!formData.value.campsite_name) {
+    alert('請先輸入營區名稱')
+    return
+  }
+
+  isAiLoading.value = true
+  try {
+    const data = await fetchCampsiteInfo(formData.value.campsite_name)
+    
+    if (data.location) formData.value.location = data.location
+    if (data.altitude) formData.value.altitude = data.altitude
+    if (data.coordinates) {
+      formData.value.latitude = data.coordinates.lat
+      formData.value.longitude = data.coordinates.lng
+    }
+    
+    // 將標籤與簡介加入備註
+    let aiNotes = ''
+    if (data.tags && data.tags.length > 0) {
+      aiNotes += `標籤：${data.tags.join(', ')}\n`
+    }
+    if (data.description) {
+      aiNotes += `簡介：${data.description}\n`
+    }
+    
+    if (aiNotes) {
+      formData.value.notes = (formData.value.notes ? formData.value.notes + '\n\n' : '') + '--- AI 智能提供 (高精度模型) ---\n' + aiNotes
+    }
+
+    alert('✅ AI 智能填寫完成！(已使用高精度模型)')
+  } catch (error) {
+    console.error('AI error:', error)
+    alert('AI 搜尋失敗，請手動輸入或稍後再試')
+  } finally {
+    isAiLoading.value = false
+  }
+}
+
 const openMapSearch = () => {
   const q = formData.value.campsite_name || ''
   const win = window as any
@@ -272,9 +314,20 @@ const openMapSearch = () => {
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                      營區名稱 <span class="text-red-500">*</span>
-                    </label>
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="block text-sm font-medium text-gray-700">
+                        營區名稱 <span class="text-red-500">*</span>
+                      </label>
+                      <button 
+                        type="button"
+                        @click="autoFillAI"
+                        :disabled="isAiLoading"
+                        class="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-primary-500/10 to-teal-500/10 text-primary-600 border border-primary-200 hover:from-primary-500 hover:to-teal-500 hover:text-white transition-all duration-300 disabled:opacity-50 font-bold"
+                      >
+                        <Sparkles class="w-3.5 h-3.5" :class="{ 'animate-spin': isAiLoading }" />
+                        {{ isAiLoading ? 'AI 填寫中...' : '✨ AI 智能填寫' }}
+                      </button>
+                    </div>
                     <input 
                       v-model="formData.campsite_name"
                       type="text" 

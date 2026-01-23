@@ -39,9 +39,9 @@ const nextTrip = computed(() => {
 </script>
 
 <template>
-  <div class="space-y-3 pb-32 md:max-w-4xl md:mx-auto md:pb-8">
+  <div class="space-y-2 md:space-y-3 pb-32 md:max-w-4xl md:mx-auto md:pb-8">
     <!-- 統計區塊 -->
-    <div class="px-4 mt-6">
+    <div class="px-4 mt-4 md:mt-6">
       <StatsHeader :trips="trips" />
     </div>
 

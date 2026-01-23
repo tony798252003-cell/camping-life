@@ -67,11 +67,19 @@ interface DayWeather {
     temp_max: number
     temp_min: number
   }
+  hourly: {
+    time: string
+    hourLabel: string
+    temp: number
+    code: number
+  }[]
 }
 
 const weather = ref<DayWeather[]>([])
 const loadingWeather = ref(false)
 const weatherError = ref<string | null>(null)
+const selectedDay = ref<DayWeather | null>(null)
+const showHourlyModal = ref(false)
 
 const getMostFrequentCode = (codes: any[]) => {
   if (!codes.length) return 0
@@ -137,7 +145,8 @@ const fetchWeather = async () => {
        const currentDate = new Date(tripDate)
        currentDate.setDate(currentDate.getDate() + dayOffset)
        const dateStr = currentDate.toISOString().split('T')[0] || ''
-       const dateLabel = `${currentDate.getMonth() + 1}/${currentDate.getDate()}` + (dayOffset === -1 ? ' (夜衝)' : '')
+       const isNightRushDay = dayOffset === -1
+       const dateLabel = `${currentDate.getMonth() + 1}/${currentDate.getDate()}` + (isNightRushDay ? ' (夜衝)' : '')
        
        const nextDate = new Date(currentDate)
        nextDate.setDate(nextDate.getDate() + 1)
@@ -145,6 +154,7 @@ const fetchWeather = async () => {
        
        const dayTemps: number[] = []
        const dayCodes: number[] = []
+       const hourly: DayWeather['hourly'] = []
        
        data.hourly.time.forEach((t: string, i: number) => {
          const utc = new Date(t + 'Z')
@@ -157,17 +167,25 @@ const fetchWeather = async () => {
          const temp = data.hourly.temperature_2m[i]
          const code = data.hourly.weather_code[i]
          
-         // 收集整天的天氣數據 (包含跨夜到隔天清晨)
          const isTargetDay = lds === dateStr
          const isNextDayEarlyMorning = lds === nextDateStr && lh < 6
 
          if (isTargetDay || isNextDayEarlyMorning) {
-            // 夜衝日特殊處置：只計算 17:00 之後
-            if (dayOffset === -1 && isTargetDay && lh < 17) {
+            if (isNightRushDay && isTargetDay && lh < 17) {
                return
             }
             dayTemps.push(temp)
             dayCodes.push(code)
+            
+            // 只有當前日期的小時才加入明細 (避免與隔天重複顯示)
+            if (isTargetDay) {
+              hourly.push({
+                time: t,
+                hourLabel: `${lh}:00`,
+                temp: Math.round(temp),
+                code: code
+              })
+            }
          }
        })
        
@@ -180,7 +198,8 @@ const fetchWeather = async () => {
            code: getMostFrequentCode(dayCodes),
            temp_max: Math.round(Math.max(...dayTemps)),
            temp_min: Math.round(Math.min(...dayTemps))
-         }
+         },
+         hourly
        })
      }
      weather.value = dailyWeather
@@ -273,19 +292,27 @@ watch(() => props.trip, async (val) => {
                       <CloudSun class="w-5 h-5 mr-2 text-accent-sky" />
                       天氣預報
                    </h3>
-                   <div class="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                      <div v-for="d in weather" :key="d.date" class="min-w-[140px] bg-white border border-primary-100 rounded-2xl p-4 flex-shrink-0 shadow-sm relative overflow-hidden group hover:shadow-md transition-all flex flex-col items-center">
+                   <div class="flex gap-4 overflow-x-auto pb-2 scrollbar-hide px-0.5">
+                      <button 
+                        v-for="d in weather" 
+                        :key="d.date" 
+                        @click="selectedDay = d; showHourlyModal = true"
+                        class="min-w-[140px] bg-white border border-primary-100 rounded-2xl p-4 flex-shrink-0 shadow-sm relative overflow-hidden group hover:shadow-md hover:border-accent-sky/30 transition-all flex flex-col items-center text-left"
+                      >
                           <div class="text-center font-bold text-primary-600 mb-3 border-b border-gray-100 pb-2 w-full">{{ d.dateLabel }}</div>
                           
                           <!-- Single Day Summary -->
                           <div class="flex flex-col items-center gap-2">
-                             <component :is="getWeatherIcon(d.day.code)" class="w-10 h-10 text-accent-orange drop-shadow-sm" />
-                             <div>
-                                <div class="text-[10px] text-primary-400 text-center mb-0.5">預報氣溫</div>
-                                <div class="font-black text-lg text-primary-900">{{ d.day.temp_min }}° - {{ d.day.temp_max }}°</div>
+                             <component :is="getWeatherIcon(d.day.code)" class="w-10 h-10 text-accent-orange drop-shadow-sm group-hover:scale-110 transition-transform duration-300" />
+                             <div class="text-center">
+                                <div class="text-[10px] text-primary-400 mb-0.5">預報氣溫</div>
+                                <div class="font-black text-lg text-primary-900 group-hover:text-accent-sky transition-colors">{{ d.day.temp_min }}° - {{ d.day.temp_max }}°</div>
+                             </div>
+                             <div class="mt-2 text-[10px] font-bold text-accent-sky/60 opacity-0 group-hover:opacity-100 transition-opacity">
+                                點擊查看小時明細
                              </div>
                           </div>
-                      </div>
+                      </button>
                    </div>
                 </div>
 
@@ -352,6 +379,68 @@ watch(() => props.trip, async (val) => {
       </div>
     </Transition>
   </Teleport>
+
+  <!-- Hourly Weather Modal -->
+  <Teleport to="body">
+    <Transition name="modal-bounce">
+      <div v-if="showHourlyModal && selectedDay" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <!-- 背景遮罩 -->
+        <div class="fixed inset-0 bg-primary-900/40 backdrop-blur-sm" @click="showHourlyModal = false"></div>
+        
+        <!-- Modal 本體 -->
+        <div class="relative bg-white/95 backdrop-blur-xl w-full max-w-sm max-h-[70vh] rounded-[2.5rem] shadow-2xl border border-white/50 flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+          
+          <!-- Modal Header -->
+          <div class="p-6 pb-2 flex items-center justify-between">
+            <div>
+              <h3 class="text-xl font-black text-primary-900">{{ selectedDay.dateLabel }} 氣溫明細</h3>
+              <p class="text-[10px] text-primary-500 font-bold uppercase tracking-wider">{{ trip?.campsite_name }}</p>
+            </div>
+            <button 
+              @click="showHourlyModal = false"
+              class="w-8 h-8 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center hover:bg-primary-200 transition-colors"
+            >
+              <X class="w-4 h-4" />
+            </button>
+          </div>
+
+          <!-- List Content -->
+          <div class="flex-1 overflow-y-auto p-4 pt-2 space-y-1.5 scrollbar-hide">
+            <div 
+              v-for="(hour, idx) in selectedDay.hourly" 
+              :key="hour.time"
+              class="flex items-center justify-between p-3 rounded-2xl transition-all hover:bg-primary-50/50"
+              :class="idx % 2 === 0 ? 'bg-primary-50/30' : ''"
+            >
+              <div class="flex items-center gap-3">
+                <div class="text-sm font-black text-primary-900 w-12">{{ hour.hourLabel }}</div>
+              </div>
+              
+              <div class="flex items-center gap-6">
+                <component 
+                  :is="getWeatherIcon(hour.code)" 
+                  class="w-6 h-6 text-accent-orange drop-shadow-sm" 
+                />
+                <div class="text-xl font-black text-primary-900 w-12 text-right">
+                  {{ hour.temp }}°
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="p-5 bg-gradient-to-t from-primary-50/50 text-center">
+            <button 
+              @click="showHourlyModal = false"
+              class="w-full py-3.5 bg-primary-600 text-white font-black rounded-2xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 active:scale-95"
+            >
+              了解
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -364,6 +453,23 @@ watch(() => props.trip, async (val) => {
 .modal-leave-to {
   opacity: 0;
 }
+
+/* Hourly Modal Animation */
+.modal-bounce-enter-active {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.modal-bounce-leave-active {
+  transition: all 0.25s ease-in;
+}
+.modal-bounce-enter-from {
+  opacity: 0;
+  transform: translateY(30px) scale(0.95);
+}
+.modal-bounce-leave-to {
+  opacity: 0;
+  transform: translateY(20px) scale(0.98);
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .scrollbar-hide::-webkit-scrollbar {
     display: none;
