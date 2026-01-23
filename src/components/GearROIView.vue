@@ -20,11 +20,15 @@ const defaultExamples: NewCampingGear[] = [
 
 // Fetch Data
 const fetchGear = async () => {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return
+
   loading.value = true
   try {
     const { data, error } = await supabase
       .from('camping_gear')
       .select('*')
+      .eq('user_id', session.user.id)
       .order('created_at', { ascending: true })
 
     if (error) throw error
@@ -39,6 +43,9 @@ const fetchGear = async () => {
 
 // Actions
 const addItem = async () => {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return
+
   try {
     const newItem: NewCampingGear = {
       name: '新裝備',
@@ -46,7 +53,8 @@ const addItem = async () => {
       usage_count: 0, // DB default
       cost: 0,
       rental_price: 0,
-      type: 'other'
+      type: 'other',
+      user_id: session.user.id
     }
     
     const { data, error } = await (supabase
