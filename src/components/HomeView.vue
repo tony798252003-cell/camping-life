@@ -3,7 +3,7 @@ import { computed, watch, onMounted, ref } from 'vue'
 import type { CampingTrip } from '../types/database'
 import StatsHeader from './StatsHeader.vue'
 import NextTripCard from './NextTripCard.vue'
-import { Navigation, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-vue-next'
+import { Navigation, RotateCcw } from 'lucide-vue-next'
 
 const props = defineProps<{
   trips: CampingTrip[]
@@ -145,26 +145,15 @@ onMounted(() => {
       <div class="relative group/card">
         <NextTripCard 
           :trip="displayedTrip" 
+          :has-prev="currentIndex > 0"
+          :has-next="currentIndex < sortedTrips.length - 1"
+          @prev="prevSlide"
+          @next="nextSlide"
           @click="emit('view-detail', displayedTrip)" 
           @update-night-rush="payload => emit('update-night-rush', payload)"
         />
         
-        <!-- Navigation Buttons -->
-        <button 
-          v-if="currentIndex > 0"
-          @click.stop="prevSlide"
-          class="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-3 text-white/60 hover:text-white transition-all duration-300 drop-shadow-xl hover:scale-110 active:scale-95"
-        >
-          <ChevronLeft class="w-10 h-10 md:w-12 md:h-12 drop-shadow-md" />
-        </button>
 
-        <button 
-          v-if="currentIndex < sortedTrips.length - 1"
-          @click.stop="nextSlide"
-          class="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-3 text-white/60 hover:text-white transition-all duration-300 drop-shadow-xl hover:scale-110 active:scale-95"
-        >
-          <ChevronRight class="w-10 h-10 md:w-12 md:h-12 drop-shadow-md" />
-        </button>
 
         <!-- Jump Back Button -->
         <!-- Jump Back Button -->
@@ -182,37 +171,30 @@ onMounted(() => {
       <!-- 立即出發按鈕 (Lifted Premium Style) -->
       <button 
         @click.stop="navigateToGoogleMaps"
-        class="group relative w-full overflow-hidden rounded-full p-3 md:p-4 flex items-center justify-between transition-all duration-500 active:scale-[0.96] border-2 border-sky-100 shadow-[0_15px_30px_-5px_rgba(14,165,233,0.15)] hover:shadow-[0_20px_40px_-5px_rgba(14,165,233,0.25)] hover:border-sky-300/50 bg-white"
+        class="group relative w-fit mx-auto overflow-hidden rounded-full py-2 px-5 md:py-3 md:px-6 flex items-center justify-center transition-all duration-500 active:scale-[0.96] border-2 border-sky-100 shadow-[0_15px_30px_-5px_rgba(14,165,233,0.15)] hover:shadow-[0_20px_40px_-5px_rgba(14,165,233,0.25)] hover:border-sky-300/50 bg-white"
       >
         <!-- Interactive Shine Effect -->
         <div class="absolute inset-0 bg-gradient-to-b from-white via-sky-50/30 to-sky-100/20 group-hover:from-sky-50 transition-colors duration-500"></div>
         <div class="absolute -inset-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] group-hover:left-full transition-all duration-1000 ease-in-out"></div>
 
-        <div class="flex items-center gap-3 md:gap-4 relative z-10 pl-2">
+        <div class="flex items-center gap-3 relative z-10">
           <!-- Icon Container with Muted Depth -->
           <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-sky-300 to-sky-400 flex items-center justify-center text-white shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),0_4px_10px_rgba(14,165,233,0.15)] group-hover:rotate-[15deg] transition-transform duration-500">
             <Navigation class="w-5 h-5 md:w-6 md:h-6 animate-pulse-slow fill-current" />
           </div>
           
-          <div class="text-left flex items-baseline gap-2 md:gap-3">
-            <h3 class="text-xl md:text-2xl font-black text-primary-900 tracking-wider leading-none">
+          <div class="text-left flex flex-col items-start gap-0.5">
+            <h3 class="text-lg md:text-xl font-black text-primary-900 tracking-wider leading-none">
               立即出發
             </h3>
-            <div v-if="travelTime || loadingTravelTime" class="text-[10px] md:text-xs font-bold text-sky-500/70 tracking-wide bg-sky-50/50 px-2 py-0.5 rounded-lg border border-sky-100">
+            <div v-if="travelTime || loadingTravelTime" class="text-[10px] font-bold text-sky-500/70 tracking-wide">
                <span v-if="travelTime">預估 {{ travelTime }}</span>
                <span v-else class="animate-pulse opacity-60">計算中...</span>
             </div>
           </div>
         </div>
 
-        <!-- Right Side Indicator -->
-        <div class="relative z-10 pr-2">
-          <div class="w-9 h-9 md:w-11 md:h-11 rounded-full bg-white flex items-center justify-center border border-gray-100 text-sky-500 group-hover:scale-110 group-hover:bg-primary-900 group-hover:text-white transition-all duration-500 shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 5l7 7-7 7" />
-            </svg>
-          </div>
-        </div>
+
       </button>
     </div>
 

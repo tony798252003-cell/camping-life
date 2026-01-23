@@ -367,6 +367,17 @@ watch(() => props.trip, async (val) => {
                      <p class="text-xs text-primary-500 mb-1">帳篷</p>
                      <p class="font-bold text-primary-900">{{ trip.tent_type || '未記錄' }}</p>
                   </div>
+                  <div v-if="trip.zone" class="p-4 bg-surface-50 rounded-2xl border border-primary-50">
+                     <p class="text-xs text-primary-500 mb-1">營位</p>
+                     <p class="font-bold text-primary-900">{{ trip.zone }}</p>
+                  </div>
+                  <div v-if="trip.companions" class="p-4 bg-surface-50 rounded-2xl border border-primary-50">
+                     <p class="text-xs text-primary-500 mb-1">同行夥伴</p>
+                     <p class="font-bold text-primary-900 flex items-center gap-1.5">
+                       <span>👥</span>
+                       <span>{{ trip.companions }}</span>
+                     </p>
+                  </div>
                 </div>
 
                 <!-- 評分 -->

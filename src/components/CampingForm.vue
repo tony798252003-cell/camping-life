@@ -32,7 +32,9 @@ const formData = ref<NewCampingTrip>({
   latitude: undefined,
   longitude: undefined,
   start_latitude: undefined,
-  start_longitude: undefined
+  start_longitude: undefined,
+  zone: '',
+  companions: ''
 })
 
 const tents = ref<CampingGear[]>([])
@@ -407,6 +409,26 @@ const openMapSearch = () => {
                       type="number"
                       class="w-full px-4 py-2.5 bg-surface-50 border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all outline-none"
                       placeholder="例：1500"
+                    />
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">營位</label>
+                    <input 
+                      v-model="formData.zone"
+                      type="text"
+                      class="w-full px-4 py-2.5 bg-surface-50 border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all outline-none"
+                      placeholder="例：A區、草地區"
+                    />
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">同行夥伴</label>
+                    <input 
+                      v-model="formData.companions"
+                      type="text"
+                      class="w-full px-4 py-2.5 bg-surface-50 border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all outline-none"
+                      placeholder="例：爸爸、媽媽、小明"
                     />
                   </div>
                 </div>
