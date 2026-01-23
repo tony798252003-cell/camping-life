@@ -144,22 +144,41 @@ const handleLogout = async () => {
 }
 
 onMounted(() => {
+  // Check if we are handling an OAuth redirect
+  // Support both Implicit (hash) and PKCE (search param 'code') flows
+  const hasAuthHash = (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('refresh_token'))) || 
+                      (window.location.search && window.location.search.includes('code'))
+  
   // Get initial session
   supabase.auth.getSession().then(({ data }) => {
     session.value = data.session
     if (session.value) {
       fetchTrips()
+      isAuthReady.value = true
+    } else if (!hasAuthHash) {
+      // Only set ready if NO session AND NO auth hash (normal login page load)
+      isAuthReady.value = true
     }
-    isAuthReady.value = true
+    // If hasAuthHash is true, we wait for onAuthStateChange
   })
 
   // Listen for auth changes
   supabase.auth.onAuthStateChange((_event, _session) => {
+    // If we have a hash and get a session, now we are ready
+    if (hasAuthHash && _session) {
+      isAuthReady.value = true
+    }
+    
     session.value = _session
     if (_session) {
-      if (isAuthReady.value) fetchTrips() // Only fetch if ready, otherwise the initial fetch handles it
+      if (isAuthReady.value) fetchTrips() 
     } else {
       trips.value = []
+      // If we were waiting but got no session (e.g. error), force ready to show login
+      // But give it a small timeout to ensure it's not a race
+      if (hasAuthHash) {
+         setTimeout(() => { isAuthReady.value = true }, 1000)
+      }
     }
   })
 })
