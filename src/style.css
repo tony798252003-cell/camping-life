@@ -1,43 +1,77 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* Primary Brand Colors - Nature Inspired */
-  --color-primary-50: #f0fdf4;
-  --color-primary-100: #dcfce7;
-  --color-primary-500: #22c55e;
-  --color-primary-600: #16a34a;
-  --color-primary-900: #14532d;
+  /* Primary Brand Colors - Biomimetic Sky */
+  --color-primary-50: #f0f9ff;
+  --color-primary-100: #e0f2fe;
+  --color-primary-400: #38bdf8;
+  --color-primary-500: #0ea5e9;
+  --color-primary-600: #0284c7;
+  --color-primary-900: #0c4a6e;
 
-  /* Accent Colors - Lively & Fun */
+  /* CTA / Accent Colors - Adventure Orange */
   --color-accent-orange: #f97316;
   --color-accent-sky: #0ea5e9;
-  --color-accent-rose: #f43f5e;
+  --color-accent-surface: #f0f9ff;
 
   /* Background Tones */
-  --color-surface-50: #f8fafc;
-  --color-surface-100: #f1f5f9;
+  --color-surface-50: #f0f9ff;
+  --color-surface-100: #e0f2fe;
+  --color-surface-white: #ffffff;
 }
 
 /* Base Styles */
 body {
   font-family: var(--font-sans);
   background-color: var(--color-surface-50);
-  color: #1e293b;
+  color: var(--color-primary-900);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Utilities for "Lively" feel */
-.card-hover {
+/* Biomimetic / Organic Utilities */
+.card-organic {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 
+    0 4px 6px -1px rgba(14, 165, 233, 0.05),
+    0 2px 4px -1px rgba(14, 165, 233, 0.03);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.card-hover:hover {
+.card-organic:hover {
   transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  box-shadow: 
+    0 20px 25px -5px rgba(14, 165, 233, 0.1),
+    0 10px 10px -5px rgba(14, 165, 233, 0.04);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.btn-primary {
+  background-color: var(--color-primary-500);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-600);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+.btn-cta {
+  background-color: var(--color-accent-orange);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-cta:hover {
+  background-color: #ea580c;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  transform: translateY(-1px);
 }
 
 .btn-bounce {

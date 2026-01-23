@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { CloudSun, CloudRain, Sun, Cloud, Moon, Tent } from 'lucide-vue-next'
+import { CloudSun, CloudRain, Sun, Cloud, Moon, Tent, MapPin } from 'lucide-vue-next'
 import type { CampingTrip } from '../types/database'
 
 interface Props {
@@ -65,14 +65,6 @@ const statusLabel = computed(() => {
   return '即將出發'
 })
 
-const statusColor = computed(() => {
-  const status = statusLabel.value
-  if (status.includes('夜衝')) return 'bg-indigo-100 text-indigo-700 border-indigo-200'
-  if (status.includes('收帳')) return 'bg-orange-100 text-orange-700 border-orange-200'
-  if (status.includes('露營中')) return 'bg-green-100 text-green-700 border-green-200'
-  return 'bg-blue-100/50 text-blue-600 border-blue-200'
-})
-
 const toggleNightRush = () => {
   emit('update-night-rush', { 
     id: props.trip.id, 
@@ -85,6 +77,12 @@ const countdown = computed(() => {
   today.setHours(0, 0, 0, 0)
   const tripDate = new Date(props.trip.trip_date)
   tripDate.setHours(0,0,0,0)
+  
+  // 若有夜衝，目標日期提早一天
+  if (props.trip.night_rush) {
+    tripDate.setDate(tripDate.getDate() - 1)
+  }
+  
   const diffTime = tripDate.getTime() - today.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
   if (diffDays < 0) return '已出發'
@@ -274,102 +272,122 @@ watch(() => props.trip, () => {
 </script>
 
 <template>
-  <div v-if="trip" class="relative w-full overflow-hidden rounded-[2.5rem] shadow-2xl transition-all duration-500 hover:shadow-blue-500/20 group">
-    <!-- 背景特效 -->
-    <div class="absolute inset-0 bg-blue-50/80 border border-blue-100"></div>
-    <div class="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+  <div v-if="trip" class="relative w-full overflow-hidden rounded-[2.5rem] card-organic group">
     
-    <!-- 裝飾光暈 -->
-    <div class="absolute top-0 right-0 w-80 h-80 bg-yellow-300 rounded-full blur-[100px] opacity-30 -mr-20 -mt-20 animate-pulse"></div>
-    <div class="absolute bottom-0 left-0 w-60 h-60 bg-blue-400 rounded-full blur-[80px] opacity-30 -ml-20 -mb-20"></div>
+    <!-- Background Art (User Custom Image) -->
+    <div class="absolute inset-0 z-0">
+       <img 
+         src="/images/card_bg.jpg" 
+         alt="Card Background" 
+         class="w-full h-full object-cover opacity-60"
+       />
+       <!-- Overlay for better text readability -->
+       <div class="absolute inset-0 bg-white/40 backdrop-blur-[2px]"></div>
+    </div>
+    
+    <!-- Illustration Removed as per request -->
 
-    <div class="relative z-10 p-6 md:p-10 text-gray-900 grid md:grid-cols-1 gap-4 md:gap-4 md:place-items-center">
+    <!-- Main Content Container -->
+    <div class="relative z-10 p-8 flex flex-col items-center justify-center min-h-[420px]">
       
-      <!-- 主要資訊 -->
-      <div class="flex flex-col justify-center items-center w-full">
-        <!-- 狀態標籤 -->
-        <div class="relative z-10 text-center mb-6">
-           <span class="px-4 py-1.5 rounded-full text-sm font-bold tracking-wider uppercase shadow-sm transition-all"
-               :class="statusColor">
-               {{ statusLabel }}
-           </span>
-        </div>
-        
-        <!-- 名稱 -->
-        <h2 class="text-4xl md:text-5xl font-black text-gray-800 tracking-tight mb-4 leading-tight text-center">
-             {{ trip.campsite_name }}
-        </h2>
+      <!-- Top Pill: Status -->
+      <div class="mb-4">
+         <span class="inline-block px-4 py-1.5 rounded-full text-sm font-bold tracking-wider bg-white/80 backdrop-blur-md text-primary-700 shadow-sm border border-white/50">
+           {{ statusLabel }}
+         </span>
+      </div>
 
-        <!-- 日期與夜衝開關 -->
-        <!-- 日期與夜衝開關 -->
-        <!-- 日期與夜衝開關 -->
-        <!-- 日期與夜衝開關 -->
-        <div class="relative w-full flex justify-center mb-6">
-           <!-- 使用 inline-flex 讓容器大小隨內容改變，並保持在正中央 -->
-           <div class="relative inline-flex items-center">
-              <div class="text-gray-700 text-xl font-bold tracking-tight">
-                {{ dateRange }}
-              </div>
-              
-              <!-- 夜衝按鈕: 絕對定位於日期右側，不影響父容器置中 -->
+      <!-- Title (Centered) -->
+      <h2 class="text-4xl md:text-5xl font-black text-primary-900 tracking-tight leading-tight text-center mb-2 drop-shadow-sm">
+           {{ trip.campsite_name }}
+      </h2>
+
+      <!-- Date (Centered) -->
+      <div class="relative mb-8 w-full flex justify-center">
+         <div class="relative text-xl font-bold text-primary-800 font-mono tracking-tight">
+           {{ dateRange }}
+           
+           <div class="absolute left-full top-1/2 -translate-y-1/2 ml-4">
               <button 
-                  @click.stop="toggleNightRush"
-                  class="absolute left-full ml-3 p-2 rounded-full transition-all duration-300 transform hover:scale-110 top-1/2 -translate-y-1/2"
-                  :class="trip.night_rush 
-                    ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 shadow-sm' 
-                    : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'"
-                  title="切換夜衝狀態"
-                >
-                  <component :is="Moon" class="w-5 h-5" :class="{ 'fill-current': trip.night_rush }" />
+                @click.stop="toggleNightRush"
+                class="group flex items-center justify-center w-9 h-9 rounded-full transition-all duration-500 shadow-sm border backdrop-blur-md"
+                :class="trip.night_rush 
+                  ? 'bg-indigo-500/80 border-indigo-400/50 text-yellow-200 shadow-[0_0_15px_rgba(99,102,241,0.4)] scale-110 ring-2 ring-indigo-200/30' 
+                  : 'bg-white/60 border-white/60 text-primary-300 hover:bg-white hover:text-primary-600 hover:shadow-md'"
+                title="切換夜衝狀態"
+              >
+                <Moon class="w-4 h-4 transition-transform duration-500" 
+                      :class="{ '-rotate-12 fill-current drop-shadow-sm': trip.night_rush, 'group-hover:rotate-12': !trip.night_rush }" />
               </button>
            </div>
-        </div>
-        
-        <!-- 倒數 -->
-        <div class="flex flex-col items-center mb-6">
-            <div class="text-8xl font-black text-blue-500 leading-none tracking-tighter font-['Outfit'] drop-shadow-sm">
-                 {{ countdown }}
-            </div>
-            <div class="text-gray-400 text-lg font-medium tracking-widest mt-1">倒數天數</div>
-        </div>
-
-        <!-- 天氣摘要 -->
-         <div v-if="loadingWeather" class="h-16 flex items-center text-gray-400 text-sm animate-pulse">
-            <Cloud class="w-5 h-5 mr-2" />
-            更新天氣中...
          </div>
-         <div v-else-if="weather.length > 0 && weather[0]" class="w-full flex flex-col items-center gap-3">
-            <!-- 氣溫卡片 -->
-            <div class="flex items-center bg-gradient-to-br from-white to-blue-50 px-6 py-4 rounded-2xl shadow-sm border border-blue-100/50">
-               <div class="flex items-center gap-3">
-                  <component :is="getWeatherIcon(weather[0].day.code)" class="w-10 h-10 text-yellow-500 drop-shadow-sm" />
-                  <div class="text-left">
-                     <div class="text-xs text-gray-500 mb-0.5">預報氣溫</div>
-                     <div class="text-2xl font-black text-gray-800">
-                       {{ weather[0].day.temp_min }}° - {{ weather[0].day.temp_max }}°
-                     </div>
-                  </div>
-               </div>
-            </div>
-
-            <!-- 撤收狀態標籤 -->
-            <div v-if="packingStatus" 
-                 class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold shadow-sm border"
-                 :class="packingStatus === 'dry' 
-                    ? 'bg-green-50 text-green-700 border-green-200' 
-                    : 'bg-red-50 text-red-700 border-red-200'"
-            >
-                <Tent class="w-4 h-4" />
-                {{ packingStatus === 'dry' ? '乾燥撤收' : '濕帳撤收' }}
-                <span class="text-xs font-normal opacity-75 ml-1">(預測)</span>
-            </div>
-         </div>
-         <div v-else-if="weatherError" class="text-sm text-gray-400 flex items-center">
-            <CloudRain class="w-4 h-4 mr-2" />
-            {{ weatherError === 'no_coords' ? '尚未設定座標' : '暫無天氣資料' }}
-         </div>
-
       </div>
+
+      <!-- Countdown (Big Number) -->
+      <div class="flex flex-col items-center mb-10 relative">
+          <div class="text-[8rem] leading-none font-black text-accent-sky drop-shadow-sm tracking-tighter relative z-10 font-sans">
+               {{ countdown }}
+          </div>
+          <div v-if="countdown !== 'GO!'" class="text-primary-600 font-bold tracking-[0.2em] text-sm uppercase mt-0">
+               {{ (countdown === 'ING' || countdown === '已出發') ? '露營進行中' : '倒數天數' }}
+          </div>
+      </div>
+
+      <!-- Location (Bottom Center) -->
+      <div class="flex items-center gap-2 text-primary-700 bg-white/60 px-4 py-2 rounded-xl backdrop-blur-md border border-white/50 mb-6 shadow-sm">
+        <MapPin class="w-4 h-4 text-green-600" />
+        <span class="font-bold text-sm">{{ trip.location || '未設定地點' }}</span>
+      </div>
+
+      <!-- Weather Card (Compact at bottom, transparent) -->
+       <div v-if="weather.length > 0 && weather[0]" class="w-full flex justify-center">
+          <!-- 整合卡片: 氣溫 + 撤收狀態 (Original Style) -->
+          <div class="flex items-center bg-white/80 backdrop-blur-md px-3 md:px-5 py-3 rounded-2xl shadow-sm border border-white/60 gap-2 md:gap-5 max-w-[95vw] md:max-w-sm mx-auto">
+             
+             <!-- 氣溫部分 -->
+             <div class="flex items-center gap-2 md:gap-3 min-w-0">
+                <component :is="getWeatherIcon(weather[0].day.code)" class="w-8 h-8 md:w-10 md:h-10 text-accent-orange drop-shadow-sm flex-shrink-0" />
+                <div class="text-left min-w-0">
+                   <div class="text-[10px] md:text-xs text-primary-500 mb-0.5 whitespace-nowrap">預報氣溫</div>
+                   <div class="text-lg md:text-2xl font-black text-primary-900 leading-none whitespace-nowrap">
+                     {{ weather[0].day.temp_min }}° - {{ weather[0].day.temp_max }}°
+                   </div>
+                </div>
+             </div>
+             
+             <!-- 分隔線 (若有撤收狀態才顯示) -->
+             <div v-if="packingStatus" class="w-px h-8 md:h-10 bg-primary-100 flex-shrink-0"></div>
+
+             <!-- 撤收狀態部分 (Original Badge Style) -->
+             <div v-if="packingStatus" class="flex items-center gap-2 md:gap-3 min-w-0">
+                 <div class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full flex-shrink-0"
+                      :class="packingStatus === 'dry' ? 'bg-emerald-100/50 text-emerald-600' : 'bg-red-100/50 text-red-600'"
+                 >
+                    <Tent class="w-5 h-5 md:w-6 md:h-6" />
+                 </div>
+                 <div class="text-left min-w-0">
+                     <div class="text-[10px] md:text-xs text-primary-500 mb-0.5 whitespace-nowrap">收帳預測</div>
+                     <div class="text-lg md:text-xl font-black leading-none whitespace-nowrap"
+                          :class="packingStatus === 'dry' ? 'text-emerald-700' : 'text-red-700'"
+                     >
+                         {{ packingStatus === 'dry' ? '乾燥撤收' : '濕帳撤收' }}
+                     </div>
+                 </div>
+             </div>
+
+          </div>
+       </div>
+
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(1.05); }
+}
+.animate-pulse-slow {
+  animation: pulse-slow 6s ease-in-out infinite;
+}
+</style>

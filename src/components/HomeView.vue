@@ -56,10 +56,11 @@ const nextTrip = computed(() => {
     </div>
 
     <!-- 如果沒有下次露營，顯示空狀態引導 -->
-    <div v-else class="px-4 py-8 text-center bg-gray-50 rounded-3xl mx-4 border border-dashed border-gray-200">
-      <div class="text-4xl mb-3">🏕️</div>
-      <h3 class="text-lg font-bold text-gray-900 mb-1">準備好出發了嗎？</h3>
-      <p class="text-sm text-gray-500 mb-4">目前沒有即將到來的行程</p>
+    <div v-else class="px-4 py-12 text-center card-organic rounded-3xl mx-4">
+      <div class="text-6xl mb-6 animate-bounce">🏕️</div>
+      <h3 class="text-xl font-bold text-primary-900 mb-2">準備好出發了嗎？</h3>
+      <p class="text-primary-600 mb-6 font-medium">目前沒有即將到來的行程，開始規劃下一次冒險吧！</p>
+      <!-- CTA Button handled by FAB globally, but could add one here if needed -->
     </div>
   </div>
 </template>

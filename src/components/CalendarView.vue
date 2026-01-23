@@ -125,31 +125,31 @@ const getTripColor = (trip: CampingTrip) => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-white overflow-hidden pb-20 md:pb-0">
+  <div class="h-full flex flex-col bg-surface-50 overflow-hidden pb-20 md:pb-0 font-sans">
      <!-- Mobile Header -->
-     <div class="md:hidden sticky top-0 bg-white z-10 p-4 border-b border-gray-100 flex items-center justify-between">
-        <h1 class="text-2xl font-black text-gray-900">露營行事曆</h1>
-        <div class="flex items-center gap-2 bg-gray-50 rounded-xl p-1">
-           <button @click="prevMonth" class="p-2 hover:bg-white rounded-lg transition-all shadow-sm">
-             <ChevronLeft class="w-5 h-5 text-gray-600" />
+     <div class="md:hidden sticky top-0 bg-white/80 backdrop-blur-md z-10 p-4 border-b border-primary-100 flex items-center justify-between supports-[backdrop-filter]:bg-white/60">
+        <h1 class="text-2xl font-black text-primary-900 tracking-tight">露營行事曆</h1>
+        <div class="flex items-center gap-2 bg-surface-100 rounded-xl p-1 border border-primary-100">
+           <button @click="prevMonth" class="p-2 hover:bg-white rounded-lg transition-all shadow-sm text-primary-600">
+             <ChevronLeft class="w-5 h-5" />
            </button>
-           <span class="font-bold text-gray-700 w-24 text-center">{{ monthTitle }}</span>
-           <button @click="nextMonth" class="p-2 hover:bg-white rounded-lg transition-all shadow-sm">
-             <ChevronRight class="w-5 h-5 text-gray-600" />
+           <span class="font-bold text-primary-800 w-24 text-center">{{ monthTitle }}</span>
+           <button @click="nextMonth" class="p-2 hover:bg-white rounded-lg transition-all shadow-sm text-primary-600">
+             <ChevronRight class="w-5 h-5" />
            </button>
         </div>
      </div>
 
      <!-- Desktop Header -->
-     <div class="hidden md:flex sticky top-0 bg-white z-10 p-6 border-b border-gray-100 items-center justify-between">
+     <div class="hidden md:flex sticky top-0 bg-white/80 backdrop-blur-md z-10 p-6 border-b border-primary-100 items-center justify-between supports-[backdrop-filter]:bg-white/60">
         <div class="flex items-center gap-4">
-           <h1 class="text-3xl font-black text-gray-900">年度計畫</h1>
-           <div class="flex items-center gap-4 bg-gray-50 rounded-xl p-1.5 shadow-sm border border-gray-100">
-             <button @click="prevYear" class="p-2 hover:bg-white rounded-lg transition-all shadow-sm text-gray-600 hover:text-primary-600">
+           <h1 class="text-3xl font-black text-primary-900 tracking-tight">年度計畫</h1>
+           <div class="flex items-center gap-4 bg-surface-100 rounded-xl p-1.5 shadow-sm border border-primary-100">
+             <button @click="prevYear" class="p-2 hover:bg-white rounded-lg transition-all shadow-sm text-primary-500 hover:text-primary-700">
                <ChevronLeft class="w-6 h-6" />
              </button>
-             <span class="font-black text-2xl text-primary-600 w-32 text-center font-['Outfit']">{{ yearTitle }}</span>
-             <button @click="nextYear" class="p-2 hover:bg-white rounded-lg transition-all shadow-sm text-gray-600 hover:text-primary-600">
+             <span class="font-black text-2xl text-primary-700 w-32 text-center">{{ yearTitle }}</span>
+             <button @click="nextYear" class="p-2 hover:bg-white rounded-lg transition-all shadow-sm text-primary-500 hover:text-primary-700">
                <ChevronRight class="w-6 h-6" />
              </button>
            </div>
@@ -158,29 +158,29 @@ const getTripColor = (trip: CampingTrip) => {
 
      <!-- Mobile View: Single Month -->
      <div class="md:hidden flex-1 p-4 overflow-y-auto">
-        <div class="grid grid-cols-7 mb-2 text-center text-xs font-medium text-gray-500">
-          <div class="py-1 text-red-500">一</div>
+        <div class="grid grid-cols-7 mb-2 text-center text-xs font-bold text-primary-400">
+          <div class="py-1 text-accent-orange/70">一</div>
           <div class="py-1">二</div>
           <div class="py-1">三</div>
           <div class="py-1">四</div>
           <div class="py-1">五</div>
-          <div class="py-1 text-primary-500">六</div>
-          <div class="py-1 text-red-500">日</div>
+          <div class="py-1 text-primary-600">六</div>
+          <div class="py-1 text-accent-orange/70">日</div>
         </div>
 
         <div class="grid grid-cols-7 gap-2 auto-rows-fr">
            <div 
-             v-for="(day, idx) in currentMonthDays" 
-             :key="idx" 
-             class="relative min-h-[60px] rounded-xl border flex flex-col items-center pt-2 transition-all cursor-pointer"
+             v-for="day in currentMonthDays" 
+             :key="day.date.toISOString()" 
+             class="relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer group/day"
              :class="[
-               day.isCurrentMonth ? 'bg-white border-gray-100 text-gray-900' : 'bg-gray-50/50 border-transparent text-gray-300',
-               day.isToday ? 'ring-2 ring-primary-400 z-10' : '',
-               day.trips.length > 0 ? 'hover:border-primary-200 hover:shadow-md' : 'hover:bg-gray-50'
+               day.isCurrentMonth ? 'text-primary-700' : 'text-primary-200',
+               day.isToday ? 'bg-primary-200 font-bold text-accent-sky ring-2 ring-accent-sky/30' : 'hover:bg-surface-50/50 active:bg-primary-100',
+               day.trips.length > 0 ? 'bg-primary-50 border border-primary-300' : ''
              ]"
              @click="handleDayClick(day)"
            >
-              <span class="text-sm font-bold" :class="{'text-primary-600': day.isToday}">
+              <span class="text-sm font-bold" :class="{'text-accent-sky': day.isToday}">
                 {{ day.date.getDate() }}
               </span>
 
@@ -191,9 +191,17 @@ const getTripColor = (trip: CampingTrip) => {
                    class="w-full h-1.5 rounded-full"
                    :class="getTripColor(trip)"
                  ></div>
-                 <span v-if="day.trips.length > 0 && day.isCurrentMonth" class="text-[9px] truncate w-full text-center text-gray-500 font-medium px-0.5">
+                 <span v-if="day.trips.length > 0 && day.isCurrentMonth" class="text-[10px] truncate w-full text-center text-primary-600 font-medium px-0.5">
                     {{ day.trips[0]?.campsite_name }}
                  </span>
+              </div>
+              
+              <!-- Mobile Tooltip (on tap/hover) -->
+              <div v-if="day.trips.length > 0 && day.isCurrentMonth" class="absolute bottom-full mb-2 hidden group-hover/day:block group-active/day:block z-50 pointer-events-none">
+                <div class="bg-primary-900 text-white text-xs px-3 py-1.5 rounded-lg shadow-xl whitespace-nowrap relative">
+                  {{ day.trips[0]?.campsite_name }}
+                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-primary-900"></div>
+                </div>
               </div>
            </div>
         </div>
@@ -202,11 +210,11 @@ const getTripColor = (trip: CampingTrip) => {
      <!-- Desktop View: Full Year Grid -->
      <div class="hidden md:block flex-1 p-8 overflow-y-auto">
         <div class="grid grid-cols-3 xl:grid-cols-4 gap-8">
-           <div v-for="(month, mIdx) in fullYearMonths" :key="mIdx" class="bg-gray-50 rounded-3xl p-5 border border-gray-100 hover:shadow-lg transition-all duration-300 hover:bg-white group">
-              <h3 class="text-lg font-bold text-gray-800 mb-3 pl-1 border-l-4 border-primary-400 group-hover:text-primary-600 transition-colors">&nbsp;{{ month.name }}</h3>
+           <div v-for="(month, mIdx) in fullYearMonths" :key="mIdx" class="bg-white rounded-3xl p-5 border border-primary-100 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] group card-organic">
+              <h3 class="text-lg font-bold text-primary-800 mb-3 pl-1 border-l-4 border-primary-400 group-hover:text-primary-600 transition-colors">&nbsp;{{ month.name }}</h3>
               
-              <div class="grid grid-cols-7 mb-2 text-center text-[10px] font-medium text-gray-400">
-                <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="text-primary-400">六</div><div class="text-red-400">日</div>
+              <div class="grid grid-cols-7 mb-2 text-center text-[10px] font-medium text-primary-300">
+                <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="text-primary-500">六</div><div class="text-accent-orange/60">日</div>
               </div>
 
               <div class="grid grid-cols-7 gap-1">
@@ -215,9 +223,9 @@ const getTripColor = (trip: CampingTrip) => {
                    :key="dIdx" 
                    class="relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer group/day"
                    :class="[
-                     day.isCurrentMonth ? 'text-gray-700' : 'text-gray-200',
-                     day.isToday ? 'bg-blue-100 font-bold text-blue-700' : 'hover:bg-gray-100',
-                     day.trips.length > 0 ? 'bg-white ring-1 ring-green-200 shadow-sm' : ''
+                     day.isCurrentMonth ? 'text-primary-700' : 'text-primary-100',
+                     day.isToday ? 'bg-primary-50 font-bold text-accent-sky' : 'hover:bg-primary-50',
+                     day.trips.length > 0 ? 'bg-white ring-1 ring-accent-sky/30 shadow-sm' : ''
                    ]"
                    @click="handleDayClick(day)"
                  >
@@ -227,9 +235,9 @@ const getTripColor = (trip: CampingTrip) => {
                     
                     <!-- Tooltip -->
                     <div v-if="day.trips.length > 0" class="absolute bottom-full mb-2 hidden group-hover/day:block z-50 whitespace-nowrap">
-                      <div class="bg-gray-800 text-white text-[10px] px-2 py-1 rounded shadow-lg relative">
+                      <div class="bg-primary-900 text-white text-[10px] px-2 py-1 rounded shadow-lg relative">
                         {{ day.trips[0]?.campsite_name }}
-                        <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                        <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-primary-900"></div>
                       </div>
                     </div>
                  </div>

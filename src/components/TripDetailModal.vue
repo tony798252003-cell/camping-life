@@ -217,28 +217,28 @@ watch(() => props.trip, async (val) => {
     <Transition name="modal">
       <div v-if="isOpen && trip" class="fixed inset-0 z-50 overflow-y-auto">
         <!-- 背景遮罩 -->
-        <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" @click="emit('close')"></div>
+        <div class="fixed inset-0 bg-primary-900/40 backdrop-blur-sm transition-opacity" @click="emit('close')"></div>
         
         <!-- Modal 本體 -->
         <div class="flex min-h-full items-center justify-center p-4">
-          <div class="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-white/20">
+          <div class="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-white/40 ring-1 ring-primary-100">
             
             <!-- 頂部圖片 -->
-            <div class="h-32 w-full bg-gradient-to-r from-teal-400 to-blue-500 relative overflow-hidden">
+            <div class="h-32 w-full bg-gradient-to-r from-primary-400 to-primary-600 relative overflow-hidden">
                <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-white/20 rounded-full blur-2xl"></div>
                <div class="absolute top-10 left-10 w-20 h-20 bg-white/20 rounded-full blur-xl"></div>
             </div>
 
-            <button @click="emit('close')" class="absolute top-4 right-4 p-2 bg-black/20 text-white hover:bg-black/30 rounded-full backdrop-blur transition-all z-20">
+            <button @click="emit('close')" class="absolute top-4 right-4 p-2 bg-black/10 text-white hover:bg-black/20 rounded-full backdrop-blur transition-all z-20">
               <X class="w-5 h-5" />
             </button>
 
             <div class="px-8 py-6 -mt-12 relative z-10">
               <!-- 標題卡片 -->
-              <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+              <div class="bg-white rounded-2xl p-6 shadow-sm border border-primary-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <div>
-                   <h2 class="text-3xl font-bold text-gray-900 mb-2">{{ trip.campsite_name }}</h2>
-                   <div class="flex items-center text-gray-500 font-medium">
+                   <h2 class="text-3xl font-bold text-primary-900 mb-2 tracking-tight">{{ trip.campsite_name }}</h2>
+                   <div class="flex items-center text-primary-500 font-medium">
                       <Calendar class="w-4 h-4 mr-2" />
                       {{ formatDateRange(trip.trip_date, trip.duration_days) }}
                       <span class="mx-2">·</span>
@@ -247,16 +247,16 @@ watch(() => props.trip, async (val) => {
                 </div>
                 <!-- 標籤 -->
                 <div class="flex flex-wrap gap-2">
-                   <span v-if="trip.is_rainy" class="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold flex items-center">
+                   <span v-if="trip.is_rainy" class="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold flex items-center border border-blue-100">
                       <CloudRain class="w-4 h-4 mr-1" /> 下雨
                    </span>
-                   <span v-if="trip.is_windy" class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm font-bold flex items-center">
+                   <span v-if="trip.is_windy" class="px-3 py-1 bg-surface-100 text-primary-600 rounded-lg text-sm font-bold flex items-center border border-primary-100">
                       <Wind class="w-4 h-4 mr-1" /> 大風
                    </span>
-                   <span v-if="trip.night_rush" class="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-bold flex items-center">
+                   <span v-if="trip.night_rush" class="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-bold flex items-center border border-indigo-100">
                       <Moon class="w-4 h-4 mr-1" /> 夜衝
                    </span>
-                   <span v-if="trip.is_wet_tent" class="px-3 py-1 bg-orange-50 text-orange-600 rounded-lg text-sm font-bold flex items-center">
+                   <span v-if="trip.is_wet_tent" class="px-3 py-1 bg-orange-50 text-orange-600 rounded-lg text-sm font-bold flex items-center border border-orange-100">
                       <Tent class="w-4 h-4 mr-1" /> 收濕帳
                    </span>
                 </div>
@@ -265,24 +265,24 @@ watch(() => props.trip, async (val) => {
               <div class="space-y-6">
                 
                 <!-- 天氣預報區塊 -->
-                <div v-if="loadingWeather" class="p-6 text-center text-gray-400 bg-gray-50 rounded-2xl">
+                <div v-if="loadingWeather" class="p-6 text-center text-primary-400 bg-surface-50 rounded-2xl">
                    天氣查詢中...
                 </div>
                 <div v-else-if="weather.length > 0" class="space-y-3">
-                   <h3 class="text-lg font-bold text-gray-900 flex items-center">
-                      <CloudSun class="w-5 h-5 mr-2 text-blue-500" />
+                   <h3 class="text-lg font-bold text-primary-800 flex items-center">
+                      <CloudSun class="w-5 h-5 mr-2 text-accent-sky" />
                       天氣預報
                    </h3>
                    <div class="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                      <div v-for="d in weather" :key="d.date" class="min-w-[140px] bg-white border border-gray-100 rounded-2xl p-4 flex-shrink-0 shadow-sm relative overflow-hidden group hover:shadow-md transition-all flex flex-col items-center">
-                          <div class="text-center font-bold text-gray-600 mb-3 border-b border-gray-100 pb-2 w-full">{{ d.dateLabel }}</div>
+                      <div v-for="d in weather" :key="d.date" class="min-w-[140px] bg-white border border-primary-100 rounded-2xl p-4 flex-shrink-0 shadow-sm relative overflow-hidden group hover:shadow-md transition-all flex flex-col items-center">
+                          <div class="text-center font-bold text-primary-600 mb-3 border-b border-gray-100 pb-2 w-full">{{ d.dateLabel }}</div>
                           
                           <!-- Single Day Summary -->
                           <div class="flex flex-col items-center gap-2">
-                             <component :is="getWeatherIcon(d.day.code)" class="w-10 h-10 text-yellow-500 drop-shadow-sm" />
+                             <component :is="getWeatherIcon(d.day.code)" class="w-10 h-10 text-accent-orange drop-shadow-sm" />
                              <div>
-                                <div class="text-[10px] text-gray-400 text-center mb-0.5">預報氣溫</div>
-                                <div class="font-black text-lg text-gray-800">{{ d.day.temp_min }}° - {{ d.day.temp_max }}°</div>
+                                <div class="text-[10px] text-primary-400 text-center mb-0.5">預報氣溫</div>
+                                <div class="font-black text-lg text-primary-900">{{ d.day.temp_min }}° - {{ d.day.temp_max }}°</div>
                              </div>
                           </div>
                       </div>
@@ -291,57 +291,57 @@ watch(() => props.trip, async (val) => {
 
                 <!-- 基本資訊 Grid -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div class="p-4 bg-gray-50 rounded-2xl">
-                    <p class="text-xs text-gray-500 mb-1">地點</p>
-                    <div class="flex items-center font-bold text-gray-800">
+                  <div class="p-4 bg-surface-50 rounded-2xl border border-primary-50">
+                    <p class="text-xs text-primary-500 mb-1">地點</p>
+                    <div class="flex items-center font-bold text-primary-900">
                       <MapPin class="w-4 h-4 mr-1.5 text-accent-sky" />
                       {{ trip.location || '未記錄' }}
                     </div>
                   </div>
-                  <div class="p-4 bg-gray-50 rounded-2xl">
-                    <p class="text-xs text-gray-500 mb-1">海拔</p>
-                    <div class="flex items-center font-bold text-gray-800">
+                  <div class="p-4 bg-surface-50 rounded-2xl border border-primary-50">
+                    <p class="text-xs text-primary-500 mb-1">海拔</p>
+                    <div class="flex items-center font-bold text-primary-900">
                       <Mountain class="w-4 h-4 mr-1.5 text-purple-500" />
                       {{ trip.altitude ? `${trip.altitude}m` : '未記錄' }}
                     </div>
                   </div>
-                  <div v-if="!isFuture" class="p-4 bg-gray-50 rounded-2xl">
-                     <p class="text-xs text-gray-500 mb-1">總花費</p>
-                     <p class="font-bold text-gray-800">NT$ {{ trip.cost?.toLocaleString() || 0 }}</p>
+                  <div v-if="!isFuture" class="p-4 bg-surface-50 rounded-2xl border border-primary-50">
+                     <p class="text-xs text-primary-500 mb-1">總花費</p>
+                     <p class="font-bold text-primary-900">NT$ {{ trip.cost?.toLocaleString() || 0 }}</p>
                   </div>
-                  <div class="p-4 bg-gray-50 rounded-2xl">
-                     <p class="text-xs text-gray-500 mb-1">帳篷</p>
-                     <p class="font-bold text-gray-800">{{ trip.tent_type || '未記錄' }}</p>
+                  <div class="p-4 bg-surface-50 rounded-2xl border border-primary-50">
+                     <p class="text-xs text-primary-500 mb-1">帳篷</p>
+                     <p class="font-bold text-primary-900">{{ trip.tent_type || '未記錄' }}</p>
                   </div>
                 </div>
 
                 <!-- 評分 -->
-                <div v-if="!isFuture && (trip.scenery || trip.cleanliness || trip.road_condition)" class="bg-white border boundary-gray-100 rounded-2xl p-5">
-                   <h3 class="text-lg font-bold text-gray-900 mb-4">營區評分</h3>
+                <div v-if="!isFuture && (trip.scenery || trip.cleanliness || trip.road_condition)" class="bg-white border boundary-gray-100 rounded-2xl p-5 border border-primary-100">
+                   <h3 class="text-lg font-bold text-primary-900 mb-4">營區評分</h3>
                    <div class="grid grid-cols-3 gap-8">
                       <div class="text-center">
                          <div class="text-3xl font-black text-blue-500 mb-1">{{ trip.scenery || '-' }}</div>
-                         <div class="text-xs text-gray-500">風景</div>
+                         <div class="text-xs text-primary-500">風景</div>
                       </div>
                       <div class="text-center">
                          <div class="text-3xl font-black text-green-500 mb-1">{{ trip.cleanliness || '-' }}</div>
-                         <div class="text-xs text-gray-500">整潔</div>
+                         <div class="text-xs text-primary-500">整潔</div>
                       </div>
                       <div class="text-center">
                          <div class="text-3xl font-black text-yellow-500 mb-1">{{ trip.road_condition || '-' }}</div>
-                         <div class="text-xs text-gray-500">路況</div>
+                         <div class="text-xs text-primary-500">路況</div>
                       </div>
                    </div>
                 </div>
 
                 <!-- 心得備註 -->
-                <div v-if="trip.notes" class="bg-white border border-gray-100 rounded-2xl p-5">
-                  <h3 class="text-lg font-bold text-gray-900 mb-2">心得筆記</h3>
-                  <p class="text-gray-600 leading-relaxed whitespace-pre-wrap">{{ trip.notes }}</p>
+                <div v-if="trip.notes" class="bg-white border border-primary-100 rounded-2xl p-5">
+                  <h3 class="text-lg font-bold text-primary-900 mb-2">心得筆記</h3>
+                  <p class="text-primary-700 leading-relaxed whitespace-pre-wrap">{{ trip.notes }}</p>
                 </div>
 
                 <!-- 地圖 -->
-                <div v-if="trip.latitude && trip.longitude" class="rounded-2xl overflow-hidden border border-gray-100 h-64 relative z-0">
+                <div v-if="trip.latitude && trip.longitude" class="rounded-2xl overflow-hidden border border-primary-100 h-64 relative z-0">
                    <div ref="mapContainer" class="w-full h-full"></div>
                 </div>
               </div>

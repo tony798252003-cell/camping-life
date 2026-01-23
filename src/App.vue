@@ -8,11 +8,11 @@ import CampingForm from './components/CampingForm.vue'
 import TripDetailModal from './components/TripDetailModal.vue'
 import HomeView from './components/HomeView.vue'
 import TripListView from './components/TripListView.vue'
-import MapView from './components/MapView.vue'
 import CalendarView from './components/CalendarView.vue'
+import GearROIView from './components/GearROIView.vue'
 
 // Icons
-import { Home, List as ListIcon, Map as MapIcon, Calendar as CalendarIcon, Plus } from 'lucide-vue-next'
+import { Home, List as ListIcon, Calendar as CalendarIcon, Plus, Tent } from 'lucide-vue-next'
 
 // State
 const trips = ref<CampingTrip[]>([])
@@ -22,7 +22,7 @@ const editingTrip = ref<CampingTrip | null>(null)
 const viewingTrip = ref<CampingTrip | null>(null)
 const isDetailModalOpen = ref(false)
 
-const activeTab = ref<'home' | 'list' | 'map' | 'calendar'>('home')
+const activeTab = ref<'home' | 'list' | 'calendar' | 'roi'>('home')
 
 // Fetch Trips
 const fetchTrips = async () => {
@@ -128,10 +128,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface-50 flex flex-col">
+  <div class="min-h-screen bg-surface-50 flex flex-col font-sans text-primary-900">
     <!-- Global Header -->
-    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100 px-6 py-4 text-center">
-      <h1 class="text-2xl font-black text-gray-900 tracking-tight font-['Outfit']">Camping Life</h1>
+    <header class="bg-white/70 backdrop-blur-lg sticky top-0 z-50 border-b border-primary-100 px-6 py-4 text-center supports-[backdrop-filter]:bg-white/60">
+      <h1 class="text-2xl font-bold text-primary-900 tracking-tight">Camping Life</h1>
     </header>
 
     <!-- Main Content -->
@@ -153,14 +153,16 @@ onMounted(() => {
       />
 
       <!-- Map View Container -->
-      <div v-if="activeTab === 'map'" class="h-full relative">
-        <MapView :trips="trips" />
-      </div>
 
       <CalendarView 
         v-if="activeTab === 'calendar'" 
         :trips="trips"
         @view-detail="handleViewDetail" 
+      />
+
+      <GearROIView 
+        v-if="activeTab === 'roi'" 
+        :trips="trips"
       />
     </main>
 
@@ -170,49 +172,49 @@ onMounted(() => {
     </div>
 
     <!-- Bottom Navigation -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center z-40 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-primary-100 px-6 py-3 flex justify-between items-center z-40 pb-safe shadow-[0_-4px_20px_-1px_rgba(14,165,233,0.1)]">
       <button 
         @click="activeTab = 'home'"
         class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-        :class="activeTab === 'home' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'"
+        :class="activeTab === 'home' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
       >
         <Home class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'home'}" />
-        <span class="text-[10px] font-bold mb-1">首頁</span>
+        <span class="text-[10px] font-medium mb-1">首頁</span>
       </button>
 
       <button 
         @click="activeTab = 'list'"
         class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-        :class="activeTab === 'list' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'"
+        :class="activeTab === 'list' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
       >
         <ListIcon class="w-6 h-6" />
-        <span class="text-[10px] font-bold mb-1">列表</span>
+        <span class="text-[10px] font-medium mb-1">列表</span>
       </button>
 
       <!-- FAB (Floating Action Button) for Add -->
       <button 
         @click="handleAdd"
-        class="flex flex-col items-center justify-center -mt-8 bg-gray-900 text-white rounded-full w-14 h-14 shadow-lg shadow-gray-900/30 hover:scale-105 active:scale-95 transition-all duration-300 border-4 border-surface-50"
+        class="btn-cta flex flex-col items-center justify-center -mt-10 rounded-full w-14 h-14 shadow-lg shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300 border-4 border-surface-50 z-50"
       >
         <Plus class="w-7 h-7" />
       </button>
 
       <button 
-        @click="activeTab = 'map'"
+        @click="activeTab = 'calendar'"
         class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-        :class="activeTab === 'map' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'"
+        :class="activeTab === 'calendar' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
       >
-        <MapIcon class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'map'}" />
-        <span class="text-[10px] font-bold mb-1">地圖</span>
+        <CalendarIcon class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'calendar'}" />
+        <span class="text-[10px] font-medium mb-1">行事曆</span>
       </button>
 
       <button 
-        @click="activeTab = 'calendar'"
+        @click="activeTab = 'roi'"
         class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-        :class="activeTab === 'calendar' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'"
+        :class="activeTab === 'roi' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
       >
-        <CalendarIcon class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'calendar'}" />
-        <span class="text-[10px] font-bold mb-1">行事曆</span>
+        <Tent class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'roi'}" />
+        <span class="text-[10px] font-medium mb-1">裝備</span>
       </button>
     </nav>
 

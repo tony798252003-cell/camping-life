@@ -17,6 +17,8 @@ export interface CampingTrip {
   night_rush: boolean
   tent_type: string | null
   has_tarp: boolean
+  tent_id: number | null
+  tarp_id: number | null
   cost: number
   latitude: number | null
   longitude: number | null
@@ -43,11 +45,35 @@ export interface NewCampingTrip {
   night_rush?: boolean
   tent_type?: string
   has_tarp?: boolean
+  tent_id?: number
+  tarp_id?: number
   cost?: number
   latitude?: number
   longitude?: number
   user_id?: string
   photos?: string[]
+}
+
+export interface CampingGear {
+  id: number
+  created_at: string
+  name: string
+  usage_count: number
+  base_usage_count: number
+  type: string
+  cost: number
+  rental_price: number
+  user_id?: string | null
+}
+
+export interface NewCampingGear {
+  name: string
+  usage_count?: number
+  base_usage_count?: number
+  type?: string
+  cost?: number
+  rental_price?: number
+  user_id?: string
 }
 
 export interface Database {
@@ -57,6 +83,12 @@ export interface Database {
         Row: CampingTrip
         Insert: NewCampingTrip
         Update: Partial<NewCampingTrip>
+        Relationships: []
+      }
+      camping_gear: {
+        Row: CampingGear
+        Insert: NewCampingGear
+        Update: Partial<NewCampingGear>
         Relationships: []
       }
     }

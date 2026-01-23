@@ -1,8 +1,9 @@
 ```
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { X, Search } from 'lucide-vue-next'
-import type { CampingTrip, NewCampingTrip } from '../types/database'
+import { supabase } from '../lib/supabase'
+import type { CampingTrip, NewCampingTrip, CampingGear } from '../types/database'
 
 
 interface Props {
@@ -24,9 +25,26 @@ const formData = ref<NewCampingTrip>({
   altitude: undefined,
 
   tent_type: '',
+  tent_id: undefined,
+  tarp_id: undefined,
+  has_tarp: false,
   cost: 0,
   latitude: undefined,
   longitude: undefined
+})
+
+const tents = ref<CampingGear[]>([])
+
+// Fetch gear for dropdowns
+onMounted(async () => {
+  const { data } = await supabase.from('camping_gear').select('*').order('name')
+  
+  if (data) {
+    // Explicitly cast or trust the type, but 'data' should be correct if Database is typed
+    // The lint error suggests a mismatch, so we'll use a safe check or cast
+    const allGear = data as unknown as CampingGear[]
+    tents.value = allGear.filter(g => g.type === 'tent')
+  }
 })
 
 const isGeocoding = ref(false)
@@ -162,7 +180,10 @@ function resetForm() {
     is_rainy: false,
     is_wet_tent: false,
     night_rush: false,
-    has_tarp: false
+    has_tarp: false,
+    tent_id: undefined,
+    tarp_id: undefined,
+    tent_type: ''
   }
 }
 
@@ -188,7 +209,9 @@ watch(() => props.trip, (newTrip) => {
       has_tarp: newTrip.has_tarp,
       cost: newTrip.cost,
       latitude: newTrip.latitude ?? undefined,
-      longitude: newTrip.longitude ?? undefined
+      longitude: newTrip.longitude ?? undefined,
+      tent_id: newTrip.tent_id ?? undefined,
+      tarp_id: newTrip.tarp_id ?? undefined
     }
   } else {
     resetForm()
@@ -410,23 +433,35 @@ const openMapSearch = () => {
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">帳篷型號</label>
-                    <div class="flex gap-2 mb-2">
-                       <button type="button" @click="formData.tent_type = 'CC3'" class="px-3 py-1 bg-gray-100 rounded-lg text-xs font-medium hover:bg-gray-200">CC3</button>
-                       <button type="button" @click="formData.tent_type = '屋脊13'" class="px-3 py-1 bg-gray-100 rounded-lg text-xs font-medium hover:bg-gray-200">屋脊13</button>
-                    </div>
-                    <input 
-                      v-model="formData.tent_type"
-                      type="text"
-                      class="w-full px-4 py-2.5 bg-surface-50 border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all outline-none"
-                      placeholder="例：Snow Peak"
-                    />
+                    <label class="block text-sm font-medium text-gray-700 mb-1">帳篷選擇</label>
+                    <select 
+                      v-model="formData.tent_id"
+                      class="w-full px-4 py-2.5 bg-surface-50 border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all outline-none appearance-none"
+                    >
+                      <option :value="undefined" disabled>請選擇帳篷</option>
+                      <option v-for="tent in tents" :key="tent.id" :value="tent.id">
+                        {{ tent.name }}
+                      </option>
+                    </select>
+                    <p v-if="tents.length === 0" class="text-xs text-gray-400 mt-1">
+                       (尚未建立帳篷資料，請至「裝備」頁籤新增)
+                    </p>
                   </div>
 
-                  <div class="flex items-center pt-7">
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                      <input v-model="formData.has_tarp" type="checkbox" class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" />
-                      <span class="text-sm text-gray-700">有搭天幕</span>
+                  <!-- 天幕 (Checkbox only) -->
+                  <div class="flex items-center p-3 rounded-xl border border-gray-100 bg-surface-50 h-[46px]">
+                    <label class="flex items-center gap-3 w-full cursor-pointer">
+                      <div class="relative flex items-center">
+                        <input 
+                          v-model="formData.has_tarp"
+                          type="checkbox"
+                          class="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-gray-300 bg-white transition-all checked:border-primary-500 checked:bg-primary-500 hover:border-primary-400"
+                        />
+                        <svg class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transition-opacity" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </div>
+                      <span class="text-sm font-medium text-gray-700">有搭天幕</span>
                     </label>
                   </div>
                 </div>
