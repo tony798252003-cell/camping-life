@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, watch, onMounted } from 'vue'
+import { computed, watch, onMounted, ref } from 'vue'
 import type { CampingTrip } from '../types/database'
 import StatsHeader from './StatsHeader.vue'
 import NextTripCard from './NextTripCard.vue'
-import { Navigation } from 'lucide-vue-next'
+import { Navigation, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-vue-next'
 
 const props = defineProps<{
   trips: CampingTrip[]
@@ -18,17 +18,24 @@ const emit = defineEmits<{
 import { useTravelTime } from '../composables/useTravelTime'
 const { travelTime, loading: loadingTravelTime, fetchTravelTime: doFetchTravelTime } = useTravelTime()
 
-// 計算下一個行程
-const nextTrip = computed(() => {
+// 排序後的所有行程
+const sortedTrips = computed(() => {
+  return [...props.trips].sort((a, b) => new Date(a.trip_date).getTime() - new Date(b.trip_date).getTime())
+})
+
+// 當前顯示的行程索引
+const currentIndex = ref<number>(-1)
+const defaultIndex = ref<number>(-1)
+
+// 計算「真正」的下一個行程 (用於初始化)
+const initialNextTrip = computed(() => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   
-  const futureTrips = props.trips
-    .filter(t => new Date(t.trip_date) >= today)
-    .sort((a, b) => new Date(a.trip_date).getTime() - new Date(b.trip_date).getTime())
+  const futureTrips = sortedTrips.value.filter(t => new Date(t.trip_date) >= today)
     
   // Support Night Rush: if today is the day before a trip AND night_rush is true, show it!
-  const nightRushTrips = props.trips.filter(t => {
+  const nightRushTrips = sortedTrips.value.filter(t => {
      const tripDate = new Date(t.trip_date)
      const yesterday = new Date(tripDate)
      yesterday.setDate(yesterday.getDate() - 1)
@@ -42,10 +49,52 @@ const nextTrip = computed(() => {
   return futureTrips.length > 0 ? futureTrips[0] : null
 })
 
+// 初始化索引
+watch(() => props.trips, () => {
+  if (currentIndex.value === -1 && initialNextTrip.value) {
+    const idx = sortedTrips.value.findIndex(t => t.id === initialNextTrip.value?.id)
+    if (idx !== -1) {
+      currentIndex.value = idx
+      defaultIndex.value = idx
+    }
+  } else if (currentIndex.value === -1 && sortedTrips.value.length > 0) {
+    // 如果沒有未來行程，預設顯示最後一個 (最近的過去)
+    currentIndex.value = sortedTrips.value.length - 1
+    defaultIndex.value = sortedTrips.value.length - 1
+  }
+}, { immediate: true })
+
+// 當前顯示的行程
+const displayedTrip = computed(() => {
+  if (currentIndex.value >= 0 && currentIndex.value < sortedTrips.value.length) {
+    return sortedTrips.value[currentIndex.value]
+  }
+  return null
+})
+
+// 切換行程
+const nextSlide = () => {
+  if (currentIndex.value < sortedTrips.value.length - 1) {
+    currentIndex.value++
+  }
+}
+
+const prevSlide = () => {
+  if (currentIndex.value > 0) {
+    currentIndex.value--
+  }
+}
+
+const resetSlide = () => {
+  if (defaultIndex.value !== -1) {
+    currentIndex.value = defaultIndex.value
+  }
+}
+
 const navigateToGoogleMaps = () => {
-  if (!nextTrip.value) return
+  if (!displayedTrip.value) return
   
-  const { latitude, longitude, campsite_name, start_latitude, start_longitude } = nextTrip.value
+  const { latitude, longitude, campsite_name, start_latitude, start_longitude } = displayedTrip.value
   let url = ''
   
   if (campsite_name) {
@@ -62,20 +111,20 @@ const navigateToGoogleMaps = () => {
 }
 
 const fetchTravelTime = () => {
-  if (!nextTrip.value || !nextTrip.value.latitude || !nextTrip.value.longitude) {
+  if (!displayedTrip.value || !displayedTrip.value.latitude || !displayedTrip.value.longitude) {
     travelTime.value = null
     return
   }
 
   doFetchTravelTime(
-    nextTrip.value.latitude, 
-    nextTrip.value.longitude, 
-    nextTrip.value.start_latitude ?? undefined, 
-    nextTrip.value.start_longitude ?? undefined
+    displayedTrip.value.latitude, 
+    displayedTrip.value.longitude, 
+    displayedTrip.value.start_latitude ?? undefined, 
+    displayedTrip.value.start_longitude ?? undefined
   )
 }
 
-watch(nextTrip, () => {
+watch(displayedTrip, () => {
   fetchTravelTime()
 }, { immediate: true })
 
@@ -92,12 +141,43 @@ onMounted(() => {
     </div>
 
     <!-- 下次露營 (如果有的話) -->
-    <div v-if="nextTrip" class="px-4 space-y-4">
-      <NextTripCard 
-        :trip="nextTrip" 
-        @click="emit('view-detail', nextTrip)" 
-        @update-night-rush="payload => emit('update-night-rush', payload)"
-      />
+    <div v-if="displayedTrip" class="px-4 space-y-4 relative">
+      <div class="relative group/card">
+        <NextTripCard 
+          :trip="displayedTrip" 
+          @click="emit('view-detail', displayedTrip)" 
+          @update-night-rush="payload => emit('update-night-rush', payload)"
+        />
+        
+        <!-- Navigation Buttons -->
+        <button 
+          v-if="currentIndex > 0"
+          @click.stop="prevSlide"
+          class="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-3 text-white/60 hover:text-white transition-all duration-300 drop-shadow-xl hover:scale-110 active:scale-95"
+        >
+          <ChevronLeft class="w-10 h-10 md:w-12 md:h-12 drop-shadow-md" />
+        </button>
+
+        <button 
+          v-if="currentIndex < sortedTrips.length - 1"
+          @click.stop="nextSlide"
+          class="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-3 text-white/60 hover:text-white transition-all duration-300 drop-shadow-xl hover:scale-110 active:scale-95"
+        >
+          <ChevronRight class="w-10 h-10 md:w-12 md:h-12 drop-shadow-md" />
+        </button>
+
+        <!-- Jump Back Button -->
+        <!-- Jump Back Button -->
+        <div v-if="currentIndex !== defaultIndex" class="absolute top-6 left-6 md:top-8 md:left-8 z-30 animate-fade-in">
+           <button 
+             @click.stop="resetSlide"
+             class="group flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full transition-all duration-500 shadow-md border backdrop-blur-md bg-white/60 border-white/60 text-primary-300 hover:bg-white hover:text-primary-600 hover:shadow-lg"
+             title="回到最近"
+           >
+             <RotateCcw class="w-5 h-5 md:w-6 md:h-6 transition-transform duration-500 group-hover:-rotate-180" />
+           </button>
+        </div>
+      </div>
       
       <!-- 立即出發按鈕 (Lifted Premium Style) -->
       <button 
