@@ -28,7 +28,10 @@ const CACHE_TTL = 10 * 60 * 1000 // 10 分鐘快取
 
 // 判斷是否為節假日或連假
 const isHoliday = (date: Date): boolean => {
-    const dateStr = date.toISOString().split('T')[0]
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const dateStr = `${year}-${month}-${day}`
     return HOLIDAYS_2026.includes(dateStr)
 }
 
