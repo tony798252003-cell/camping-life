@@ -58,84 +58,62 @@ export const getSmartTrafficWeight = (distanceKm?: number) => {
     const day = now.getDay() // 0: 週日, 6: 週六
     const isHolidayToday = isHoliday(now)
 
-    let weight = 1.12 // 基礎補償（略微降低，因為後續會更精細）
+    // 大幅降低基礎補償，避免過度高估
+    let weight = 1.02
 
     // === 1. 時段基礎權重 ===
     const isWeekday = day >= 1 && day <= 5
 
     if (isWeekday && !isHolidayToday) {
-        // 平日通勤尖峰（更細緻的時段劃分）
+        // 平日通勤尖峰
         if (hour === 7 || (hour === 8 && minute < 30)) {
-            weight = 1.55 // 早高峰前段（7:00-8:30）最塞
+            weight = 1.25 // 早高峰前段
         } else if ((hour === 8 && minute >= 30) || hour === 9) {
-            weight = 1.40 // 早高峰後段（8:30-10:00）
-        } else if (hour >= 17 && hour < 18) {
-            weight = 1.60 // 晚高峰前段（17:00-18:00）嚴重塞車
-        } else if (hour >= 18 && hour < 20) {
-            weight = 1.45 // 晚高峰後段（18:00-20:00）
-        } else if (hour >= 10 && hour < 17) {
-            weight = 1.20 // 一般日間車流
-        } else if (hour >= 6 && hour < 7) {
-            weight = 1.15 // 早晨漸增
-        } else if (hour >= 20 && hour < 23) {
-            weight = 1.15 // 晚間漸緩
+            weight = 1.15 // 早高峰後段
+        } else if (hour >= 17 && hour < 19) {
+            weight = 1.30 // 晚高峰
+        } else if (hour >= 19 && hour < 20) {
+            weight = 1.10
+        } else if (hour >= 10 && hour < 16) {
+            weight = 1.05 // 一般日間 Almost no buffering needed
         }
     }
 
-    // === 2. 露營尖峰時段（台灣特性）===
+    // === 2. 露營尖峰時段 (台灣特性) ===
     if (day === 5) {
         // 週五
-        if (hour >= 16 && hour < 19) {
-            weight = Math.max(weight, 1.50) // 週五下班出發潮
-        } else if (hour >= 19 && hour < 22) {
-            weight = Math.max(weight, 1.35)
+        if (hour >= 16 && hour < 20) {
+            weight = Math.max(weight, 1.25)
         }
     } else if (day === 6) {
         // 週六
         if (hour >= 7 && hour < 11) {
-            weight = Math.max(weight, 1.40) // 週六早晨出發潮
-        } else if (hour >= 11 && hour < 15) {
-            weight = Math.max(weight, 1.25)
+            weight = Math.max(weight, 1.20)
         }
     } else if (day === 0) {
         // 週日
-        if (hour >= 14 && hour < 18) {
-            weight = Math.max(weight, 1.65) // 週日下午回程大塞（國道最慘烈）
-        } else if (hour >= 18 && hour < 21) {
-            weight = Math.max(weight, 1.50)
+        if (hour >= 14 && hour < 20) {
+            weight = Math.max(weight, 1.35) // 週日下午回程
         }
     }
 
     // === 3. 深夜時段 ===
     if (hour >= 23 || hour < 6) {
-        weight = 1.08 // 路況順暢，僅保留基本緩衝
+        weight = 0.95 // 深夜可能比預估更快
     }
 
     // === 4. 連假加成 ===
-    if (isHolidayToday || (day === 6 || day === 0)) {
-        // 連假或週末塞車更嚴重
-        if (hour >= 8 && hour < 12) {
-            weight *= 1.12 // 上午出發潮再加成 12%
-        } else if (hour >= 15 && hour < 20) {
-            weight *= 1.15 // 下午回程潮再加成 15%
-        }
+    if (isHolidayToday) {
+        weight *= 1.05 // 略微增加即可
     }
 
-    // === 5. 距離因素（短途紅綠燈影響大，長途高速影響大）===
-    if (distanceKm) {
-        if (distanceKm < 30) {
-            // 短途（< 30km）：紅綠燈與市區車流影響大
-            weight *= 1.08
-        } else if (distanceKm > 100) {
-            // 長途（> 100km）：高速公路塞車影響更嚴重
-            if (hour >= 7 && hour < 20) {
-                weight *= 1.05
-            }
-        }
+    // === 5. 距離因素 ===
+    if (distanceKm && distanceKm < 10) {
+        weight *= 1.05 // 市區極短途
     }
 
     // 限制最大與最小權重
-    return Math.min(Math.max(weight, 1.05), 1.80)
+    return Math.min(Math.max(weight, 0.90), 1.40)
 }
 
 export function useTravelTime() {
