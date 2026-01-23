@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { Calendar, MapPin, Mountain, CloudRain, Moon, Tent, X, Wind, CloudSun, Sun, Cloud } from 'lucide-vue-next'
+import { Calendar, MapPin, Mountain, CloudRain, Moon, Tent, X, Wind, CloudSun, Sun, Cloud, Clock } from 'lucide-vue-next'
 import type { CampingTrip } from '../types/database'
+import { useTravelTime } from '../composables/useTravelTime'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -13,6 +14,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
+
+const { travelTime, fetchTravelTime } = useTravelTime()
 
 const mapContainer = ref<HTMLElement | null>(null)
 let map: L.Map | null = null
@@ -218,6 +221,14 @@ watch(() => props.isOpen, async (val) => {
     await nextTick()
     setTimeout(initMap, 100)
     fetchWeather()
+    if (props.trip.latitude && props.trip.longitude) {
+      fetchTravelTime(
+        props.trip.latitude,
+        props.trip.longitude,
+        props.trip.start_latitude ?? undefined,
+        props.trip.start_longitude ?? undefined
+      )
+    }
   }
 })
 
@@ -226,6 +237,14 @@ watch(() => props.trip, async (val) => {
     await nextTick()
     setTimeout(initMap, 100)
     fetchWeather()
+    if (val.latitude && val.longitude) {
+      fetchTravelTime(
+        val.latitude,
+        val.longitude,
+        val.start_latitude ?? undefined,
+        val.start_longitude ?? undefined
+      )
+    }
   }
 })
 
@@ -320,9 +339,17 @@ watch(() => props.trip, async (val) => {
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div class="p-4 bg-surface-50 rounded-2xl border border-primary-50">
                     <p class="text-xs text-primary-500 mb-1">地點</p>
-                    <div class="flex items-center font-bold text-primary-900">
+                    <div class="flex items-center font-bold text-primary-900 truncate">
                       <MapPin class="w-4 h-4 mr-1.5 text-accent-sky" />
                       {{ trip.location || '未記錄' }}
+                    </div>
+                  </div>
+                  <!-- Travel Time Estimate (DETAIL VIEW) -->
+                  <div class="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                    <p class="text-xs text-blue-500 mb-1 font-bold">預估車程</p>
+                    <div class="flex items-center font-bold text-blue-700">
+                      <Clock class="w-4 h-4 mr-1.5" />
+                      {{ travelTime || '計算中...' }}
                     </div>
                   </div>
                   <div class="p-4 bg-surface-50 rounded-2xl border border-primary-50">

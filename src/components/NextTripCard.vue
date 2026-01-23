@@ -66,11 +66,10 @@ const statusLabel = computed(() => {
 })
 
 const toggleNightRush = () => {
-  emit('update-night-rush', { 
-    id: props.trip.id, 
-    value: !props.trip.night_rush 
-  })
+  emit('update-night-rush', { id: props.trip.id, value: !props.trip.night_rush })
 }
+
+
 
 const countdown = computed(() => {
   const today = new Date()
@@ -315,7 +314,7 @@ watch(() => props.trip, () => {
             @click.stop="toggleNightRush"
             class="group flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full transition-all duration-500 shadow-md border backdrop-blur-md"
             :class="trip.night_rush 
-              ? 'bg-indigo-500/80 border-indigo-400/50 text-yellow-200 shadow-[0_0_15px_rgba(99,102,241,0.4)] scale-110 ring-2 ring-indigo-200/30' 
+              ? 'bg-slate-700/80 border-slate-500/40 text-yellow-100 shadow-[0_0_15px_rgba(71,85,105,0.3)] scale-110 ring-2 ring-slate-400/20' 
               : 'bg-white/60 border-white/60 text-primary-300 hover:bg-white hover:text-primary-600 hover:shadow-lg'"
             title="切換夜衝狀態"
           >
@@ -334,10 +333,11 @@ watch(() => props.trip, () => {
           </div>
       </div>
 
-      <!-- Location (Bottom Center) -->
-      <div class="flex items-center gap-2 text-primary-700 bg-white/60 px-3 py-1.5 md:px-4 md:py-2 rounded-xl backdrop-blur-md border border-white/50 mb-4 md:mb-6 shadow-sm">
-        <MapPin class="w-3.5 h-3.5 md:w-4 md:h-4 text-green-600" />
-        <span class="font-bold text-xs md:text-sm">{{ trip.location || '未設定地點' }}</span>
+      <div class="mb-4 md:mb-6">
+        <div class="flex items-center gap-2 text-primary-700 bg-white/60 px-3 py-1.5 md:px-4 md:py-2 rounded-xl backdrop-blur-md border border-white/50 shadow-sm">
+          <MapPin class="w-3.5 h-3.5 md:w-4 md:h-4 text-green-600" />
+          <span class="font-bold text-xs md:text-sm">{{ trip.location || '未設定地點' }}</span>
+        </div>
       </div>
 
       <!-- Weather Card (Compact at bottom, transparent) -->

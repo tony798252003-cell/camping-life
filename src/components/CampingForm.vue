@@ -30,7 +30,9 @@ const formData = ref<NewCampingTrip>({
   has_tarp: false,
   cost: 0,
   latitude: undefined,
-  longitude: undefined
+  longitude: undefined,
+  start_latitude: undefined,
+  start_longitude: undefined
 })
 
 const tents = ref<CampingGear[]>([])
@@ -50,6 +52,7 @@ onMounted(async () => {
 const isGeocoding = ref(false)
 const isAiLoading = ref(false)
 const coordPaste = ref('')
+const startCoordPaste = ref('')
 
 // 解析貼上的座標字串
 const parseCoordinates = () => {
@@ -97,6 +100,30 @@ const parseCoordinates = () => {
   
   // 顯示成功提示
   alert(`✅ 座標已填入！\n緯度: ${lat}\n經度: ${lng}`)
+}
+
+// 解析出發點座標
+const parseStartCoordinates = () => {
+  const input = startCoordPaste.value.trim()
+  if (!input) return
+  const parts = input.split(/[,\s]+/).filter(p => p.length > 0)
+  if (parts.length !== 2) {
+    alert('座標格式錯誤。請使用格式：緯度, 經度')
+    return
+  }
+  const latStr = parts[0]
+  const lngStr = parts[1]
+  if (!latStr || !lngStr) return
+  const lat = parseFloat(latStr)
+  const lng = parseFloat(lngStr)
+  if (isNaN(lat) || isNaN(lng)) {
+    alert('座標格式錯誤')
+    return
+  }
+  formData.value.start_latitude = lat
+  formData.value.start_longitude = lng
+  startCoordPaste.value = ''
+  alert(`✅ 出發點座標已填入！`)
 }
 
 const isFuture = computed(() => {
@@ -184,7 +211,9 @@ function resetForm() {
     has_tarp: false,
     tent_id: undefined,
     tarp_id: undefined,
-    tent_type: ''
+    tent_type: '',
+    start_latitude: undefined,
+    start_longitude: undefined
   }
 }
 
@@ -211,6 +240,8 @@ watch(() => props.trip, (newTrip) => {
       cost: newTrip.cost,
       latitude: newTrip.latitude ?? undefined,
       longitude: newTrip.longitude ?? undefined,
+      start_latitude: newTrip.start_latitude ?? undefined,
+      start_longitude: newTrip.start_longitude ?? undefined,
       tent_id: newTrip.tent_id ?? undefined,
       tarp_id: newTrip.tarp_id ?? undefined
     }
@@ -645,6 +676,53 @@ const openMapSearch = () => {
                       step="any"
                       class="w-full px-4 py-2.5 bg-surface-50 border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all outline-none"
                       placeholder="例：121.123456 (手動輸入)"
+                    />
+                  </div>
+                </div>
+
+                <!-- 出發地點 (自定義) -->
+                <div class="space-y-4 pt-6 border-t border-gray-100 mt-6">
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900">出發起點 (選填)</h3>
+                    <p class="text-xs text-gray-500">若留空則使用預設出發點（桃園）</p>
+                  </div>
+
+                  <div class="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl p-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      🏠 設定此次行程的出發起點
+                    </label>
+                    <div class="flex gap-2">
+                      <input 
+                        v-model="startCoordPaste"
+                        type="text"
+                        class="flex-1 px-4 py-2.5 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all outline-none text-sm"
+                        placeholder="貼上特定起點座標 (例：辦公室)"
+                        @keydown.enter.prevent="parseStartCoordinates"
+                      />
+                      <button 
+                        type="button"
+                        @click="parseStartCoordinates"
+                        class="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium whitespace-nowrap text-sm"
+                      >
+                        填入
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-4">
+                    <input 
+                      v-model.number="formData.start_latitude"
+                      type="number"
+                      step="any"
+                      class="px-4 py-2.5 bg-surface-50 border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-400 transition-all outline-none text-sm"
+                      placeholder="起點緯度"
+                    />
+                    <input 
+                      v-model.number="formData.start_longitude"
+                      type="number"
+                      step="any"
+                      class="px-4 py-2.5 bg-surface-50 border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-400 transition-all outline-none text-sm"
+                      placeholder="起點經度"
                     />
                   </div>
                 </div>

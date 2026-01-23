@@ -22,6 +22,8 @@ export interface CampingTrip {
   cost: number
   latitude: number | null
   longitude: number | null
+  start_latitude: number | null
+  start_longitude: number | null
   user_id: string | null
   photos: string[] | null
   created_at: string
@@ -50,6 +52,8 @@ export interface NewCampingTrip {
   cost?: number
   latitude?: number
   longitude?: number
+  start_latitude?: number
+  start_longitude?: number
   user_id?: string
   photos?: string[]
 }

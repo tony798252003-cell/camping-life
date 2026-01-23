@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { MapPin, Edit, Trash2 } from 'lucide-vue-next'
+import { computed, onMounted } from 'vue'
+import { MapPin, Edit, Trash2, AlertCircle, Clock } from 'lucide-vue-next'
 import type { CampingTrip } from '../types/database'
+import { useTravelTime } from '../composables/useTravelTime'
 
 const props = defineProps<{
   trip: CampingTrip
@@ -13,10 +14,27 @@ const emit = defineEmits<{
   (e: 'delete', id: number): void
 }>()
 
+const { travelTime, fetchTravelTime } = useTravelTime()
+
 const isFuture = computed(() => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   return new Date(props.trip.trip_date as string) >= today
+})
+
+const isMissingCoords = computed(() => {
+  return !props.trip.latitude || !props.trip.longitude
+})
+
+onMounted(() => {
+  if (props.trip.latitude && props.trip.longitude) {
+    fetchTravelTime(
+      props.trip.latitude, 
+      props.trip.longitude, 
+      props.trip.start_latitude ?? undefined, 
+      props.trip.start_longitude ?? undefined
+    )
+  }
 })
 
 </script>
@@ -24,9 +42,21 @@ const isFuture = computed(() => {
 <template>
   <div 
     class="group card-organic mb-4 cursor-pointer overflow-hidden border-l-4 relative"
-    :class="[isFuture ? 'border-l-accent-orange' : 'border-l-primary-200 opacity-80 hover:opacity-100']"
+    :class="[
+      isFuture ? 'border-l-accent-orange' : 'border-l-primary-200 opacity-80 hover:opacity-100',
+      isMissingCoords ? 'ring-1 ring-red-100' : ''
+    ]"
     @click="$emit('click')"
   >
+    <!-- Missing Coords Flag -->
+    <div 
+      v-if="isMissingCoords" 
+      class="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded-bl-lg shadow-sm z-20 flex items-center gap-1 animate-pulse"
+    >
+      <AlertCircle class="w-2.5 h-2.5" />
+      無經緯度
+    </div>
+
     <div class="flex items-center p-3 md:p-5 gap-3 md:gap-5">
       
       <!-- 左側：日期區塊 -->
@@ -57,6 +87,13 @@ const isFuture = computed(() => {
             <MapPin class="w-3 h-3 md:w-3.5 md:h-3.5 mr-0.5 md:mr-1 text-primary-400" />
             <span class="truncate max-w-[80px] md:max-w-none">{{ trip.location }}</span>
           </div>
+
+          <!-- Travel Time Estimate (LIST VIEW) -->
+          <div v-if="travelTime" class="flex items-center whitespace-nowrap text-blue-500 font-bold">
+            <Clock class="w-3 h-3 md:w-3.5 md:h-3.5 mr-0.5 md:mr-1" />
+            {{ travelTime }}
+          </div>
+
           <div v-if="trip.altitude" class="flex items-center whitespace-nowrap">
             <span class="mr-0.5 md:mr-1 text-primary-400">⛰</span>
             {{ trip.altitude }}m
@@ -64,20 +101,25 @@ const isFuture = computed(() => {
           <div class="text-primary-400 whitespace-nowrap">
              {{ trip.duration_days }} 天
           </div>
+          <!-- 經緯度狀態小圖示 -->
+          <div v-if="isMissingCoords" class="flex items-center text-red-400 font-bold">
+            <AlertCircle class="w-3 h-3 mr-0.5" />
+            缺GPS
+          </div>
         </div>
       </div>
 
       <!-- 右側：操作按鈕 -->
       <div class="flex gap-1 md:gap-2 flex-shrink-0 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-0 md:translate-x-2 group-hover:translate-x-0">
         <button 
-          @click.stop="emit('edit', trip)"
+          @click.stop="$emit('edit', trip)"
           class="p-1.5 md:p-2 text-primary-400 hover:text-white hover:bg-primary-500 rounded-lg md:rounded-xl transition-all shadow-sm hover:shadow-md"
           title="編輯"
         >
           <Edit class="w-3.5 h-3.5 md:w-4 md:h-4" />
         </button>
         <button 
-          @click.stop="emit('delete', trip.id)"
+          @click.stop="$emit('delete', trip.id)"
           class="p-1.5 md:p-2 text-primary-400 hover:text-white hover:bg-red-500 rounded-lg md:rounded-xl transition-all shadow-sm hover:shadow-md"
           title="刪除"
         >

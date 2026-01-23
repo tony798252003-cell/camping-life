@@ -16,7 +16,7 @@ const emit = defineEmits<{
   (e: 'add'): void
 }>()
 
-const activeTab = ref<'future' | 'history'>('history')
+const activeTab = ref<'future' | 'history'>('future')
 const viewMode = ref<'list' | 'map'>('list')
 
 // 未來的行程 (排除已經顯示在首頁的 nextTrip? 使用者可能希望看到所有，這裡顯示所有)
