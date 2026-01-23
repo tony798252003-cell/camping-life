@@ -393,7 +393,7 @@ watch(() => props.trip, () => {
       </div>
 
       <!-- Top Right Actions (Night Rush) -->
-      <div class="absolute top-4 right-4 md:top-8 md:right-8 z-20">
+      <div class="absolute top-4 right-4 md:top-8 md:right-8 z-40">
           <button 
             :disabled="isPastTrip"
             @click.stop="toggleNightRush"
