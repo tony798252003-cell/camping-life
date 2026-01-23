@@ -48,13 +48,14 @@ const navigateToGoogleMaps = () => {
   const { latitude, longitude, campsite_name, start_latitude, start_longitude } = nextTrip.value
   let url = ''
   
-  if (latitude && longitude) {
-    // 優先使用座標導航
+  if (campsite_name) {
+    // 應使用者要求，改用名稱導航，不送座標
+    const originParam = (start_latitude && start_longitude) ? `&origin=${start_latitude},${start_longitude}` : ''
+    url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(campsite_name)}${originParam}`
+  } else if (latitude && longitude) {
     const dest = `${latitude},${longitude}`
-    const origin = (start_latitude && start_longitude) ? `${start_latitude},${start_longitude}` : ''
-    url = `https://www.google.com/maps/dir/?api=1&destination=${dest}${origin ? `&origin=${origin}` : ''}`
-  } else {
-    url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(campsite_name)}`
+    const originParam = (start_latitude && start_longitude) ? `&origin=${start_latitude},${start_longitude}` : ''
+    url = `https://www.google.com/maps/dir/?api=1&destination=${dest}${originParam}`
   }
   
   window.open(url, '_blank')
