@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { CloudSun, CloudRain, Sun, Cloud, Moon, Tent, MapPin } from 'lucide-vue-next'
+import { CloudSun, CloudRain, Sun, Cloud, Moon, Tent, MapPin, Calendar } from 'lucide-vue-next'
 import type { CampingTrip } from '../types/database'
 
 interface Props {
   trip: CampingTrip
 }
+// ... (keep start of script)
+
 
 const props = defineProps<Props>()
 
@@ -29,8 +31,25 @@ const loadingWeather = ref(false)
 const weatherError = ref<string | null>(null)
 const packingStatus = ref<'dry' | 'wet' | null>(null) // 新增：收帳狀態
 
+const isPastTrip = computed(() => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const tripDate = new Date(props.trip.trip_date)
+  tripDate.setHours(0, 0, 0, 0)
+  
+  const duration = props.trip.duration_days || 1
+  const endDate = new Date(tripDate)
+  endDate.setDate(endDate.getDate() + duration - 1)
+  
+  // 如果今天已經過了結束日期，就是過去的行程
+  return today.getTime() > endDate.getTime()
+})
+
 // 狀態標籤邏輯
 const statusLabel = computed(() => {
+  if (isPastTrip.value) return '已完成'
+
   const now = new Date()
   const today = new Date(now)
   today.setHours(0, 0, 0, 0)
@@ -66,12 +85,13 @@ const statusLabel = computed(() => {
 })
 
 const toggleNightRush = () => {
+  if (isPastTrip.value) return
   emit('update-night-rush', { id: props.trip.id, value: !props.trip.night_rush })
 }
 
-
-
 const countdown = computed(() => {
+  if (isPastTrip.value) return 'COMPLETE'
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const tripDate = new Date(props.trip.trip_date)
@@ -84,22 +104,43 @@ const countdown = computed(() => {
   
   const diffTime = tripDate.getTime() - today.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  if (diffDays < 0) return '已出發'
+  
+  // start date passed, but not past trip (checked at top) -> Ongoing
+  if (diffDays < 0) return 'ING' 
+  
   if (diffDays === 0) return 'GO!'
   return `${diffDays}`
 })
 
 // 取得天氣資訊
 const fetchWeather = async () => {
+  // 過去的行程不抓天氣
+  if (isPastTrip.value) return
+  
   if (!props.trip.latitude || !props.trip.longitude) {
     weatherError.value = 'no_coords'
+    return
+  }
+  // ... (rest of logic)
+  
+  weather.value = []
+  
+  // Open-Meteo only provides ~16 days forecast. 
+  // If trip is too far in the future, don't fetch to avoid weird default data (like 0-15 degrees).
+  const today = new Date()
+  const tripTime = new Date(props.trip.trip_date).getTime()
+  const diffTime = tripTime - today.getTime()
+  const daysUntil = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  
+  if (daysUntil > 16) {
+    loadingWeather.value = false
     return
   }
 
   loadingWeather.value = true
   weatherError.value = null
   packingStatus.value = null
-  
+
   try {
     const tripDate = new Date(props.trip.trip_date)
     const duration = props.trip.duration_days || 1
@@ -122,6 +163,20 @@ const fetchWeather = async () => {
         }
       } catch (e) {
         console.warn('Failed to fetch elevation', e)
+      }
+    }
+
+    // 緩存 Key (每小時更新一次)
+    const cacheKey = `weather_v2_${props.trip.id}_${tripDate.toDateString()}`
+    const cached = localStorage.getItem(cacheKey)
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached)
+      // 60 分鐘緩存
+      if (Date.now() - timestamp < 60 * 60 * 1000) {
+        weather.value = data.weather
+        packingStatus.value = data.packingStatus
+        loadingWeather.value = false
+        return
       }
     }
 
@@ -216,6 +271,15 @@ const fetchWeather = async () => {
        // 如果資料還沒覆蓋到最後一天(例如行程在很久以後)，就不顯示狀態
        packingStatus.value = null
     }
+
+    // Save to Cache
+    localStorage.setItem(cacheKey, JSON.stringify({
+      timestamp: Date.now(),
+      data: {
+        weather: weather.value,
+        packingStatus: packingStatus.value
+      }
+    }))
     
   } catch (e) {
     console.error('Weather fetch error', e)
@@ -274,11 +338,13 @@ watch(() => props.trip, () => {
   <div v-if="trip" class="relative w-full overflow-hidden rounded-[2.5rem] card-organic group">
     
     <!-- Background Art (User Custom Image) -->
-    <div class="absolute inset-0 z-0">
+    <div class="absolute inset-0 z-0 bg-gray-200">
        <img 
          src="/images/card_bg.jpg" 
          alt="Card Background" 
-         class="w-full h-full object-cover opacity-60"
+         class="w-full h-full object-cover opacity-60 transition-opacity duration-700"
+         loading="eager"
+         :class="isPastTrip ? 'grayscale-30' : ''"
        />
        <!-- Overlay for better text readability -->
        <div class="absolute inset-0 bg-white/40 backdrop-blur-[2px]"></div>
@@ -311,27 +377,36 @@ watch(() => props.trip, () => {
       <!-- Top Right Actions (Night Rush) -->
       <div class="absolute top-6 right-6 md:top-8 md:right-8 z-20">
           <button 
+            :disabled="isPastTrip"
             @click.stop="toggleNightRush"
             class="group flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full transition-all duration-500 shadow-md border backdrop-blur-md"
-            :class="trip.night_rush 
-              ? 'bg-slate-700/80 border-slate-500/40 text-yellow-100 shadow-[0_0_15px_rgba(71,85,105,0.3)] scale-110 ring-2 ring-slate-400/20' 
-              : 'bg-white/60 border-white/60 text-primary-300 hover:bg-white hover:text-primary-600 hover:shadow-lg'"
+            :class="[
+              trip.night_rush 
+                ? 'bg-slate-700/80 border-slate-500/40 text-yellow-100 shadow-[0_0_15px_rgba(71,85,105,0.3)] scale-110 ring-2 ring-slate-400/20' 
+                : 'bg-white/60 border-white/60 text-primary-300',
+              !isPastTrip ? 'hover:bg-white hover:text-primary-600 hover:shadow-lg' : 'cursor-default opacity-80'
+            ]"
             title="切換夜衝狀態"
           >
             <Moon class="w-5 h-5 md:w-6 md:h-6 transition-transform duration-500" 
-                  :class="{ '-rotate-12 fill-current drop-shadow-sm': trip.night_rush, 'group-hover:rotate-12': !trip.night_rush }" />
+                  :class="{ '-rotate-12 fill-current drop-shadow-sm': trip.night_rush, 'group-hover:rotate-12': !isPastTrip && !trip.night_rush }" />
           </button>
       </div>
 
       <!-- Countdown (Big Number) -->
-      <div class="flex flex-col items-center mb-6 md:mb-10 relative">
-          <div class="text-[5.5rem] md:text-[8rem] leading-none font-black text-accent-sky drop-shadow-sm tracking-tighter relative z-10 font-sans">
+      <div class="flex flex-col items-center mb-6 md:mb-10 relative h-[8rem] md:h-[11rem] justify-center w-full">
+          <div v-if="isPastTrip" class="text-[3.5rem] md:text-[5rem] leading-none font-black text-primary-400 drop-shadow-sm tracking-tighter z-10 font-sans uppercase opacity-80 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap">
+              COMPLETE
+          </div>
+          <div v-else class="text-[5.5rem] md:text-[8rem] leading-none font-black text-accent-sky drop-shadow-sm tracking-tighter z-10 font-sans absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
                {{ countdown }}
           </div>
-          <div v-if="countdown !== 'GO!'" class="text-primary-600 font-bold tracking-[0.2em] text-[10px] md:text-sm uppercase mt-0">
-               {{ (countdown === 'ING' || countdown === '已出發') ? '露營進行中' : '倒數天數' }}
+          
+          <div v-if="!isPastTrip && countdown !== 'GO!' && countdown !== 'ING'" class="text-primary-600 font-bold tracking-[0.2em] text-[10px] md:text-sm uppercase absolute bottom-0 md:bottom-2">
+              DAYS TO GO
           </div>
       </div>
+
 
       <div class="mb-4 md:mb-6">
         <div class="flex items-center gap-2 text-primary-700 bg-white/60 px-3 py-1.5 md:px-4 md:py-2 rounded-xl backdrop-blur-md border border-white/50 shadow-sm">
@@ -340,10 +415,41 @@ watch(() => props.trip, () => {
         </div>
       </div>
 
-      <!-- Weather Card (Compact at bottom, transparent) -->
-       <div v-if="weather.length > 0 && weather[0]" class="w-full flex justify-center">
-          <!-- 整合卡片: 氣溫 + 撤收狀態 (Original Style) -->
-          <div class="flex items-center bg-white/80 backdrop-blur-md px-3 md:px-5 py-3 rounded-2xl shadow-sm border border-white/60 gap-2 md:gap-5 max-w-[95vw] md:max-w-sm mx-auto">
+      <!-- Content Area with Fixed Height to prevent jumping -->
+      <div class="w-full flex justify-center min-h-[6rem] items-center mt-auto">
+        
+         <!-- Rating Card for Past Trips (Detail Modal Style) -->
+         <div v-if="isPastTrip" class="w-full max-w-sm bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-sm border border-white/60">
+             <div class="grid grid-cols-3 gap-2">
+                 <div class="flex flex-col items-center justify-center">
+                    <div class="text-2xl font-black text-blue-500 mb-0.5 leading-none">{{ trip.scenery || '-' }}</div>
+                    <div class="text-[10px] text-primary-500 font-bold">風景</div>
+                 </div>
+                 <div class="flex flex-col items-center justify-center border-l border-r border-primary-100/50">
+                    <div class="text-2xl font-black text-emerald-500 mb-0.5 leading-none">{{ trip.cleanliness || '-' }}</div>
+                    <div class="text-[10px] text-primary-500 font-bold">整潔</div>
+                 </div>
+                 <div class="flex flex-col items-center justify-center">
+                    <div class="text-2xl font-black text-yellow-500 mb-0.5 leading-none">{{ trip.road_condition || '-' }}</div>
+                    <div class="text-[10px] text-primary-500 font-bold">路況</div>
+                 </div>
+             </div>
+         </div>
+
+         <!-- Loading Skeleton -->
+         <div v-else-if="loadingWeather && (!weather || weather.length === 0)" 
+               class="flex items-center bg-white/40 backdrop-blur-sm px-3 md:px-5 py-3 rounded-2xl border border-white/30 gap-2 md:gap-5 w-full md:max-w-sm mx-auto animate-pulse h-[4.5rem]">
+              <div class="flex items-center gap-3 w-full">
+                  <div class="w-10 h-10 rounded-full bg-white/50"></div>
+                  <div class="flex-1 space-y-2">
+                      <div class="h-2 bg-white/50 rounded w-12"></div>
+                      <div class="h-4 bg-white/50 rounded w-24"></div>
+                  </div>
+              </div>
+          </div>
+
+         <!-- Formatting Weather Card -->
+         <div v-else-if="weather.length > 0 && weather[0]" class="flex items-center bg-white/80 backdrop-blur-md px-3 md:px-5 py-3 rounded-2xl shadow-sm border border-white/60 gap-2 md:gap-5 max-w-[95vw] md:max-w-sm mx-auto animate-fade-in-up h-[4.5rem]">
              
              <!-- 氣溫部分 -->
              <div class="flex items-center gap-2 md:gap-3 min-w-0">
@@ -356,10 +462,10 @@ watch(() => props.trip, () => {
                 </div>
              </div>
              
-             <!-- 分隔線 (若有撤收狀態才顯示) -->
+             <!-- 分隔線 -->
              <div v-if="packingStatus" class="w-px h-8 md:h-10 bg-primary-100 flex-shrink-0"></div>
 
-             <!-- 撤收狀態部分 (Original Badge Style) -->
+             <!-- 撤收狀態 -->
              <div v-if="packingStatus" class="flex items-center gap-2 md:gap-3 min-w-0">
                  <div class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full flex-shrink-0"
                       :class="packingStatus === 'dry' ? 'bg-emerald-100/50 text-emerald-600' : 'bg-red-100/50 text-red-600'"
@@ -376,7 +482,16 @@ watch(() => props.trip, () => {
                  </div>
              </div>
           </div>
-       </div>
+          
+          <!-- Future No Weather State -->
+          <div v-else class="flex items-center justify-center bg-white/60 backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/40 gap-3 w-full max-w-sm h-[4.5rem]">
+              <div class="flex items-center gap-3 text-primary-600">
+                  <Calendar class="w-5 h-5 opacity-70" />
+                  <span class="text-sm font-bold tracking-wide">接近出發日期時將顯示天氣</span>
+              </div>
+          </div>
+          
+      </div>
 
     </div>
   </div>
@@ -390,4 +505,10 @@ watch(() => props.trip, () => {
 .animate-pulse-slow {
   animation: pulse-slow 6s ease-in-out infinite;
 }
+/* Reduce grayscale intensity */
+.grayscale-30 {
+  filter: grayscale(30%);
+}
 </style>
+
+
