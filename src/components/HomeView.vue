@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, watch, onMounted, ref } from 'vue'
-import type { CampingTrip } from '../types/database'
+import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 import StatsHeader from './StatsHeader.vue'
 import NextTripCard from './NextTripCard.vue'
 import { Navigation, RotateCcw } from 'lucide-vue-next'
 
 const props = defineProps<{
-  trips: CampingTrip[]
+  trips: CampingTripWithCampsite[]
+  userOrigin?: { latitude: number, longitude: number, location_name: string } | null
 }>()
 
 const emit = defineEmits<{
@@ -94,13 +95,19 @@ const resetSlide = () => {
 const navigateToGoogleMaps = () => {
   if (!displayedTrip.value) return
   
-  const { latitude, longitude, campsite_name, start_latitude, start_longitude } = displayedTrip.value
+  const trip = displayedTrip.value
+  const latitude = trip.campsites?.latitude ?? trip.latitude
+  const longitude = trip.campsites?.longitude ?? trip.longitude
+  const name = trip.campsites?.name ?? trip.campsite_name
+  const start_latitude = trip.start_latitude
+  const start_longitude = trip.start_longitude
+
   let url = ''
   
-  if (campsite_name) {
+  if (name) {
     // 應使用者要求，改用名稱導航，不送座標
     const originParam = (start_latitude && start_longitude) ? `&origin=${start_latitude},${start_longitude}` : ''
-    url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(campsite_name)}${originParam}`
+    url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(name)}${originParam}`
   } else if (latitude && longitude) {
     const dest = `${latitude},${longitude}`
     const originParam = (start_latitude && start_longitude) ? `&origin=${start_latitude},${start_longitude}` : ''
@@ -111,16 +118,25 @@ const navigateToGoogleMaps = () => {
 }
 
 const fetchTravelTime = () => {
-  if (!displayedTrip.value || !displayedTrip.value.latitude || !displayedTrip.value.longitude) {
+  const trip = displayedTrip.value
+  if (!trip) {
+    travelTime.value = null
+    return
+  }
+  
+  const destLat = trip.campsites?.latitude ?? trip.latitude
+  const destLng = trip.campsites?.longitude ?? trip.longitude
+
+  if (!destLat || !destLng) {
     travelTime.value = null
     return
   }
 
   doFetchTravelTime(
-    displayedTrip.value.latitude, 
-    displayedTrip.value.longitude, 
-    displayedTrip.value.start_latitude ?? undefined, 
-    displayedTrip.value.start_longitude ?? undefined
+    destLat, 
+    destLng, 
+    trip.start_latitude ?? props.userOrigin?.latitude, 
+    trip.start_longitude ?? props.userOrigin?.longitude
   )
 }
 

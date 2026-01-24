@@ -2,20 +2,20 @@
 import { ref, computed, onMounted } from 'vue'
 import { Plus, Trash2, Calculator, RotateCcw } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
-import type { CampingGear, NewCampingGear, CampingTrip } from '../types/database'
+import type { CampingGear, NewGearItem, CampingTripWithCampsite } from '../types/database'
 
 const props = defineProps<{
-  trips?: CampingTrip[]
+  trips?: CampingTripWithCampsite[]
 }>()
 
 const items = ref<CampingGear[]>([])
 const loading = ref(false)
 
 // Default examples for reset
-const defaultExamples: NewCampingGear[] = [
-  { name: '屋脊13', base_usage_count: 19, cost: 8992, rental_price: 1400, type: 'tent' },
-  { name: 'CC3', base_usage_count: 12, cost: 34400, rental_price: 2700, type: 'tent' },
-  { name: '天幕', base_usage_count: 13, cost: 4400, rental_price: 800, type: 'tarp' },
+const defaultExamples: NewGearItem[] = [
+  { name: '屋脊13', base_usage_count: 19, cost: 8992, price: 8992, rental_price: 1400, type: 'tent', category: 'tent', purchase_date: new Date().toISOString() },
+  { name: 'CC3', base_usage_count: 12, cost: 34400, price: 34400, rental_price: 2700, type: 'tent', category: 'tent', purchase_date: new Date().toISOString() },
+  { name: '天幕', base_usage_count: 13, cost: 4400, price: 4400, rental_price: 800, type: 'tarp', category: 'tarp', purchase_date: new Date().toISOString() },
 ]
 
 // Fetch Data
@@ -47,13 +47,15 @@ const addItem = async () => {
   if (!session) return
 
   try {
-    const newItem: NewCampingGear = {
+    const newItem: NewGearItem = {
       name: '新裝備',
       base_usage_count: 0,
-      usage_count: 0, // DB default
       cost: 0,
+      price: 0,
       rental_price: 0,
       type: 'other',
+      category: 'other',
+      purchase_date: new Date().toISOString(),
       user_id: session.user.id
     }
     

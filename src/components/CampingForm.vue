@@ -3,7 +3,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { X, Search, Sparkles } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
-import type { CampingTrip, NewCampingTrip, CampingGear } from '../types/database'
+import type { CampingTrip, NewCampingTrip, CampingGear, Campsite } from '../types/database'
 
 
 interface Props {
@@ -34,8 +34,68 @@ const formData = ref<NewCampingTrip>({
   start_latitude: undefined,
   start_longitude: undefined,
   zone: '',
-  companions: ''
+  companions: '',
+  campsite_id: undefined,
+  price: 0,
+  status: 'planning'
 })
+
+const campsiteSearchResults = ref<Campsite[]>([])
+const showCampsiteDropdown = ref(false)
+const isSearchingCampsite = ref(false)
+let searchDebounce: ReturnType<typeof setTimeout> | null = null
+
+const searchCampsites = async (query: string) => {
+  if (!query || query.length < 1) {
+    campsiteSearchResults.value = []
+    showCampsiteDropdown.value = false
+    return
+  }
+
+  if (searchDebounce) clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(async () => {
+    isSearchingCampsite.value = true
+    try {
+      const { data } = await supabase
+        .from('campsites')
+        .select('*')
+        .ilike('name', `%${query}%`)
+        .limit(5)
+      
+      campsiteSearchResults.value = data || []
+      showCampsiteDropdown.value = true
+    } catch (e) {
+      console.error('Search error', e)
+    } finally {
+      isSearchingCampsite.value = false
+    }
+  }, 300)
+}
+
+const selectCampsite = (campsite: Campsite) => {
+  formData.value.campsite_name = campsite.name
+  formData.value.campsite_id = campsite.id
+  
+  if (campsite.latitude && campsite.longitude) {
+    formData.value.latitude = campsite.latitude
+    formData.value.longitude = campsite.longitude
+  }
+  if (campsite.altitude) {
+    formData.value.altitude = campsite.altitude
+  }
+  // Try to parse location if format is known (e.g. City District)
+  let loc = ''
+  if (campsite.city) loc += campsite.city
+  if (campsite.district) loc += campsite.district
+  if (loc) formData.value.location = loc
+
+  showCampsiteDropdown.value = false
+}
+
+// Close dropdown on click outside
+const closeDropdown = () => {
+  setTimeout(() => { showCampsiteDropdown.value = false }, 200)
+}
 
 const tents = ref<CampingGear[]>([])
 
@@ -206,6 +266,8 @@ function resetForm() {
     duration_days: 2,
     location: '',
     cost: 0,
+    price: 0,
+    status: 'planning',
     is_windy: false,
     is_rainy: false,
     is_wet_tent: false,
@@ -215,7 +277,19 @@ function resetForm() {
     tarp_id: undefined,
     tent_type: '',
     start_latitude: undefined,
-    start_longitude: undefined
+    start_longitude: undefined,
+    latitude: undefined,
+    longitude: undefined,
+    altitude: undefined,
+    zone: '',
+    companions: '',
+    campsite_id: undefined,
+    owner_friendliness: '',
+    entertainment: '',
+    notes: '',
+    road_condition: undefined,
+    cleanliness: undefined,
+    scenery: undefined
   }
 }
 
@@ -245,16 +319,61 @@ watch(() => props.trip, (newTrip) => {
       start_latitude: newTrip.start_latitude ?? undefined,
       start_longitude: newTrip.start_longitude ?? undefined,
       tent_id: newTrip.tent_id ?? undefined,
-      tarp_id: newTrip.tarp_id ?? undefined
+      tarp_id: newTrip.tarp_id ?? undefined,
+      campsite_id: newTrip.campsite_id ?? undefined,
+      price: newTrip.price ?? 0,
+      status: newTrip.status ?? 'planning'
     }
   } else {
     resetForm()
   }
 }, { immediate: true })
 
-const handleSubmit = () => {
-  emit('submit', formData.value)
-  resetForm()
+const handleSubmit = async () => {
+  try {
+    // Check if we need to create a NEW campsite first
+    if (!formData.value.campsite_id && formData.value.campsite_name) {
+       // Search again to prevent duplicates (exact match)
+       const { data: existing } = await supabase
+         .from('campsites')
+         .select('id')
+         .eq('name', formData.value.campsite_name)
+         .single()
+       
+       if (existing) {
+         formData.value.campsite_id = (existing as any).id
+       } else {
+         // Create new campsite
+         const newCampsite = {
+           name: formData.value.campsite_name,
+           latitude: formData.value.latitude,
+           longitude: formData.value.longitude,
+           altitude: formData.value.altitude,
+           // Simply try to guess city from location string for now, or leave null
+           city: formData.value.location ? formData.value.location.substring(0, 3) : null 
+         }
+         
+         const { data: created, error } = await supabase
+           .from('campsites')
+           .insert([newCampsite] as any)
+           .select()
+           .single()
+           
+         if (!error && created) {
+           formData.value.campsite_id = (created as any).id
+           console.log('Created new shared campsite:', (created as any).name)
+         }
+       }
+    }
+    
+    emit('submit', formData.value)
+    resetForm()
+  } catch (e) {
+    console.error('Error handling campsite submission', e)
+    // Build fail-safe: submit anyway without ID if shared DB error
+    emit('submit', formData.value) 
+    resetForm()
+  }
 }
 
 const handleClose = () => {
@@ -346,7 +465,7 @@ const openMapSearch = () => {
                 <h3 class="text-lg font-semibold text-gray-900">基本資訊</h3>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div class="md:col-span-2">
+                  <div class="md:col-span-2 relative">
                     <div class="flex items-center justify-between mb-1">
                       <label class="block text-sm font-medium text-gray-700">
                         營區名稱 <span class="text-red-500">*</span>
@@ -367,7 +486,34 @@ const openMapSearch = () => {
                       required
                       class="w-full px-4 py-2.5 bg-surface-50 border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all outline-none"
                       placeholder="例：拉拉山露營區"
+                      @input="searchCampsites(($event.target as HTMLInputElement).value)"
+                      @focus="searchCampsites(formData.campsite_name)"
+                      @blur="closeDropdown"
                     />
+                    
+                    <!-- Search Results Dropdown -->
+                    <div v-if="showCampsiteDropdown && campsiteSearchResults.length > 0" class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-100">
+                      <ul>
+                        <li 
+                          v-for="site in campsiteSearchResults" 
+                          :key="site.id"
+                          @mousedown="selectCampsite(site)" 
+                          class="px-4 py-3 hover:bg-surface-50 cursor-pointer flex justify-between items-center group border-b border-gray-50 last:border-none"
+                        >
+                           <div class="flex items-center gap-2">
+                             <span class="font-bold text-gray-800">{{ site.name }}</span>
+                             <span v-if="site.city" class="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{{ site.city }}</span>
+                           </div>
+                           <span class="text-xs text-gray-400 group-hover:text-primary-500 flex items-center gap-1">
+                             使用此資料 <Sparkles class="w-3 h-3" />
+                           </span>
+                        </li>
+                      </ul>
+                    </div>
+                    <!-- Create New Hint (Optional) -->
+                    <div v-if="showCampsiteDropdown && campsiteSearchResults.length === 0 && formData.campsite_name.length > 1" class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 p-3 text-sm text-gray-500">
+                       <p>找不到「{{ formData.campsite_name }}」，將會自動建立新營地資料。</p>
+                    </div>
                   </div>
 
                   <div>

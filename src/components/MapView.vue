@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick } from 'vue'
 import L from 'leaflet'
-import type { CampingTrip } from '../types/database'
+import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 
 interface Props {
-  trips: CampingTrip[]
+  trips: CampingTripWithCampsite[]
 }
 
 const props = defineProps<Props>()
@@ -55,8 +55,11 @@ const updateMarkers = () => {
   const bounds: [number, number][] = []
 
   props.trips.forEach(trip => {
-    if (trip.latitude && trip.longitude) {
-      const marker = L.marker([trip.latitude, trip.longitude], {
+    const lat = trip.campsites?.latitude ?? trip.latitude
+    const lng = trip.campsites?.longitude ?? trip.longitude
+    
+    if (lat && lng) {
+      const marker = L.marker([lat, lng], {
         icon: L.icon({
           iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
           shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -70,9 +73,9 @@ const updateMarkers = () => {
       // 創建彈出視窗內容
       const popupContent = `
         <div class="p-2">
-          <h3 class="font-bold text-lg mb-1">${trip.campsite_name}</h3>
-          <p class="text-sm text-gray-600 mb-1">📍 ${trip.location || '未提供地點'}</p>
-          ${trip.altitude ? `<p class="text-sm text-gray-600 mb-1">⛰️ 海拔 ${trip.altitude}m</p>` : ''}
+          <h3 class="font-bold text-lg mb-1">${trip.campsites?.name || trip.campsite_name}</h3>
+          <p class="text-sm text-gray-600 mb-1">📍 ${trip.campsites?.city ? (trip.campsites.city + (trip.campsites.district || '')) : (trip.location || '未提供地點')}</p>
+          ${(trip.campsites?.altitude || trip.altitude) ? `<p class="text-sm text-gray-600 mb-1">⛰️ 海拔 ${(trip.campsites?.altitude || trip.altitude)}m</p>` : ''}
           <p class="text-sm text-gray-600">📅 ${new Date(trip.trip_date).toLocaleDateString('zh-TW')}</p>
           ${trip.cost > 0 ? `<p class="text-sm text-green-600 font-semibold mt-1">💰 NT$ ${trip.cost.toLocaleString()}</p>` : ''}
         </div>
@@ -80,7 +83,7 @@ const updateMarkers = () => {
 
       marker.bindPopup(popupContent)
       markers.push(marker)
-      bounds.push([trip.latitude, trip.longitude])
+      bounds.push([lat, lng])
     }
   })
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { supabase } from './lib/supabase'
-import type { CampingTrip, NewCampingTrip } from './types/database'
+import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './types/database'
 import type { Session } from '@supabase/supabase-js'
 
 // Components
@@ -12,19 +12,22 @@ import TripListView from './components/TripListView.vue'
 import CalendarView from './components/CalendarView.vue'
 import GearROIView from './components/GearROIView.vue'
 import LoginView from './components/LoginView.vue'
+import SettingsModal from './components/SettingsModal.vue'
 
 // Icons
-import { Home, List as ListIcon, Calendar as CalendarIcon, Plus, Tent, LogOut } from 'lucide-vue-next'
+import { Home, List as ListIcon, Calendar as CalendarIcon, Plus, Tent, Settings } from 'lucide-vue-next'
 
 // State
 const isAuthReady = ref(false)
 const session = ref<Session | null>(null)
-const trips = ref<CampingTrip[]>([])
+const trips = ref<CampingTripWithCampsite[]>([])
 const loading = ref(true)
 const isModalOpen = ref(false)
-const editingTrip = ref<CampingTrip | null>(null)
-const viewingTrip = ref<CampingTrip | null>(null)
+const editingTrip = ref<CampingTripWithCampsite | null>(null)
+const viewingTrip = ref<CampingTripWithCampsite | null>(null)
 const isDetailModalOpen = ref(false)
+const isSettingsModalOpen = ref(false)
+const userProfile = ref<{latitude: number, longitude: number, location_name: string} | null>(null)
 
 const activeTab = ref<'home' | 'list' | 'calendar' | 'roi'>('home')
 
@@ -36,12 +39,12 @@ const fetchTrips = async () => {
   try {
     const { data, error } = await supabase
       .from('camping_trips')
-      .select('*')
+      .select('*, campsites(*)')
       .eq('user_id', session.value.user.id) // Filter by User ID
       .order('trip_date', { ascending: false })
 
     if (error) throw error
-    trips.value = data || []
+    trips.value = (data as unknown as CampingTripWithCampsite[]) || []
   } catch (error) {
     console.error('獲取資料失敗:', error)
     alert('無法載入露營記錄，請檢查 Supabase 連線設定')
@@ -52,7 +55,7 @@ const fetchTrips = async () => {
 
 // Actions
 const handleViewDetail = (trip: CampingTrip) => {
-  viewingTrip.value = trip
+  viewingTrip.value = trip as CampingTripWithCampsite
   isDetailModalOpen.value = true
 }
 
@@ -62,7 +65,7 @@ const handleAdd = () => {
 }
 
 const handleEdit = (trip: CampingTrip) => {
-  editingTrip.value = trip
+  editingTrip.value = trip as CampingTripWithCampsite
   isModalOpen.value = true
 }
 
@@ -143,6 +146,37 @@ const handleLogout = async () => {
   trips.value = []
 }
 
+const fetchUserProfile = async () => {
+  if (!session.value) return
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('latitude, longitude, location_name')
+      .eq('id', session.value.user.id)
+      .single()
+    
+    if (data && (data as any).latitude && (data as any).longitude) {
+      userProfile.value = {
+        latitude: (data as any).latitude,
+        longitude: (data as any).longitude,
+        location_name: (data as any).location_name || '自訂起點'
+      }
+    }
+  } catch (e) {
+    console.error('Error loading profile', e)
+  }
+}
+
+const handleSettingsSaved = (profileData: any) => {
+  if (profileData.latitude && profileData.longitude) {
+    userProfile.value = {
+      latitude: profileData.latitude,
+      longitude: profileData.longitude,
+      location_name: profileData.location_name
+    }
+  }
+}
+
 onMounted(() => {
   // Check if we are handling an OAuth redirect
   // Support both Implicit (hash) and PKCE (search param 'code') flows
@@ -154,6 +188,7 @@ onMounted(() => {
     session.value = data.session
     if (session.value) {
       fetchTrips()
+      fetchUserProfile()
       isAuthReady.value = true
     } else if (!hasAuthHash) {
       // Only set ready if NO session AND NO auth hash (normal login page load)
@@ -171,7 +206,10 @@ onMounted(() => {
     
     session.value = _session
     if (_session) {
-      if (isAuthReady.value) fetchTrips() 
+      if (isAuthReady.value) {
+        fetchTrips()
+        fetchUserProfile()
+      } 
     } else {
       trips.value = []
       // If we were waiting but got no session (e.g. error), force ready to show login
@@ -203,9 +241,9 @@ onMounted(() => {
         <div class="flex justify-center items-center">
           <img src="/images/title_logo.png" alt="搭帳日誌" class="h-8 md:h-10 w-auto object-contain" />
         </div>
-        <!-- Logout Button -->
-        <button @click="handleLogout" class="w-8 h-8 flex items-center justify-center text-primary-400 hover:text-primary-600 transition-colors" title="登出">
-           <LogOut class="w-5 h-5" />
+        <!-- Settings Button -->
+        <button @click="isSettingsModalOpen = true" class="w-8 h-8 flex items-center justify-center text-primary-400 hover:text-primary-600 transition-colors" title="設定">
+           <Settings class="w-5 h-5" />
         </button>
       </header>
   
@@ -214,6 +252,7 @@ onMounted(() => {
         <HomeView 
           v-if="activeTab === 'home'" 
           :trips="trips" 
+          :user-origin="userProfile"
           @view-detail="handleViewDetail"
           @update-night-rush="handleUpdateNightRush"
         />
@@ -305,6 +344,14 @@ onMounted(() => {
         :is-open="isDetailModalOpen"
         :trip="viewingTrip"
         @close="isDetailModalOpen = false"
+      />
+
+      <SettingsModal
+        :is-open="isSettingsModalOpen"
+        :user-id="session?.user?.id || ''"
+        @close="isSettingsModalOpen = false"
+        @logout="handleLogout"
+        @saved="handleSettingsSaved"
       />
     </template>
   </div>
