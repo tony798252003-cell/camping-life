@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
-import type { CampingTrip } from '../types/database'
+import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 
 const props = defineProps<{
-  trips: CampingTrip[]
+  trips: CampingTripWithCampsite[]
 }>()
 
 const emit = defineEmits<{
@@ -53,7 +53,7 @@ const generateMonthData = (year: number, month: number) => {
   // 補上個月
   for (let i = 0; i < padding; i++) {
     const d = new Date(year, month, -i + 1)
-    days.unshift({ date: d, isCurrentMonth: false, trips: [] as CampingTrip[] })
+    days.unshift({ date: d, isCurrentMonth: false, trips: [] as CampingTripWithCampsite[] })
   }
   
   // 當月天數
@@ -83,7 +83,7 @@ const generateMonthData = (year: number, month: number) => {
   const remainingCells = 42 - days.length
   for (let i = 1; i <= remainingCells; i++) {
     const d = new Date(year, month + 1, i)
-    days.push({ date: d, isCurrentMonth: false, trips: [] as CampingTrip[] })
+    days.push({ date: d, isCurrentMonth: false, trips: [] as CampingTripWithCampsite[] })
   }
   
   return days
@@ -192,14 +192,14 @@ const getTripColor = (trip: CampingTrip) => {
                    :class="getTripColor(trip)"
                  ></div>
                  <span v-if="day.trips.length > 0 && day.isCurrentMonth" class="text-[10px] truncate w-full text-center text-primary-600 font-medium px-0.5">
-                    {{ day.trips[0]?.campsite_name }}
+                    {{ day.trips[0]?.campsites?.name || day.trips[0]?.campsite_name }}
                  </span>
               </div>
               
               <!-- Mobile Tooltip (on tap/hover) -->
               <div v-if="day.trips.length > 0 && day.isCurrentMonth" class="absolute bottom-full mb-2 hidden group-hover/day:block group-active/day:block z-50 pointer-events-none">
                 <div class="bg-primary-900 text-white text-xs px-3 py-1.5 rounded-lg shadow-xl whitespace-nowrap relative">
-                  {{ day.trips[0]?.campsite_name }}
+                  {{ day.trips[0]?.campsites?.name || day.trips[0]?.campsite_name }}
                   <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-primary-900"></div>
                 </div>
               </div>
@@ -236,7 +236,7 @@ const getTripColor = (trip: CampingTrip) => {
                     <!-- Tooltip -->
                     <div v-if="day.trips.length > 0" class="absolute bottom-full mb-2 hidden group-hover/day:block z-50 whitespace-nowrap">
                       <div class="bg-primary-900 text-white text-[10px] px-2 py-1 rounded shadow-lg relative">
-                        {{ day.trips[0]?.campsite_name }}
+                        {{ day.trips[0]?.campsites?.name || day.trips[0]?.campsite_name }}
                         <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-primary-900"></div>
                       </div>
                     </div>

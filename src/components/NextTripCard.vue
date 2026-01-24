@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { CloudSun, CloudRain, Sun, Cloud, Moon, Tent, MapPin, Calendar, ChevronLeft, ChevronRight } from 'lucide-vue-next'
-import type { CampingTrip } from '../types/database'
+import type { CampingTripWithCampsite } from '../types/database'
 
 interface Props {
-  trip: CampingTrip
+  trip: CampingTripWithCampsite
   hasPrev?: boolean
   hasNext?: boolean
 }
@@ -121,7 +121,10 @@ const fetchWeather = async () => {
   // 過去的行程不抓天氣
   if (isPastTrip.value) return
   
-  if (!props.trip.latitude || !props.trip.longitude) {
+  const lat = props.trip.campsites?.latitude ?? props.trip.latitude
+  const lng = props.trip.campsites?.longitude ?? props.trip.longitude
+
+  if (!lat || !lng) {
     weatherError.value = 'no_coords'
     return
   }
@@ -155,11 +158,14 @@ const fetchWeather = async () => {
     const endDateStr = endDate.toISOString().split('T')[0]
 
     // 1. 取得精確海拔 (如果行程沒有設定)
-    let elevation = props.trip.altitude
-    if (!elevation) {
+    let elevation = props.trip.campsites?.altitude ?? props.trip.altitude
+    const lat = props.trip.campsites?.latitude ?? props.trip.latitude
+    const lng = props.trip.campsites?.longitude ?? props.trip.longitude
+
+    if (!elevation && lat && lng) {
       try {
         const elevResponse = await fetch(
-          `https://api.open-meteo.com/v1/elevation?latitude=${props.trip.latitude}&longitude=${props.trip.longitude}`
+          `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`
         )
         const elevData = await elevResponse.json()
         if (elevData.elevation && elevData.elevation.length > 0) {
@@ -186,7 +192,10 @@ const fetchWeather = async () => {
 
     // 2. 準備 API 參數
     // 加入 past_days=1 以支援「夜衝」需求
-    let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${props.trip.latitude}&longitude=${props.trip.longitude}&hourly=weather_code,temperature_2m&forecast_days=16&past_days=1&models=gem_global`
+    // Wait, lat/lng must be defined here due to check at top, but TS might complain
+    if (!lat || !lng) return 
+
+    let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=weather_code,temperature_2m&forecast_days=16&past_days=1&models=gem_global`
     
     // 加入海拔參數以校正溫度
     if (elevation) {
@@ -334,7 +343,8 @@ const dateRange = computed(() => {
 
 // Title Font Size Logic (Binary: Normal vs Small)
 const titleClass = computed(() => {
-  const len = props.trip.campsite_name.length
+  const name = props.trip.campsites?.name || props.trip.campsite_name || ''
+  const len = name.length
   // Regular size for most names, smaller for long ones
   if (len <= 8) return 'text-3xl md:text-5xl'
   return 'text-2xl md:text-4xl'
@@ -377,7 +387,7 @@ watch(() => props.trip, () => {
       <!-- Title (Centered) with Fixed Height -->
       <div class="h-10 md:h-16 flex items-center justify-center mb-0.5 md:mb-2 px-4 w-full">
         <h2 :class="titleClass" class="font-black text-primary-900 tracking-tight leading-none text-center drop-shadow-sm whitespace-nowrap overflow-hidden text-ellipsis w-full">
-             {{ trip.campsite_name }}
+             {{ trip.campsites?.name || trip.campsite_name }}
         </h2>
       </div>
 
@@ -436,7 +446,7 @@ watch(() => props.trip, () => {
       <div class="mb-3 md:mb-8">
         <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-white/50 text-primary-700 rounded-lg backdrop-blur-sm border border-white/40 text-sm md:text-base font-bold shadow-sm hover:bg-white/70 transition-colors">
           <MapPin class="w-3.5 h-3.5 md:w-4 md:h-4 text-emerald-600" />
-          <span>{{ trip.location || '未設定地點' }}</span>
+          <span>{{ trip.campsites?.city ? (trip.campsites.city + (trip.campsites.district || '')) : (trip.location || '未設定地點') }}</span>
         </div>
       </div>
 
@@ -444,7 +454,7 @@ watch(() => props.trip, () => {
       <div class="w-full flex justify-center min-h-[5rem] items-center mt-auto">
         
          <!-- Rating Card for Past Trips (Detail Modal Style) -->
-         <div v-if="isPastTrip" class="w-full max-w-sm bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-sm border border-white/60">
+         <div v-if="isPastTrip" class="relative z-40 w-full max-w-sm bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-sm border border-white/60">
              <div class="grid grid-cols-3 gap-2">
                  <div class="flex flex-col items-center justify-center">
                     <div class="text-2xl font-black text-blue-500 mb-0.5 leading-none">{{ trip.scenery || '-' }}</div>
@@ -463,7 +473,7 @@ watch(() => props.trip, () => {
 
          <!-- Loading Skeleton -->
          <div v-else-if="loadingWeather && (!weather || weather.length === 0)" 
-               class="flex items-center bg-white/40 backdrop-blur-sm px-3 md:px-5 py-3 rounded-2xl border border-white/30 gap-2 md:gap-5 w-full md:max-w-sm mx-auto animate-pulse h-[4.5rem]">
+               class="relative z-40 flex items-center bg-white/40 backdrop-blur-sm px-3 md:px-5 py-3 rounded-2xl border border-white/30 gap-2 md:gap-5 w-full md:max-w-sm mx-auto animate-pulse h-[4.5rem]">
               <div class="flex items-center gap-3 w-full">
                   <div class="w-10 h-10 rounded-full bg-white/50"></div>
                   <div class="flex-1 space-y-2">
@@ -474,7 +484,7 @@ watch(() => props.trip, () => {
           </div>
 
          <!-- Formatting Weather Card -->
-         <div v-else-if="weather.length > 0 && weather[0]" class="flex items-center bg-white/80 backdrop-blur-md px-3 md:px-5 py-3 rounded-2xl shadow-sm border border-white/60 gap-2 md:gap-5 max-w-[95vw] md:max-w-sm mx-auto animate-fade-in-up h-[4.5rem]">
+         <div v-else-if="weather.length > 0 && weather[0]" class="relative z-40 flex items-center bg-white/80 backdrop-blur-md px-3 md:px-5 py-3 rounded-2xl shadow-sm border border-white/60 gap-2 md:gap-5 max-w-[95vw] md:max-w-sm mx-auto animate-fade-in-up h-[4.5rem]">
              
              <!-- 氣溫部分 -->
              <div class="flex items-center gap-2 md:gap-3 min-w-0">
@@ -510,7 +520,7 @@ watch(() => props.trip, () => {
 
           
           <!-- Future No Weather State -->
-          <div v-else class="flex items-center justify-center bg-white/60 backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/40 gap-3 w-full max-w-sm h-[4.5rem]">
+          <div v-else class="relative z-40 flex items-center justify-center bg-white/60 backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/40 gap-3 w-full max-w-sm h-[4.5rem]">
               <div class="flex items-center gap-3 text-primary-600">
                   <Calendar class="w-5 h-5 opacity-70" />
                   <span class="text-sm font-bold tracking-wide">接近出發日期時將顯示天氣</span>

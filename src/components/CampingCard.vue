@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { MapPin, Edit, Trash2, AlertCircle, Clock } from 'lucide-vue-next'
-import type { CampingTrip } from '../types/database'
+import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 import { useTravelTime } from '../composables/useTravelTime'
 
 const props = defineProps<{
-  trip: CampingTrip
+  trip: CampingTripWithCampsite
 }>()
 
 const emit = defineEmits<{
@@ -23,14 +23,17 @@ const isFuture = computed(() => {
 })
 
 const isMissingCoords = computed(() => {
-  return !props.trip.latitude || !props.trip.longitude
+  return !(props.trip.campsites?.latitude ?? props.trip.latitude) || !(props.trip.campsites?.longitude ?? props.trip.longitude)
 })
 
 onMounted(() => {
-  if (props.trip.latitude && props.trip.longitude) {
+  const lat = props.trip.campsites?.latitude ?? props.trip.latitude
+  const lng = props.trip.campsites?.longitude ?? props.trip.longitude
+  
+  if (lat && lng) {
     fetchTravelTime(
-      props.trip.latitude, 
-      props.trip.longitude, 
+      lat, 
+      lng, 
       props.trip.start_latitude ?? undefined, 
       props.trip.start_longitude ?? undefined
     )
@@ -72,7 +75,7 @@ onMounted(() => {
       <!-- 中間：資訊區塊 -->
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 mb-1">
-           <h3 class="text-base md:text-lg font-bold text-primary-900 truncate tracking-tight">{{ trip.campsite_name }}</h3>
+           <h3 class="text-base md:text-lg font-bold text-primary-900 truncate tracking-tight">{{ trip.campsites?.name || trip.campsite_name }}</h3>
            
            <!-- 標籤小圓點 -->
            <div class="flex gap-1 flex-shrink-0" v-if="trip.is_rainy || trip.is_windy || trip.night_rush">
@@ -83,9 +86,9 @@ onMounted(() => {
         </div>
         
         <div class="flex flex-wrap items-center text-xs md:text-sm text-primary-500 gap-x-3 gap-y-1 font-medium">
-          <div v-if="trip.location" class="flex items-center whitespace-nowrap">
+          <div class="flex items-center whitespace-nowrap">
             <MapPin class="w-3 h-3 md:w-3.5 md:h-3.5 mr-0.5 md:mr-1 text-primary-400" />
-            <span class="truncate max-w-[80px] md:max-w-none">{{ trip.location }}</span>
+            <span class="truncate max-w-[80px] md:max-w-none">{{ trip.campsites?.city ? (trip.campsites.city + (trip.campsites.district || '')) : (trip.location || '未設定') }}</span>
           </div>
 
           <!-- Travel Time Estimate (LIST VIEW) -->
@@ -94,9 +97,9 @@ onMounted(() => {
             {{ travelTime }}
           </div>
 
-          <div v-if="trip.altitude" class="flex items-center whitespace-nowrap">
+          <div v-if="(trip.campsites?.altitude ?? trip.altitude)" class="flex items-center whitespace-nowrap">
             <span class="mr-0.5 md:mr-1 text-primary-400">⛰</span>
-            {{ trip.altitude }}m
+            {{ (trip.campsites?.altitude ?? trip.altitude) }}m
           </div>
           <div class="text-primary-400 whitespace-nowrap">
              {{ trip.duration_days }} 天

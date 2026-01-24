@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { CampingTrip } from '../types/database'
+import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 import CampingCard from './CampingCard.vue'
 import MapView from './MapView.vue'
 import { Map, List } from 'lucide-vue-next'
 
 const props = defineProps<{
-  trips: CampingTrip[]
+  trips: CampingTripWithCampsite[]
 }>()
 
 const emit = defineEmits<{

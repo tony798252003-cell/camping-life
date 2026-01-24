@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { Calendar, MapPin, Mountain, CloudRain, Moon, Tent, X, Wind, CloudSun, Sun, Cloud, Clock } from 'lucide-vue-next'
-import type { CampingTrip } from '../types/database'
+import type { CampingTripWithCampsite } from '../types/database'
 import { useTravelTime } from '../composables/useTravelTime'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const props = defineProps<{
   isOpen: boolean
-  trip: CampingTrip | null
+  trip: CampingTripWithCampsite | null
 }>()
 
 const emit = defineEmits<{
@@ -42,15 +42,15 @@ const formatDateRange = (dateString: string, duration: number | null = 1) => {
 // 初始化地圖
 const initMap = () => {
   if (!mapContainer.value || !props.trip) return
-  if (!props.trip.latitude || !props.trip.longitude) return
+  const lat = props.trip.campsites?.latitude ?? props.trip.latitude
+  const lng = props.trip.campsites?.longitude ?? props.trip.longitude
+  
+  if (!lat || !lng) return
   
   if (map) {
     map.remove()
     map = null
   }
-
-  const lat = props.trip.latitude
-  const lng = props.trip.longitude
 
   map = L.map(mapContainer.value).setView([lat, lng], 14)
   
@@ -111,7 +111,11 @@ const getWeatherIcon = (code: number) => {
 }
 
 const fetchWeather = async () => {
-  if (!props.trip || !props.trip.latitude || !props.trip.longitude) return
+  if (!props.trip) return
+  const lat = props.trip.campsites?.latitude ?? props.trip.latitude
+  const lng = props.trip.campsites?.longitude ?? props.trip.longitude
+  
+  if (!lat || !lng) return
   
   loadingWeather.value = true
   weatherError.value = null
@@ -121,16 +125,24 @@ const fetchWeather = async () => {
      const duration = props.trip.duration_days || 1
      
      // 海拔修正
-     let elevation = props.trip.altitude
+     let elevation = props.trip.campsites?.altitude ?? props.trip.altitude
+     const lat = props.trip.campsites?.latitude ?? props.trip.latitude
+     const lng = props.trip.campsites?.longitude ?? props.trip.longitude
+
+     if (!lat || !lng) {
+        weatherError.value = 'no_coords'
+        return
+     }
+
      if (!elevation) {
        try {
-         const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${props.trip.latitude}&longitude=${props.trip.longitude}`)
+         const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`)
          const d = await r.json()
          if (d.elevation && d.elevation.length > 0) elevation = d.elevation[0]
        } catch {}
      }
 
-     let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${props.trip.latitude}&longitude=${props.trip.longitude}&hourly=weather_code,temperature_2m&forecast_days=16&past_days=1&models=gem_global`
+     let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=weather_code,temperature_2m&forecast_days=16&past_days=1&models=gem_global`
      if (elevation) apiUrl += `&elevation=${elevation}`
 
      const response = await fetch(apiUrl)
@@ -221,10 +233,14 @@ watch(() => props.isOpen, async (val) => {
     await nextTick()
     setTimeout(initMap, 100)
     fetchWeather()
-    if (props.trip.latitude && props.trip.longitude) {
+    
+    const lat = props.trip.campsites?.latitude ?? props.trip.latitude
+    const lng = props.trip.campsites?.longitude ?? props.trip.longitude
+
+    if (lat && lng) {
       fetchTravelTime(
-        props.trip.latitude,
-        props.trip.longitude,
+        lat,
+        lng,
         props.trip.start_latitude ?? undefined,
         props.trip.start_longitude ?? undefined
       )
@@ -237,10 +253,14 @@ watch(() => props.trip, async (val) => {
     await nextTick()
     setTimeout(initMap, 100)
     fetchWeather()
-    if (val.latitude && val.longitude) {
+    
+    const lat = val.campsites?.latitude ?? val.latitude
+    const lng = val.campsites?.longitude ?? val.longitude
+
+    if (lat && lng) {
       fetchTravelTime(
-        val.latitude,
-        val.longitude,
+        lat,
+        lng,
         val.start_latitude ?? undefined,
         val.start_longitude ?? undefined
       )
@@ -275,7 +295,7 @@ watch(() => props.trip, async (val) => {
               <!-- 標題卡片 -->
               <div class="bg-white rounded-2xl p-6 shadow-sm border border-primary-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <div>
-                   <h2 class="text-3xl font-bold text-primary-900 mb-2 tracking-tight">{{ trip.campsite_name }}</h2>
+                   <h2 class="text-3xl font-bold text-primary-900 mb-2 tracking-tight">{{ trip.campsites?.name || trip.campsite_name }}</h2>
                    <div class="flex items-center text-primary-500 font-medium">
                       <Calendar class="w-4 h-4 mr-2" />
                       {{ formatDateRange(trip.trip_date, trip.duration_days) }}
@@ -341,7 +361,7 @@ watch(() => props.trip, async (val) => {
                     <p class="text-xs text-primary-500 mb-1">地點</p>
                     <div class="flex items-center font-bold text-primary-900 truncate">
                       <MapPin class="w-4 h-4 mr-1.5 text-accent-sky" />
-                      {{ trip.location || '未記錄' }}
+                      {{ trip.campsites?.city ? (trip.campsites?.city + (trip.campsites?.district || '')) : (trip.location || '未記錄') }}
                     </div>
                   </div>
                   <!-- Travel Time Estimate (DETAIL VIEW) -->
@@ -356,7 +376,7 @@ watch(() => props.trip, async (val) => {
                     <p class="text-xs text-primary-500 mb-1">海拔</p>
                     <div class="flex items-center font-bold text-primary-900">
                       <Mountain class="w-4 h-4 mr-1.5 text-purple-500" />
-                      {{ trip.altitude ? `${trip.altitude}m` : '未記錄' }}
+                      {{ (trip.campsites?.altitude ?? trip.altitude) ? `${(trip.campsites?.altitude ?? trip.altitude)}m` : '未記錄' }}
                     </div>
                   </div>
                   <div v-if="!isFuture" class="p-4 bg-surface-50 rounded-2xl border border-primary-50">
@@ -406,7 +426,7 @@ watch(() => props.trip, async (val) => {
                 </div>
 
                 <!-- 地圖 -->
-                <div v-if="trip.latitude && trip.longitude" class="rounded-2xl overflow-hidden border border-primary-100 h-64 relative z-0">
+                <div v-if="(trip.campsites?.latitude ?? trip.latitude) && (trip.campsites?.longitude ?? trip.longitude)" class="rounded-2xl overflow-hidden border border-primary-100 h-64 relative z-0">
                    <div ref="mapContainer" class="w-full h-full"></div>
                 </div>
               </div>
@@ -432,7 +452,7 @@ watch(() => props.trip, async (val) => {
           <div class="p-6 pb-2 flex items-center justify-between">
             <div>
               <h3 class="text-xl font-black text-primary-900">{{ selectedDay.dateLabel }} 氣溫明細</h3>
-              <p class="text-[10px] text-primary-500 font-bold uppercase tracking-wider">{{ trip?.campsite_name }}</p>
+              <p class="text-[10px] text-primary-500 font-bold uppercase tracking-wider">{{ trip?.campsites?.name || trip?.campsite_name }}</p>
             </div>
             <button 
               @click="showHourlyModal = false"
