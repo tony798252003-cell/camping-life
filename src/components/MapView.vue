@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick } from 'vue'
 import L from 'leaflet'
-import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
+import type { CampingTripWithCampsite } from '../types/database'
 
 interface Props {
   trips: CampingTripWithCampsite[]
