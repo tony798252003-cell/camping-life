@@ -544,13 +544,13 @@ watch(() => props.trip, () => {
         </div>
       </div>
 
-      <!-- Navigation Zones (1/3 Width) -->
+      <!-- Navigation Zones (1/5 Width) -->
       <div 
         v-if="hasPrev"
         @click.stop="$emit('prev')"
-        class="absolute left-0 top-0 w-1/3 h-full z-30 flex items-center justify-start pl-1 md:pl-2 cursor-pointer group"
+        class="absolute left-0 top-0 w-1/5 h-full z-30 flex items-center justify-start pl-1 md:pl-2 cursor-pointer group"
       >
-         <div class="p-2 text-white/50 group-hover:text-white transition-all duration-300 drop-shadow-xl group-hover:scale-110 group-active:scale-95">
+         <div class="p-2 text-white/80 group-hover:text-white transition-all duration-300 drop-shadow-xl group-hover:scale-110 group-active:scale-95 group-hover:drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">
             <ChevronLeft class="w-10 h-10 md:w-12 md:h-12 drop-shadow-md" />
          </div>
       </div>
@@ -558,9 +558,9 @@ watch(() => props.trip, () => {
       <div 
         v-if="hasNext"
         @click.stop="$emit('next')"
-        class="absolute right-0 top-0 w-1/3 h-full z-30 flex items-center justify-end pr-1 md:pr-2 cursor-pointer group"
+        class="absolute right-0 top-0 w-1/5 h-full z-30 flex items-center justify-end pr-1 md:pr-2 cursor-pointer group"
       >
-         <div class="p-2 text-white/50 group-hover:text-white transition-all duration-300 drop-shadow-xl group-hover:scale-110 group-active:scale-95">
+         <div class="p-2 text-white/80 group-hover:text-white transition-all duration-300 drop-shadow-xl group-hover:scale-110 group-active:scale-95 group-hover:drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">
             <ChevronRight class="w-10 h-10 md:w-12 md:h-12 drop-shadow-md" />
          </div>
       </div>

@@ -159,6 +159,23 @@ const handleUpdateNightRush = async ({ id, value }: { id: number, value: boolean
   }
 }
 
+const handleEditCampsite = (campsite: any) => {
+  editingCampsiteData.value = campsite
+  isCampsiteEditOpen.value = true
+}
+
+const handleCampsiteSaved = () => {
+  isCampsiteEditOpen.value = false
+  editingCampsiteData.value = null
+  campsiteLibraryKey.value++ // Refresh library
+  fetchTrips() // Refresh trips in case campsite data changed
+}
+
+const handleSettingsSaved = () => {
+  isSettingsModalOpen.value = false
+  fetchUserProfile()
+}
+
 const handleLogout = async () => {
   await supabase.auth.signOut()
   session.value = null
@@ -168,12 +185,19 @@ const handleLogout = async () => {
 const fetchUserProfile = async () => {
   if (!session.value) return
   try {
-    const { data } = await supabase
+    console.log('[App] Fetching user profile...')
+    const { data, error } = await supabase
       .from('profiles')
       .select('latitude, longitude, location_name, is_admin, family_id')
       .eq('id', session.value.user.id)
       .single()
     
+    if (error) {
+       // If error is about missing column, we might be in a state where SQL didn't run.
+       // We should still proceed.
+       console.warn('[App] Profile fetch warning:', error.message)
+    }
+
     if (data) {
       userProfile.value = {
         latitude: (data as any).latitude,
@@ -184,70 +208,51 @@ const fetchUserProfile = async () => {
       }
     }
   } catch (e) {
-    console.error('Error loading profile', e)
+    console.error('[App] Error loading profile', e)
   }
 }
 
-const handleSettingsSaved = async (profileData: any) => {
-  // If settings changed, reload profile to be sure (e.g. family joined)
-  await fetchUserProfile()
-  await fetchTrips()
-}
-
-const handleEditCampsite = (site: any) => {
-  editingCampsiteData.value = site
-  isCampsiteEditOpen.value = true
-}
-
-const handleCampsiteSaved = async () => {
-  // Refresh Trip List (in case campsite name changed in trips)
-  await fetchTrips()
-  
-  // If we are currently editing a trip (CampingForm is open), we need to update the prop
-  // with the fresh data from fetchTrips so changes reflect immediately in the modal.
-  if (activeTrip.value) {
-    const freshTrip = trips.value.find(t => t.id === activeTrip.value?.id)
-    if (freshTrip) {
-      activeTrip.value = freshTrip
-    }
-  }
-
-  // Refresh Library (force re-mount to re-fetch)
-  campsiteLibraryKey.value++
-}
+// ... (other functions)
 
 onMounted(() => {
+  console.log('[App] Mounted')
   // Check URL params for invite code
   const params = new URLSearchParams(window.location.search)
   const code = params.get('invite_code')
   if (code) {
     inviteCode.value = code
-    // Clean URL
     window.history.replaceState({}, '', window.location.pathname)
   }
 
-  // Check if we are handling an OAuth redirect
-  // Support both Implicit (hash) and PKCE (search param 'code') flows
   const hasAuthHash = (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('refresh_token'))) || 
                       (window.location.search && window.location.search.includes('code') && !window.location.search.includes('invite_code'))
   
+  // Backup timeout: Force ready state after 4 seconds to avoid infinite loading
+  setTimeout(() => {
+     if (!isAuthReady.value) {
+        console.warn('[App] Auth check timed out, forcing ready state.')
+        isAuthReady.value = true
+        loading.value = false
+     }
+  }, 4000)
+
   // Get initial session
   supabase.auth.getSession().then(async ({ data }) => {
     session.value = data.session
+    console.log('[App] Initial session:', !!session.value)
+    
     if (session.value) {
       await fetchUserProfile()
       await fetchTrips()
       isAuthReady.value = true
     } else if (!hasAuthHash) {
-      // Only set ready if NO session AND NO auth hash (normal login page load)
       isAuthReady.value = true
     }
-    // If hasAuthHash is true, we wait for onAuthStateChange
   })
 
   // Listen for auth changes
   supabase.auth.onAuthStateChange(async (_event, _session) => {
-    // If we have a hash and get a session, now we are ready
+    console.log('[App] Auth Change:', _event)
     if (hasAuthHash && _session) {
       isAuthReady.value = true
     }
@@ -260,8 +265,6 @@ onMounted(() => {
       } 
     } else {
       trips.value = []
-      // If we were waiting but got no session (e.g. error), force ready to show login
-      // But give it a small timeout to ensure it's not a race
       if (hasAuthHash) {
          setTimeout(() => { isAuthReady.value = true }, 1000)
       }
@@ -301,6 +304,7 @@ onMounted(() => {
           v-if="activeTab === 'home'" 
           :trips="trips" 
           :user-origin="userProfile"
+          :loading="loading"
           @view-detail="handleViewDetail"
           @update-night-rush="handleUpdateNightRush"
         />

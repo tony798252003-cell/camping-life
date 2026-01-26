@@ -8,6 +8,7 @@ import { Navigation, RotateCcw } from 'lucide-vue-next'
 const props = defineProps<{
   trips: CampingTripWithCampsite[]
   userOrigin?: { latitude: number, longitude: number, location_name: string } | null
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -157,7 +158,19 @@ onMounted(() => {
     </div>
 
     <!-- 下次露營 (如果有的話) -->
-    <div v-if="displayedTrip" class="px-4 space-y-4 relative">
+    <div v-if="loading" class="px-4 relative animate-pulse">
+        <!-- Skeleton Card -->
+        <div class="relative w-full rounded-[2.5rem] bg-white/50 backdrop-blur-sm border border-white/40 h-[420px]">
+           <div class="absolute inset-0 flex flex-col items-center justify-center gap-6">
+              <div class="w-24 h-6 bg-white/60 rounded-full"></div>
+              <div class="w-3/4 h-16 bg-white/60 rounded-xl"></div>
+              <div class="w-1/2 h-8 bg-white/60 rounded-lg"></div>
+              <div class="w-40 h-24 bg-white/60 rounded-2xl"></div>
+           </div>
+        </div>
+    </div>
+
+    <div v-else-if="displayedTrip" class="px-4 space-y-4 relative">
       <div class="relative group/card">
         <NextTripCard 
           :trip="displayedTrip" 

@@ -104,6 +104,19 @@
                  <Share2 class="w-5 h-5" />
                  分享加入連結
               </button>
+
+              <div class="pt-4 border-t border-gray-100">
+                <button 
+                  @click="handleManualMigration"
+                  :disabled="isProcessingFamily"
+                  class="w-full py-2 text-sm text-gray-500 hover:text-gray-700 underline flex items-center justify-center"
+                >
+                   匯入我的舊資料到此家庭
+                </button>
+                <p class="text-[10px] text-gray-400 text-center mt-1">
+                  若您發現加入家庭後找不到舊行程，請點選此處
+                </p>
+              </div>
            </div>
 
            <div v-else class="space-y-8">
@@ -279,7 +292,7 @@ const emit = defineEmits(['close', 'logout', 'saved'])
 // ... (rest of existing code)
 
 // --- Added Share Logic ---
-import { Share2, Copy } from 'lucide-vue-next' // Add icons to imports if needed
+import { Share2 } from 'lucide-vue-next' // Add icons to imports if needed
 
 const shareInviteLink = async () => {
   if (!userFamily.value) return
@@ -387,13 +400,34 @@ const createFamily = async () => {
     // Link User to Family
     await linkUserToFamily((family as any).id)
     
+    // Migrate Data (Backfill)
+    await migrateUserDataToFamily((family as any).id)
+    
     // Refresh
     userFamily.value = family
     newFamilyName.value = ''
-    alert('家庭建立成功！')
+    alert('家庭建立成功！已將既有行程匯入家庭。')
   } catch(e: any) {
     console.error(e)
     alert('建立失敗: ' + e.message)
+  } finally {
+    isProcessingFamily.value = false
+  }
+}
+
+const handleManualMigration = async () => {
+  if (!userFamily.value) return
+  if (!confirm('確定要將所有尚未歸戶的個人行程匯入此家庭嗎？')) return
+  
+  isProcessingFamily.value = true
+  try {
+    await migrateUserDataToFamily(userFamily.value.id)
+    alert('匯入完成！')
+    // Emit saved to trigger refresh in parent
+    emit('saved', {}) 
+  } catch (e) {
+    console.error(e)
+    alert('匯入失敗')
   } finally {
     isProcessingFamily.value = false
   }
@@ -431,27 +465,27 @@ const joinFamily = async () => {
 }
 
 const linkUserToFamily = async (familyId: string) => {
-  const { error } = await supabase
-    .from('profiles')
-    .update({ family_id: familyId } as any)
+  const { error } = await (supabase
+    .from('profiles') as any)
+    .update({ family_id: familyId })
     .eq('id', props.userId)
   if (error) throw error
 }
 
 const migrateUserDataToFamily = async (familyId: string) => {
   // Update all my trips that don't have a family_id yet
-  const { error: tripError } = await supabase
-    .from('camping_trips')
-    .update({ family_id: familyId } as any)
+  const { error: tripError } = await (supabase
+    .from('camping_trips') as any)
+    .update({ family_id: familyId })
     .eq('user_id', props.userId)
     .is('family_id', null)
     
   if (tripError) console.error('Trip migration failed', tripError)
   
   // Update gear
-  const { error: gearError } = await supabase
-    .from('camping_gear')
-    .update({ family_id: familyId } as any)
+  const { error: gearError } = await (supabase
+    .from('camping_gear') as any)
+    .update({ family_id: familyId })
     .eq('user_id', props.userId)
     .is('family_id', null)
 

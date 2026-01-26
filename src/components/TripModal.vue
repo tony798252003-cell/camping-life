@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import TripWeather from './TripWeather.vue'
 
 interface Props {
   isOpen: boolean
@@ -52,6 +53,24 @@ const formData = ref<NewCampingTrip>({
   road_condition: undefined,
   cleanliness: undefined,
   scenery: undefined
+})
+
+const weatherTrip = computed(() => {
+  return {
+    id: props.trip?.id || 0,
+    trip_date: formData.value.trip_date,
+    duration_days: formData.value.duration_days,
+    latitude: formData.value.latitude,
+    longitude: formData.value.longitude,
+    night_rush: formData.value.night_rush,
+    price: formData.value.price,
+    campsites: {
+      altitude: formData.value.altitude,
+      latitude: formData.value.latitude,
+      longitude: formData.value.longitude,
+      name: formData.value.campsite_name
+    }
+  } as any
 })
 
 // --- Resources ---
@@ -188,15 +207,7 @@ const cancelEdit = () => {
   }
 }
 
-const handleReset = () => {
-  if (confirm('確定要復原所有修改嗎？')) {
-    if (props.trip) {
-      initFormData(props.trip)
-    } else {
-      resetForm()
-    }
-  }
-}
+
 
 const handleSubmit = async () => {
   try {
@@ -472,6 +483,11 @@ const formatDateRange = (dateString: string, duration: number | null = 1) => {
                      </div>
                   </div>
 
+                  <!-- Weather Forecast -->
+                  <div class="mb-6">
+                    <TripWeather :trip="weatherTrip" />
+                  </div>
+
                   <!-- Details Grid -->
                   <div class="grid grid-cols-2 gap-4 mb-6">
                      <!-- Location -->
@@ -540,6 +556,8 @@ const formatDateRange = (dateString: string, duration: number | null = 1) => {
                      </div>
                   </div>
 
+
+
                   <!-- Notes -->
                   <div class="bg-white border border-primary-100 rounded-2xl p-5 mb-6 shadow-sm transition-colors" :class="{'hover:border-primary-200': isEditing}">
                      <h3 class="text-lg font-bold text-primary-900 mb-2 flex justify-between items-center">
@@ -556,6 +574,8 @@ const formatDateRange = (dateString: string, duration: number | null = 1) => {
                         {{ formData.notes || '( 尚未填寫心得 )' }}
                      </p>
                   </div>
+
+
 
                   <!-- Map & Weather (Always Visible) -->
                   <div v-if="formData.latitude && formData.longitude" class="rounded-2xl overflow-hidden border border-primary-100 h-64 relative z-0 mb-20 shadow-sm">
