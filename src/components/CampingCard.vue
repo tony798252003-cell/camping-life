@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { MapPin, Edit, Trash2, AlertCircle, Clock } from 'lucide-vue-next'
+import { MapPin, Trash2, AlertCircle, Clock } from 'lucide-vue-next'
 import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 import { useTravelTime } from '../composables/useTravelTime'
 
@@ -114,13 +114,7 @@ onMounted(() => {
 
       <!-- 右側：操作按鈕 -->
       <div class="flex gap-1 md:gap-2 flex-shrink-0 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-0 md:translate-x-2 group-hover:translate-x-0">
-        <button 
-          @click.stop="$emit('edit', trip)"
-          class="p-1.5 md:p-2 text-primary-400 hover:text-white hover:bg-primary-500 rounded-lg md:rounded-xl transition-all shadow-sm hover:shadow-md"
-          title="編輯"
-        >
-          <Edit class="w-3.5 h-3.5 md:w-4 md:h-4" />
-        </button>
+
         <button 
           @click.stop="$emit('delete', trip.id)"
           class="p-1.5 md:p-2 text-primary-400 hover:text-white hover:bg-red-500 rounded-lg md:rounded-xl transition-all shadow-sm hover:shadow-md"

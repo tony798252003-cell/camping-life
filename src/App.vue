@@ -5,17 +5,17 @@ import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './typ
 import type { Session } from '@supabase/supabase-js'
 
 // Components
-import CampingForm from './components/CampingForm.vue'
-import TripDetailModal from './components/TripDetailModal.vue'
+import TripModal from './components/TripModal.vue'
 import HomeView from './components/HomeView.vue'
 import TripListView from './components/TripListView.vue'
 import CalendarView from './components/CalendarView.vue'
-import GearROIView from './components/GearROIView.vue'
 import LoginView from './components/LoginView.vue'
 import SettingsModal from './components/SettingsModal.vue'
+import CampsiteLibrary from './components/CampsiteLibrary.vue'
+import CampsiteEditModal from './components/CampsiteEditModal.vue'
 
 // Icons
-import { Home, List as ListIcon, Calendar as CalendarIcon, Plus, Tent, Settings } from 'lucide-vue-next'
+import { Home, List as ListIcon, Calendar as CalendarIcon, Plus, Settings, Search } from 'lucide-vue-next'
 
 // State
 const isAuthReady = ref(false)
@@ -23,13 +23,14 @@ const session = ref<Session | null>(null)
 const trips = ref<CampingTripWithCampsite[]>([])
 const loading = ref(true)
 const isModalOpen = ref(false)
-const editingTrip = ref<CampingTripWithCampsite | null>(null)
-const viewingTrip = ref<CampingTripWithCampsite | null>(null)
-const isDetailModalOpen = ref(false)
+const activeTrip = ref<CampingTripWithCampsite | null>(null)
 const isSettingsModalOpen = ref(false)
-const userProfile = ref<{latitude: number, longitude: number, location_name: string} | null>(null)
+const userProfile = ref<{latitude: number, longitude: number, location_name: string, is_admin: boolean} | null>(null)
+const isCampsiteEditOpen = ref(false)
+const editingCampsiteData = ref<any>(null)
+const campsiteLibraryKey = ref(0) // Used to force refresh CampsiteLibrary
 
-const activeTab = ref<'home' | 'list' | 'calendar' | 'roi'>('home')
+const activeTab = ref<'home' | 'list' | 'calendar' | 'library'>('home')
 
 // Fetch Trips
 const fetchTrips = async () => {
@@ -55,17 +56,17 @@ const fetchTrips = async () => {
 
 // Actions
 const handleViewDetail = (trip: CampingTrip) => {
-  viewingTrip.value = trip as CampingTripWithCampsite
-  isDetailModalOpen.value = true
+  activeTrip.value = trip as CampingTripWithCampsite
+  isModalOpen.value = true
 }
 
 const handleAdd = () => {
-  editingTrip.value = null
+  activeTrip.value = null
   isModalOpen.value = true
 }
 
 const handleEdit = (trip: CampingTrip) => {
-  editingTrip.value = trip as CampingTripWithCampsite
+  activeTrip.value = trip as CampingTripWithCampsite
   isModalOpen.value = true
 }
 
@@ -98,12 +99,12 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
       user_id: session.value.user.id
     }
 
-    if (editingTrip.value) {
+    if (activeTrip.value) {
       // Update
       const { error } = await (supabase
         .from('camping_trips') as any)
         .update(dataToSave)
-        .eq('id', editingTrip.value.id)
+        .eq('id', activeTrip.value.id)
       if (error) throw error
       alert('更新成功！')
     } else {
@@ -116,7 +117,7 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
     }
     await fetchTrips()
     isModalOpen.value = false
-    editingTrip.value = null
+    activeTrip.value = null
   } catch (error) {
     console.error('儲存失敗:', error)
     alert('儲存失敗，請稍後再試')
@@ -151,15 +152,16 @@ const fetchUserProfile = async () => {
   try {
     const { data } = await supabase
       .from('profiles')
-      .select('latitude, longitude, location_name')
+      .select('latitude, longitude, location_name, is_admin')
       .eq('id', session.value.user.id)
       .single()
     
-    if (data && (data as any).latitude && (data as any).longitude) {
+    if (data) {
       userProfile.value = {
         latitude: (data as any).latitude,
         longitude: (data as any).longitude,
-        location_name: (data as any).location_name || '自訂起點'
+        location_name: (data as any).location_name || '自訂起點',
+        is_admin: (data as any).is_admin || false
       }
     }
   } catch (e) {
@@ -172,9 +174,32 @@ const handleSettingsSaved = (profileData: any) => {
     userProfile.value = {
       latitude: profileData.latitude,
       longitude: profileData.longitude,
-      location_name: profileData.location_name
+      location_name: profileData.location_name,
+      is_admin: userProfile.value?.is_admin || false
     }
   }
+}
+
+const handleEditCampsite = (site: any) => {
+  editingCampsiteData.value = site
+  isCampsiteEditOpen.value = true
+}
+
+const handleCampsiteSaved = async () => {
+  // Refresh Trip List (in case campsite name changed in trips)
+  await fetchTrips()
+  
+  // If we are currently editing a trip (CampingForm is open), we need to update the prop
+  // with the fresh data from fetchTrips so changes reflect immediately in the modal.
+  if (activeTrip.value) {
+    const freshTrip = trips.value.find(t => t.id === activeTrip.value?.id)
+    if (freshTrip) {
+      activeTrip.value = freshTrip
+    }
+  }
+
+  // Refresh Library (force re-mount to re-fetch)
+  campsiteLibraryKey.value++
 }
 
 onMounted(() => {
@@ -274,9 +299,11 @@ onMounted(() => {
           @view-detail="handleViewDetail" 
         />
   
-        <GearROIView 
-          v-if="activeTab === 'roi'" 
-          :trips="trips"
+        <CampsiteLibrary 
+          v-if="activeTab === 'library'" 
+          :key="campsiteLibraryKey"
+          :is-admin="userProfile?.is_admin || false"
+          @edit-campsite="handleEditCampsite"
         />
       </main>
   
@@ -302,7 +329,7 @@ onMounted(() => {
           :class="activeTab === 'list' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
         >
           <ListIcon class="w-6 h-6" />
-          <span class="text-[10px] font-medium mb-1">列表</span>
+          <span class="text-[10px] font-medium mb-1">足跡</span>
         </button>
   
         <!-- FAB (Floating Action Button) for Add -->
@@ -323,35 +350,40 @@ onMounted(() => {
         </button>
   
         <button 
-          @click="activeTab = 'roi'"
+          @click="activeTab = 'library'"
           class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-          :class="activeTab === 'roi' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
+          :class="activeTab === 'library' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
         >
-          <Tent class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'roi'}" />
-          <span class="text-[10px] font-medium mb-1">裝備</span>
+          <Search class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'library'}" />
+          <span class="text-[10px] font-medium mb-1">找營地</span>
         </button>
       </nav>
   
       <!-- Modals -->
-      <CampingForm
+      <TripModal
         :is-open="isModalOpen"
-        :trip="editingTrip"
+        :trip="activeTrip"
+        :is-admin="userProfile?.is_admin || false"
         @close="isModalOpen = false"
         @submit="handleSubmit"
-      />
-  
-      <TripDetailModal
-        :is-open="isDetailModalOpen"
-        :trip="viewingTrip"
-        @close="isDetailModalOpen = false"
+        @edit-campsite="handleEditCampsite"
       />
 
       <SettingsModal
         :is-open="isSettingsModalOpen"
         :user-id="session?.user?.id || ''"
+        :trips="trips"
         @close="isSettingsModalOpen = false"
         @logout="handleLogout"
         @saved="handleSettingsSaved"
+      />
+
+      <CampsiteEditModal
+        v-if="isCampsiteEditOpen && editingCampsiteData"
+        :is-open="isCampsiteEditOpen"
+        :campsite="editingCampsiteData"
+        @close="isCampsiteEditOpen = false"
+        @saved="handleCampsiteSaved"
       />
     </template>
   </div>

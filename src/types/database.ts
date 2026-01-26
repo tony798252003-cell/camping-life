@@ -4,6 +4,7 @@ export interface Profile {
     location_name: string | null
     latitude: number | null
     longitude: number | null
+    is_admin?: boolean // Added for Admin permissions
 }
 
 export interface Campsite {
@@ -16,6 +17,10 @@ export interface Campsite {
     longitude: number | null
     altitude: number | null
     created_by: string | null
+    is_verified?: boolean // Added for verification flow
+    tags?: string[]
+    phone?: string
+    zone_config?: string
 }
 
 export interface CampingTrip {
