@@ -1,3 +1,12 @@
+// Family Interface
+export interface Family {
+    id: string
+    created_at: string
+    name: string
+    invite_code: string
+    created_by: string
+}
+
 export interface Profile {
     id: string
     updated_at: string | null
@@ -5,6 +14,7 @@ export interface Profile {
     latitude: number | null
     longitude: number | null
     is_admin?: boolean // Added for Admin permissions
+    family_id?: string | null // Family Link
 }
 
 export interface Campsite {
@@ -48,6 +58,8 @@ export interface CampingTrip {
     cleanliness: number | null
     road_condition: number | null
     campsite_id: number | null
+    // Family
+    family_id?: string | null
     // Missing fields restored below
     entertainment: string | null
     owner_friendliness: string | null
@@ -88,6 +100,7 @@ export interface NewCampingTrip {
     cleanliness?: number
     road_condition?: number
     campsite_id?: number
+    family_id?: string | null
     // Missing fields restored below
     entertainment?: string
     owner_friendliness?: string
@@ -119,6 +132,7 @@ export interface GearItem {
     base_usage_count: number
     rental_price: number
     cost: number
+    family_id?: string | null
 }
 
 export type CampingGear = GearItem // Alias for consistency if needed
@@ -139,6 +153,7 @@ export interface NewGearItem {
     base_usage_count?: number
     rental_price?: number
     cost?: number
+    family_id?: string | null
 }
 
 export interface Database {
@@ -148,6 +163,11 @@ export interface Database {
                 Row: Profile
                 Insert: Profile
                 Update: Partial<Profile>
+            }
+            families: {
+                Row: Family
+                Insert: Omit<Family, 'id' | 'created_at'>
+                Update: Partial<Family>
             }
             campsites: {
                 Row: Campsite

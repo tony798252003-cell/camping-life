@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { supabase } from './lib/supabase'
 import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './types/database'
 import type { Session } from '@supabase/supabase-js'
@@ -25,24 +25,41 @@ const loading = ref(true)
 const isModalOpen = ref(false)
 const activeTrip = ref<CampingTripWithCampsite | null>(null)
 const isSettingsModalOpen = ref(false)
-const userProfile = ref<{latitude: number, longitude: number, location_name: string, is_admin: boolean} | null>(null)
+const userProfile = ref<{latitude: number, longitude: number, location_name: string, is_admin: boolean, family_id?: string} | null>(null)
 const isCampsiteEditOpen = ref(false)
 const editingCampsiteData = ref<any>(null)
 const campsiteLibraryKey = ref(0) // Used to force refresh CampsiteLibrary
+const inviteCode = ref('') // Store invite code from URL
 
 const activeTab = ref<'home' | 'list' | 'calendar' | 'library'>('home')
 
+// Auto-open settings if invite code exists
+watch(() => [isAuthReady.value, session.value], ([ready, sess]) => {
+  if (ready && sess && inviteCode.value) {
+    isSettingsModalOpen.value = true
+  }
+})
+
 // Fetch Trips
+
 const fetchTrips = async () => {
   if (!session.value) return 
   
   loading.value = true
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('camping_trips')
       .select('*, campsites(*)')
-      .eq('user_id', session.value.user.id) // Filter by User ID
       .order('trip_date', { ascending: false })
+
+    // Family Logic
+    if (userProfile.value?.family_id) {
+       query = query.eq('family_id', userProfile.value.family_id)
+    } else {
+       query = query.eq('user_id', session.value.user.id)
+    }
+
+    const { data, error } = await query
 
     if (error) throw error
     trips.value = (data as unknown as CampingTripWithCampsite[]) || []
@@ -93,10 +110,11 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
   if (!session.value) return
 
   try {
-    // Attach User ID to the new trip data
+    // Attach User ID and Family ID to the new trip data
     const dataToSave = {
       ...tripData,
-      user_id: session.value.user.id
+      user_id: session.value.user.id,
+      family_id: userProfile.value?.family_id ?? null
     }
 
     if (activeTrip.value) {
@@ -152,7 +170,7 @@ const fetchUserProfile = async () => {
   try {
     const { data } = await supabase
       .from('profiles')
-      .select('latitude, longitude, location_name, is_admin')
+      .select('latitude, longitude, location_name, is_admin, family_id')
       .eq('id', session.value.user.id)
       .single()
     
@@ -161,7 +179,8 @@ const fetchUserProfile = async () => {
         latitude: (data as any).latitude,
         longitude: (data as any).longitude,
         location_name: (data as any).location_name || '自訂起點',
-        is_admin: (data as any).is_admin || false
+        is_admin: (data as any).is_admin || false,
+        family_id: (data as any).family_id
       }
     }
   } catch (e) {
@@ -169,15 +188,10 @@ const fetchUserProfile = async () => {
   }
 }
 
-const handleSettingsSaved = (profileData: any) => {
-  if (profileData.latitude && profileData.longitude) {
-    userProfile.value = {
-      latitude: profileData.latitude,
-      longitude: profileData.longitude,
-      location_name: profileData.location_name,
-      is_admin: userProfile.value?.is_admin || false
-    }
-  }
+const handleSettingsSaved = async (profileData: any) => {
+  // If settings changed, reload profile to be sure (e.g. family joined)
+  await fetchUserProfile()
+  await fetchTrips()
 }
 
 const handleEditCampsite = (site: any) => {
@@ -203,17 +217,26 @@ const handleCampsiteSaved = async () => {
 }
 
 onMounted(() => {
+  // Check URL params for invite code
+  const params = new URLSearchParams(window.location.search)
+  const code = params.get('invite_code')
+  if (code) {
+    inviteCode.value = code
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname)
+  }
+
   // Check if we are handling an OAuth redirect
   // Support both Implicit (hash) and PKCE (search param 'code') flows
   const hasAuthHash = (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('refresh_token'))) || 
-                      (window.location.search && window.location.search.includes('code'))
+                      (window.location.search && window.location.search.includes('code') && !window.location.search.includes('invite_code'))
   
   // Get initial session
-  supabase.auth.getSession().then(({ data }) => {
+  supabase.auth.getSession().then(async ({ data }) => {
     session.value = data.session
     if (session.value) {
-      fetchTrips()
-      fetchUserProfile()
+      await fetchUserProfile()
+      await fetchTrips()
       isAuthReady.value = true
     } else if (!hasAuthHash) {
       // Only set ready if NO session AND NO auth hash (normal login page load)
@@ -223,7 +246,7 @@ onMounted(() => {
   })
 
   // Listen for auth changes
-  supabase.auth.onAuthStateChange((_event, _session) => {
+  supabase.auth.onAuthStateChange(async (_event, _session) => {
     // If we have a hash and get a session, now we are ready
     if (hasAuthHash && _session) {
       isAuthReady.value = true
@@ -232,8 +255,8 @@ onMounted(() => {
     session.value = _session
     if (_session) {
       if (isAuthReady.value) {
-        fetchTrips()
-        fetchUserProfile()
+        await fetchUserProfile()
+        await fetchTrips()
       } 
     } else {
       trips.value = []
@@ -373,6 +396,7 @@ onMounted(() => {
         :is-open="isSettingsModalOpen"
         :user-id="session?.user?.id || ''"
         :trips="trips"
+        :initial-invite-code="inviteCode"
         @close="isSettingsModalOpen = false"
         @logout="handleLogout"
         @saved="handleSettingsSaved"
