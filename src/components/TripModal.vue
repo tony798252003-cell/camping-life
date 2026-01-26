@@ -485,7 +485,7 @@ const formatDateRange = (dateString: string, duration: number | null = 1) => {
 
                   <!-- Weather Forecast -->
                   <div class="mb-6">
-                    <TripWeather :trip="weatherTrip" />
+                    <TripWeather :trip="weatherTrip" :isOpen="!!weatherTrip" @close="weatherTrip = null" />
                   </div>
 
                   <!-- Details Grid -->

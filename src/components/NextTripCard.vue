@@ -1,15 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, toRef } from 'vue'
 import { CloudSun, CloudRain, Sun, Cloud, Moon, Tent, MapPin, Calendar, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import type { CampingTripWithCampsite } from '../types/database'
+import { useTripWeather } from '../composables/useTripWeather'
 
 interface Props {
   trip: CampingTripWithCampsite
   hasPrev?: boolean
   hasNext?: boolean
 }
-// ... (keep start of script)
-
 
 const props = defineProps<Props>()
 
@@ -19,21 +18,18 @@ const emit = defineEmits<{
   (e: 'next'): void
 }>()
 
-// 天氣資料結構：僅需保存摘要
-interface DayWeather {
-  date: string
-  dateLabel: string
-  day: {
-    code: number
-    temp_max: number
-    temp_min: number
-  }
-}
+// Use Shared Weather Logic
+// Note: We pass a Ref of the trip to make it reactive within the composable
+const tripRef = toRef(props, 'trip')
+const { weatherDays, tripSummary, packingStatus, loading: loadingWeather } = useTripWeather(tripRef)
 
-const weather = ref<DayWeather[]>([])
-const loadingWeather = ref(false)
-const weatherError = ref<string | null>(null)
-const packingStatus = ref<'dry' | 'wet' | null>(null) // 新增：收帳狀態
+// Derived Weather Summary for Card (Use Overall Trip Summary)
+const weatherSummary = computed(() => {
+  if (tripSummary.value) return { summary: tripSummary.value }
+  // Fallback to first day if summary not ready but days are (should not happen logic wise but safe)
+  if (weatherDays.value.length > 0) return weatherDays.value[0]
+  return null
+})
 
 const isPastTrip = computed(() => {
   const today = new Date()
@@ -46,17 +42,14 @@ const isPastTrip = computed(() => {
   const endDate = new Date(tripDate)
   endDate.setDate(endDate.getDate() + duration - 1)
   
-  // 如果今天已經過了結束日期，就是過去的行程
   return today.getTime() > endDate.getTime()
 })
 
-// 狀態標籤邏輯
+// 狀態標籤邏輯 (Timing Status)
 const statusLabel = computed(() => {
   if (isPastTrip.value) return '已完成'
 
   const now = new Date()
-  const today = new Date(now)
-  today.setHours(0, 0, 0, 0)
   
   const tripDate = new Date(props.trip.trip_date)
   tripDate.setHours(0, 0, 0, 0)
@@ -64,7 +57,9 @@ const statusLabel = computed(() => {
   const duration = props.trip.duration_days || 1
   const endDate = new Date(tripDate)
   endDate.setDate(endDate.getDate() + duration - 1) // 最後一天
-  
+  const endDateEnd = new Date(endDate)
+  endDateEnd.setHours(23, 59, 59, 999)
+
   const nightRushDate = new Date(tripDate)
   nightRushDate.setDate(nightRushDate.getDate() - 1)
   
@@ -74,7 +69,7 @@ const statusLabel = computed(() => {
   }
   
   // 2. 露營期間
-  if (now.getTime() >= tripDate.getTime() && now.getTime() <= endDate.getTime()) {
+  if (now.getTime() >= tripDate.getTime() && now.getTime() <= endDateEnd.getTime()) {
     // 如果是最後一天中午前 (12:00 前) -> 收帳撤收
     if (now.getDate() === endDate.getDate() && now.getMonth() === endDate.getMonth()) {
       if (now.getHours() < 12) return '⛺ 收帳撤收'
@@ -116,209 +111,6 @@ const countdown = computed(() => {
   return `${diffDays}`
 })
 
-// 取得天氣資訊
-const fetchWeather = async () => {
-  // 過去的行程不抓天氣
-  if (isPastTrip.value) return
-  
-  const lat = props.trip.campsites?.latitude ?? props.trip.latitude
-  const lng = props.trip.campsites?.longitude ?? props.trip.longitude
-
-  if (!lat || !lng) {
-    weatherError.value = 'no_coords'
-    return
-  }
-  // ... (rest of logic)
-  
-  weather.value = []
-  
-  // Open-Meteo only provides ~16 days forecast. 
-  // If trip is too far in the future, don't fetch to avoid weird default data (like 0-15 degrees).
-  const today = new Date()
-  const tripTime = new Date(props.trip.trip_date).getTime()
-  const diffTime = tripTime - today.getTime()
-  const daysUntil = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  
-  if (daysUntil > 16) {
-    loadingWeather.value = false
-    return
-  }
-
-  loadingWeather.value = true
-  weatherError.value = null
-  packingStatus.value = null
-
-  try {
-    const tripDate = new Date(props.trip.trip_date)
-    const duration = props.trip.duration_days || 1
-    
-    // 計算結束日期 (最後一天)
-    const endDate = new Date(tripDate)
-    endDate.setDate(endDate.getDate() + duration - 1)
-    const endDateStr = endDate.toISOString().split('T')[0]
-
-    // 1. 取得精確海拔 (如果行程沒有設定)
-    let elevation = props.trip.campsites?.altitude ?? props.trip.altitude
-    const lat = props.trip.campsites?.latitude ?? props.trip.latitude
-    const lng = props.trip.campsites?.longitude ?? props.trip.longitude
-
-    if (!elevation && lat && lng) {
-      try {
-        const elevResponse = await fetch(
-          `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`
-        )
-        const elevData = await elevResponse.json()
-        if (elevData.elevation && elevData.elevation.length > 0) {
-          elevation = elevData.elevation[0]
-        }
-      } catch (e) {
-        console.warn('Failed to fetch elevation', e)
-      }
-    }
-
-    // 緩存 Key (每小時更新一次)
-    const cacheKey = `weather_v2_${props.trip.id}_${tripDate.toDateString()}`
-    const cached = localStorage.getItem(cacheKey)
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached)
-      // 60 分鐘緩存
-      if (Date.now() - timestamp < 60 * 60 * 1000) {
-        weather.value = data.weather
-        packingStatus.value = data.packingStatus
-        loadingWeather.value = false
-        return
-      }
-    }
-
-    // 2. 準備 API 參數
-    // 加入 past_days=1 以支援「夜衝」需求
-    // Wait, lat/lng must be defined here due to check at top, but TS might complain
-    if (!lat || !lng) return 
-
-    let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=weather_code,temperature_2m&forecast_days=16&past_days=1&models=gem_global`
-    
-    // 加入海拔參數以校正溫度
-    if (elevation) {
-      apiUrl += `&elevation=${elevation}`
-    }
-
-    const response = await fetch(apiUrl)
-    const data = await response.json()
-    
-    if (!data.hourly || !data.hourly.time) {
-      weatherError.value = 'api_error'
-      return
-    }
-
-    // 解析資料以產生 "摘要"
-    const allCodes: number[] = []
-    const allTemps: number[] = []
-    let lastDayRainCodes: number[] = []
-
-    // 如果有夜衝，從前一天開始
-    const startOffset = props.trip.night_rush ? -1 : 0
-
-    for (let dayOffset = startOffset; dayOffset < duration; dayOffset++) {
-      const currentDate = new Date(tripDate)
-      currentDate.setDate(currentDate.getDate() + dayOffset)
-      const dateStr = currentDate.toISOString().split('T')[0]
-      
-      const nextDate = new Date(currentDate)
-      nextDate.setDate(nextDate.getDate() + 1)
-      const nextDateStr = nextDate.toISOString().split('T')[0]
-
-      data.hourly.time.forEach((timeStr: string, index: number) => {
-        // 時區轉換
-        const utcTime = new Date(timeStr + 'Z')
-        const localYear = utcTime.getFullYear()
-        const localMonth = String(utcTime.getMonth() + 1).padStart(2, '0')
-        const localDay = String(utcTime.getDate()).padStart(2, '0')
-        const localDateStr = `${localYear}-${localMonth}-${localDay}`
-        const localHour = utcTime.getHours()
-        
-        const temp = data.hourly.temperature_2m[index]
-        const code = data.hourly.weather_code[index]
-        
-        // 收集所有相關時段的溫度與天氣代碼 (包含夜衝那晚 ~ 收帳那天中午)
-        // 簡單邏輯：只要是旅程日期範圍內的都算
-        const isTargetDay = localDateStr === dateStr
-        // 或者是跨夜的晚上 (算在前一天)
-        const isNextDayEarlyMorning = localDateStr === nextDateStr && localHour < 6
-
-        if (isTargetDay || isNextDayEarlyMorning) {
-           // 夜衝日特殊處置：只計算 17:00 之後
-           if (dayOffset === -1 && isTargetDay && localHour < 17) {
-             return
-           }
-           allTemps.push(temp)
-           allCodes.push(code)
-        }
-
-        // 檢查收帳日 (最後一天) 上午 08:00 - 12:00 的天氣
-        if (localDateStr === endDateStr && localHour >= 8 && localHour <= 12) {
-          lastDayRainCodes.push(code)
-        }
-      })
-    }
-    
-    if (allTemps.length > 0) {
-      // 計算摘要數據
-      const daySummary: DayWeather = {
-        date: '', 
-        dateLabel: 'Summary',
-        day: {
-          code: getMostFrequentCode(allCodes),
-          temp_max: Math.round(Math.max(...allTemps)),
-          temp_min: Math.round(Math.min(...allTemps))
-        }
-      }
-      weather.value = [daySummary]
-    }
-
-    // 判斷撤收狀態
-    if (lastDayRainCodes.length > 0) {
-      // 檢查是否有雨 (代碼 > 50 通常為降雨相關)
-      const hasRain = lastDayRainCodes.some(code => code >= 51)
-      packingStatus.value = hasRain ? 'wet' : 'dry'
-    } else {
-       // 如果資料還沒覆蓋到最後一天(例如行程在很久以後)，就不顯示狀態
-       packingStatus.value = null
-    }
-
-    // Save to Cache
-    localStorage.setItem(cacheKey, JSON.stringify({
-      timestamp: Date.now(),
-      data: {
-        weather: weather.value,
-        packingStatus: packingStatus.value
-      }
-    }))
-    
-  } catch (e) {
-    console.error('Weather fetch error', e)
-    weatherError.value = 'fetch_error'
-  } finally {
-    loadingWeather.value = false
-  }
-}
-
-// 取得最常出現的天氣代碼
-const getMostFrequentCode = (codes: number[]): number => {
-  if (codes.length === 0) return 0
-  const frequency: Record<number, number> = {}
-  let maxFreq = 0
-  let mostFrequent = codes[0]!
-  
-  codes.forEach(code => {
-    frequency[code] = (frequency[code] || 0) + 1
-    if (frequency[code] > maxFreq) {
-      maxFreq = frequency[code]
-      mostFrequent = code
-    }
-  })
-  return mostFrequent
-}
-
 // Weather Code mapping simple
 const getWeatherIcon = (code: number) => {
   if (code <= 3) return Sun 
@@ -349,10 +141,6 @@ const titleClass = computed(() => {
   if (len <= 8) return 'text-3xl md:text-5xl'
   return 'text-2xl md:text-4xl'
 })
-
-watch(() => props.trip, () => {
-  fetchWeather()
-}, { immediate: true })
 
 </script>
 
@@ -472,7 +260,7 @@ watch(() => props.trip, () => {
          </div>
 
          <!-- Loading Skeleton -->
-         <div v-else-if="loadingWeather && (!weather || weather.length === 0)" 
+         <div v-else-if="loadingWeather && !weatherSummary" 
                class="relative z-40 flex items-center bg-white/40 backdrop-blur-sm px-3 md:px-5 py-3 rounded-2xl border border-white/30 gap-2 md:gap-5 w-full md:max-w-sm mx-auto animate-pulse h-[4.5rem]">
               <div class="flex items-center gap-3 w-full">
                   <div class="w-10 h-10 rounded-full bg-white/50"></div>
@@ -484,15 +272,15 @@ watch(() => props.trip, () => {
           </div>
 
          <!-- Formatting Weather Card -->
-         <div v-else-if="weather.length > 0 && weather[0]" class="relative z-40 flex items-center bg-white/80 backdrop-blur-md px-3 md:px-5 py-3 rounded-2xl shadow-sm border border-white/60 gap-2 md:gap-5 max-w-[95vw] md:max-w-sm mx-auto animate-fade-in-up h-[4.5rem]">
+         <div v-else-if="weatherSummary" class="relative z-40 flex items-center bg-white/80 backdrop-blur-md px-3 md:px-5 py-3 rounded-2xl shadow-sm border border-white/60 gap-2 md:gap-5 max-w-[95vw] md:max-w-sm mx-auto animate-fade-in-up h-[4.5rem]">
              
              <!-- 氣溫部分 -->
              <div class="flex items-center gap-2 md:gap-3 min-w-0">
-                <component :is="getWeatherIcon(weather[0].day.code)" class="w-8 h-8 md:w-10 md:h-10 text-accent-orange drop-shadow-sm flex-shrink-0" />
+                <component :is="getWeatherIcon(weatherSummary.summary.code)" class="w-8 h-8 md:w-10 md:h-10 text-accent-orange drop-shadow-sm flex-shrink-0" />
                 <div class="text-left min-w-0">
-                   <div class="text-[10px] md:text-xs text-primary-500 mb-0.5 whitespace-nowrap">預報氣溫</div>
+                   <div class="text-[10px] md:text-xs text-primary-500 mb-0.5 whitespace-nowrap">全程氣溫</div>
                    <div class="text-lg md:text-2xl font-black text-primary-900 leading-none whitespace-nowrap">
-                     {{ weather[0].day.temp_min }}° - {{ weather[0].day.temp_max }}°
+                     {{ weatherSummary.summary.temp_min }}° - {{ weatherSummary.summary.temp_max }}°
                    </div>
                 </div>
              </div>
@@ -503,16 +291,26 @@ watch(() => props.trip, () => {
               <!-- 撤收狀態 -->
               <div v-if="packingStatus" class="flex items-center gap-2 md:gap-3 min-w-0">
                   <div class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full flex-shrink-0"
-                       :class="packingStatus === 'dry' ? 'bg-emerald-100/50 text-emerald-600' : 'bg-red-100/50 text-red-600'"
+                       :class="{
+                          'bg-emerald-100/50 text-emerald-600': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
+                          'bg-red-100/50 text-red-600': packingStatus.status === 'wet',
+                          'bg-orange-100/50 text-orange-600': packingStatus.status === 'damp' || packingStatus.status === 'risk',
+                          'bg-yellow-100/50 text-yellow-600': packingStatus.status === 'drying' || packingStatus.status === 'chance',
+                       }"
                   >
                      <Tent class="w-5 h-5 md:w-6 md:h-6" />
                   </div>
                   <div class="text-left min-w-0">
                       <div class="text-[10px] md:text-xs text-primary-500 mb-0.5 whitespace-nowrap">收帳預測</div>
                       <div class="text-lg md:text-xl font-black leading-none whitespace-nowrap"
-                           :class="packingStatus === 'dry' ? 'text-emerald-700' : 'text-red-700'"
+                           :class="{
+                              'text-emerald-700': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
+                              'text-red-700': packingStatus.status === 'wet',
+                              'text-orange-700': packingStatus.status === 'damp' || packingStatus.status === 'risk',
+                              'text-yellow-700': packingStatus.status === 'drying' || packingStatus.status === 'chance',
+                           }"
                       >
-                          {{ packingStatus === 'dry' ? '乾燥撤收' : '濕帳撤收' }}
+                          {{ packingStatus.label }}
                       </div>
                   </div>
               </div>
