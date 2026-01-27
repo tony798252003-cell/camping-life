@@ -397,6 +397,18 @@ const isLoadingProfile = ref(false)
 watch(() => props.isOpen, async (newVal) => {
   if (newVal && props.userId) {
     await fetchProfile()
+    
+    // Auto Join Logic after profile is loaded
+    if (props.initialInviteCode && !userFamily.value && !isProcessingFamily.value) {
+       console.log('Detected invite code and no family, auto-joining:', props.initialInviteCode) 
+       // Short delay to ensure UI transition
+       setTimeout(() => {
+          inviteCodeInput.value = props.initialInviteCode!
+          joinFamily()
+       }, 500)
+    } else if (props.initialInviteCode && userFamily.value) {
+       alert(`您已加入家庭「${userFamily.value.name}」，無法使用邀請碼加入其他家庭。\n若要更換家庭，請先建立新家庭或退出。`)
+    }
   }
 })
 
