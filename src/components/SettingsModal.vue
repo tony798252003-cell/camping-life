@@ -473,15 +473,17 @@ const isFamilyHead = computed(() => {
    return userFamily.value && userFamily.value.created_by === props.userId
 })
 
+// Fix fetchFamilyMembers types
 const fetchFamilyMembers = async () => {
    if (!userFamily.value) return
    try {
       console.log('Fetching family members...')
-      const { data, error } = await supabase.rpc('get_family_members')
+      // Cast to any to avoid outdated type definition errors
+      const { data, error } = await (supabase.rpc as any)('get_family_members')
       if (error) throw error
       console.log('Members fetched:', data)
       // Sort: Head first, then name
-      familyMembers.value = (data || []).sort((a: any, b: any) => {
+      familyMembers.value = ((data as any[]) || []).sort((a: any, b: any) => {
          if (a.is_head && !b.is_head) return -1
          if (!a.is_head && b.is_head) return 1
          return 0
@@ -505,7 +507,8 @@ const kickMember = async (targetId: string) => {
    if (!confirm('確定要將此成員移除嗎？\n該成員將無法看到家庭行程，但其個人行程會保留。')) return
    
    try {
-      const { error } = await supabase.rpc('kick_family_member', { target_user_id: targetId })
+      // Cast to any for new RPC
+      const { error } = await (supabase.rpc as any)('kick_family_member', { target_user_id: targetId })
       if (error) throw error
       
       alert('已移除成員')
@@ -520,7 +523,7 @@ const leaveFamily = async () => {
    if (!confirm('確定要退出此家庭嗎？\n退出後您將無法看到家庭共有行程。')) return
    
    try {
-      const { error } = await supabase.rpc('leave_family')
+      const { error } = await (supabase.rpc as any)('leave_family')
       if (error) throw error
       
       alert('已退出家庭，頁面將重新整理。')
@@ -599,14 +602,15 @@ const joinFamily = async (eventOrCode?: MouseEvent | string) => {
   isProcessingFamily.value = true
   try {
     // Find family securely using RPC (bypasses RLS)
-    const { data: families, error } = await supabase.rpc('get_family_by_invite_code', { 
+    // Cast to any because getting types is notoriously hard with manual RPCs
+    const { data: families, error } = await (supabase.rpc as any)('get_family_by_invite_code', { 
        code_input: codeToUse
     })
       
     if (error) throw error
-    if (!families || families.length === 0) throw new Error('找不到此邀請碼的家庭')
+    if (!families || (families as any[]).length === 0) throw new Error('找不到此邀請碼的家庭')
     
-    const family = families[0]
+    const family = (families as any[])[0]
     
     // Link User
     await linkUserToFamily((family as any).id)
