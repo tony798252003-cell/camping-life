@@ -120,18 +120,50 @@
                  <Share2 class="w-5 h-5" />
                  分享加入連結
               </button>
+              
+              <div v-if="familyMembers.length > 0" class="border-t border-gray-100 pt-4 text-left">
+                 <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">家庭成員</h4>
+                 <div class="space-y-2">
+                    <div v-for="member in familyMembers" :key="member.id" class="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
+                       <div class="flex items-center gap-3 overflow-hidden">
+                          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0 overflow-hidden">
+                             <img v-if="member.avatar_url" :src="member.avatar_url" class="w-full h-full object-cover" />
+                             <span v-else>{{ member.email?.charAt(0).toUpperCase() }}</span>
+                          </div>
+                          <div class="flex flex-col min-w-0">
+                             <div class="flex items-center gap-2">
+                                <span class="text-sm font-medium text-gray-700 truncate block">{{ member.name }}</span>
+                                <span v-if="member.is_head" class="px-1.5 py-0.5 text-[10px] bg-yellow-100 text-yellow-700 rounded-full font-bold whitespace-nowrap">戶長</span>
+                             </div>
+                             <!-- ID Hidden per user request -->
+                          </div>
+                       </div>
+                       
+                       <!-- Actions -->
+                       <div v-if="isFamilyHead && !member.is_head" class="shrink-0">
+                          <button @click="kickMember(member.id)" class="text-xs text-red-400 hover:text-red-600 px-2 py-1">移除</button>
+                       </div>
+                    </div>
+                 </div>
+              </div>
 
               <div class="pt-4 border-t border-gray-100">
-                <button 
-                  @click="handleManualMigration"
-                  :disabled="isProcessingFamily"
-                  class="w-full py-2 text-sm text-gray-500 hover:text-gray-700 underline flex items-center justify-center"
-                >
-                   匯入我的舊資料到此家庭
-                </button>
-                <p class="text-[10px] text-gray-400 text-center mt-1">
-                  若您發現加入家庭後找不到舊行程，請點選此處
-                </p>
+                 <button 
+                  @click="leaveFamily"
+                  class="w-full py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm font-medium"
+                 >
+                    退出家庭
+                 </button>
+                 
+                 <div class="mt-2">
+                    <button 
+                      @click="handleManualMigration"
+                      :disabled="isProcessingFamily"
+                      class="text-xs text-gray-400 hover:text-gray-600 underline"
+                    >
+                       匯入我的舊資料
+                    </button>
+                 </div>
               </div>
            </div>
 
@@ -195,7 +227,12 @@
               位置設定
             </h3>
             
-            <div class="space-y-3">
+            <div v-if="userFamily && !isFamilyHead" class="bg-blue-50 text-blue-800 p-3 rounded-lg text-xs flex items-start gap-2">
+               <ShieldAlert class="w-4 h-4 mt-0.5 shrink-0" />
+               <p>您已加入家庭群組，起始位置設定由<strong>戶長</strong>統一管理。如需修改請聯繫戶長。</p>
+            </div>
+
+            <div class="space-y-3" :class="{'opacity-60 pointer-events-none': userFamily && !isFamilyHead}">
               <div>
                 <label class="block text-xs text-gray-500 mb-1">地點名稱 (例如: 家)</label>
                 <input 
@@ -311,7 +348,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from 'vue'
+import { ref, watch, reactive, computed } from 'vue'
 import { Settings, X, MapPin, Navigation, LogOut, Loader2, User, ChevronRight, ChevronLeft, Tent, ShieldAlert } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { parseTaiwanLocation } from '../utils/googleMaps'
@@ -330,16 +367,8 @@ type ViewState = 'menu' | 'location' | 'gear' | 'family' | 'admin'
 const currentView = ref<ViewState>('menu')
 
 // Reset view on open
-watch(() => props.isOpen, (v) => {
-  if (v) {
-    if (props.initialInviteCode && !userFamily.value) {
-      currentView.value = 'family'
-      inviteCodeInput.value = props.initialInviteCode
-    } else {
-      currentView.value = 'menu'
-    }
-  }
-})
+// Reset view on open logic moved to main watcher below
+// watch(() => props.isOpen... removed
 
 // Auto-switch if family joined successfully or code provided later
 watch(() => props.initialInviteCode, (newCode) => {
@@ -360,14 +389,13 @@ const shareInviteLink = async () => {
   
   const url = `${window.location.origin}?invite_code=${userFamily.value.invite_code}`
   const text = `加入我的露營家庭「${userFamily.value.name}」！點擊連結加入：\n${url}`
-  const shareText = `加入我的露營家庭「${userFamily.value.name}」！點擊連結加入：`
   
   if (navigator.share) {
     try {
       await navigator.share({
         title: '加入露營家庭',
-        text: shareText,
-        url: url
+        text: text
+        // omitting url to force text order
       })
     } catch (e) {
       console.log('Share cancelled')
@@ -393,24 +421,17 @@ const isLoadingLocation = ref(false)
 const isSaving = ref(false)
 const isLoadingProfile = ref(false)
 
-// Fetch profile when modal opens
-watch(() => props.isOpen, async (newVal) => {
-  if (newVal && props.userId) {
-    await fetchProfile()
-    
-    // Auto Join Logic after profile is loaded
-    if (props.initialInviteCode && !userFamily.value && !isProcessingFamily.value) {
-       console.log('Detected invite code and no family, auto-joining:', props.initialInviteCode) 
-       // Short delay to ensure UI transition
-       setTimeout(() => {
-          inviteCodeInput.value = props.initialInviteCode!
-          joinFamily()
-       }, 500)
-    } else if (props.initialInviteCode && userFamily.value) {
-       alert(`您已加入家庭「${userFamily.value.name}」，無法使用邀請碼加入其他家庭。\n若要更換家庭，請先建立新家庭或退出。`)
-    }
-  }
+// Debug watcher for prop
+watch(() => props.initialInviteCode, (code) => {
+   console.log('[SettingsModal] initialInviteCode prop changed:', code)
+   if (code && props.isOpen) {
+      console.log('[SettingsModal] Prop change triggered auto-switch')
+      currentView.value = 'family'
+      inviteCodeInput.value = code
+   }
 })
+
+// Watcher moved to bottom to ensure refs are initialized
 
 const fetchProfile = async () => {
   isLoadingProfile.value = true
@@ -446,6 +467,70 @@ const userFamily = ref<any>(null)
 const inviteCodeInput = ref('')
 const newFamilyName = ref('')
 const isProcessingFamily = ref(false)
+const familyMembers = ref<any[]>([])
+
+const isFamilyHead = computed(() => {
+   return userFamily.value && userFamily.value.created_by === props.userId
+})
+
+const fetchFamilyMembers = async () => {
+   if (!userFamily.value) return
+   try {
+      console.log('Fetching family members...')
+      const { data, error } = await supabase.rpc('get_family_members')
+      if (error) throw error
+      console.log('Members fetched:', data)
+      // Sort: Head first, then name
+      familyMembers.value = (data || []).sort((a: any, b: any) => {
+         if (a.is_head && !b.is_head) return -1
+         if (!a.is_head && b.is_head) return 1
+         return 0
+      })
+   } catch (e) {
+      console.error('Error fetching members:', e)
+   }
+}
+
+// Watch for family changes to fetch members
+watch(userFamily, (newVal) => {
+   if (newVal) {
+      console.log('User family changed:', newVal)
+      fetchFamilyMembers()
+   } else {
+      familyMembers.value = []
+   }
+}, { immediate: true })
+
+const kickMember = async (targetId: string) => {
+   if (!confirm('確定要將此成員移除嗎？\n該成員將無法看到家庭行程，但其個人行程會保留。')) return
+   
+   try {
+      const { error } = await supabase.rpc('kick_family_member', { target_user_id: targetId })
+      if (error) throw error
+      
+      alert('已移除成員')
+      await fetchFamilyMembers() // Refresh list
+   } catch(e: any) {
+      console.error(e)
+      alert('移除失敗: ' + e.message)
+   }
+}
+
+const leaveFamily = async () => {
+   if (!confirm('確定要退出此家庭嗎？\n退出後您將無法看到家庭共有行程。')) return
+   
+   try {
+      const { error } = await supabase.rpc('leave_family')
+      if (error) throw error
+      
+      alert('已退出家庭，頁面將重新整理。')
+      // Redirect to clean URL to prevent auto-rejoin if invite code is in URL
+      window.location.href = window.location.pathname
+   } catch(e: any) {
+      console.error(e)
+      alert('退出失敗: ' + e.message)
+   }
+}
 
 const createFamily = async () => {
   if (!newFamilyName.value) return alert('請輸入家庭名稱')
@@ -507,18 +592,21 @@ const handleManualMigration = async () => {
   }
 }
 
-const joinFamily = async () => {
-  if (!inviteCodeInput.value) return alert('請輸入邀請碼')
+const joinFamily = async (eventOrCode?: MouseEvent | string) => {
+  const codeToUse = (typeof eventOrCode === 'string' ? eventOrCode : inviteCodeInput.value)?.toUpperCase()
+  
+  if (!codeToUse) return alert('請輸入邀請碼')
   isProcessingFamily.value = true
   try {
-    // Find family
-    const { data: family, error } = await supabase
-      .from('families')
-      .select('*')
-      .eq('invite_code', inviteCodeInput.value.toUpperCase())
-      .single()
+    // Find family securely using RPC (bypasses RLS)
+    const { data: families, error } = await supabase.rpc('get_family_by_invite_code', { 
+       code_input: codeToUse
+    })
       
-    if (error || !family) throw new Error('找不到此邀請碼的家庭')
+    if (error) throw error
+    if (!families || families.length === 0) throw new Error('找不到此邀請碼的家庭')
+    
+    const family = families[0]
     
     // Link User
     await linkUserToFamily((family as any).id)
@@ -529,7 +617,15 @@ const joinFamily = async () => {
     // Refresh
     userFamily.value = family
     inviteCodeInput.value = ''
-    alert(`成功加入 ${(family as any).name}！`)
+    alert(`成功加入 ${(family as any).name}！按確定後將重新整理頁面。`)
+    
+    // Force reload to ensure all data (trips, gear) is fetched with family context
+    window.location.reload()
+    
+    // Ensure view switches to member list (won't matter if reloading, but keeps logic clean)
+    currentView.value = 'family'
+    fetchFamilyMembers() // Refresh members
+    
   } catch(e: any) {
     console.error(e)
     alert('加入失敗: ' + e.message)
@@ -743,6 +839,41 @@ const startBatchUpdateGPS = async () => {
       isBatchProcessing.value = false
    }
 }
+
+// Multi-watcher for Open and UserID (Moved to end for scope access)
+watch([() => props.isOpen, () => props.userId], async ([isOpen, userId]) => {
+  console.log('[SettingsModal] State change - isOpen:', isOpen, 'userId:', userId, 'code:', props.initialInviteCode)
+
+  if (isOpen && userId) {
+    if (!props.initialInviteCode) {
+       console.log('[SettingsModal] No code, defaulting to menu')
+       currentView.value = 'menu'
+    } else {
+       console.log('[SettingsModal] Has code, defaulting to family')
+       currentView.value = 'family'
+       inviteCodeInput.value = props.initialInviteCode
+    }
+
+    await fetchProfile()
+    console.log('[SettingsModal] Profile fetched. Family:', userFamily.value)
+    
+    if (props.initialInviteCode) {
+       currentView.value = 'family'
+       inviteCodeInput.value = props.initialInviteCode
+
+       if (!userFamily.value && !isProcessingFamily.value) {
+          console.log('[SettingsModal] Auto-joining family:', props.initialInviteCode) 
+          // Short delay to ensure UI transition and variable reactivity
+          setTimeout(() => {
+             inviteCodeInput.value = props.initialInviteCode!
+             joinFamily(props.initialInviteCode)
+          }, 500)
+       } else if (userFamily.value) {
+          console.log('[SettingsModal] User already in family, skipping auto-join.')
+       }
+    }
+  }
+}, { immediate: true })
 
 const handleLogout = () => {
   emit('logout')

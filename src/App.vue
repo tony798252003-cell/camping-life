@@ -217,17 +217,33 @@ const fetchUserProfile = async () => {
 onMounted(() => {
   console.log('[App] Mounted')
   // Check URL params for invite code
+  // Check URL params for invite code (Search or Hash)
   const params = new URLSearchParams(window.location.search)
-  const code = params.get('invite_code')
+  let code = params.get('invite_code')
+  
+  // Also check hash for params (e.g. /#/?invite_code=...)
+  if (!code && window.location.hash.includes('invite_code')) {
+     const hashParts = window.location.hash.split('?')
+     if (hashParts.length > 1) {
+        const hashParams = new URLSearchParams(hashParts[1])
+        code = hashParams.get('invite_code')
+     }
+  }
+
+  console.log('[App] Parsed Code from URL/Hash:', code)
+  console.log('[App] Current Search:', window.location.search)
+  console.log('[App] Current Hash:', window.location.hash)
+  
   if (code) {
     inviteCode.value = code
     // Persist for auth flow
     localStorage.setItem('pending_invite_code', code)
-    window.history.replaceState({}, '', window.location.pathname)
+    window.history.replaceState({}, '', window.location.pathname) 
   }
 
   const hasAuthHash = (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('refresh_token'))) || 
                       (window.location.search && window.location.search.includes('code') && !window.location.search.includes('invite_code'))
+  console.log('[App] hasAuthHash:', hasAuthHash)
   
   // Backup timeout: Force ready state after 4 seconds to avoid infinite loading
   setTimeout(() => {
@@ -264,7 +280,7 @@ onMounted(() => {
       // Check for pending invite code from pre-login
       const pendingCode = localStorage.getItem('pending_invite_code')
       if (pendingCode) {
-        console.log('[App] Restoring pending invite code:', pendingCode)
+        console.log('[App] Restoring pending invite code from LocalStorage:', pendingCode)
         inviteCode.value = pendingCode
         localStorage.removeItem('pending_invite_code')
       }
@@ -280,6 +296,17 @@ onMounted(() => {
       }
     }
   })
+
+  // Watch for invite code and session to auto-open settings
+  watch([inviteCode, session], ([newCode, newSession]) => {
+     if (newCode && newSession) {
+        console.log('[App] Watcher: Code and Session ready, opening settings:', newCode)
+        // Short delay to ensure Profile fetch has started? 
+        setTimeout(() => {
+           isSettingsModalOpen.value = true
+        }, 300)
+     }
+  }, { immediate: true })
 })
 </script>
 
@@ -297,15 +324,37 @@ onMounted(() => {
     <!-- Main App -->
     <template v-else>
       <!-- Global Header -->
-      <header class="bg-white/70 backdrop-blur-lg sticky top-0 z-50 border-b border-primary-100 px-6 py-4 supports-[backdrop-filter]:bg-white/60 flex items-center justify-between">
-        <div class="w-8"></div> <!-- Spacer for centering -->
-        <div class="flex justify-center items-center">
+      <header class="bg-white/70 backdrop-blur-lg sticky top-0 z-50 border-b border-primary-100 px-6 py-4 supports-[backdrop-filter]:bg-white/60 flex items-center justify-between relative">
+        <!-- User Info -->
+        <div class="flex items-center gap-2 z-10 relative max-w-[40%]"> 
+           <div v-if="session?.user" class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-xs shadow-md shrink-0 overflow-hidden">
+                  <img 
+                     v-if="session.user.user_metadata?.avatar_url" 
+                     :src="session.user.user_metadata.avatar_url" 
+                     class="w-full h-full object-cover"
+                     alt="Avatar"
+                  />
+                  <span v-else>{{ session.user.email?.charAt(0).toUpperCase() || 'U' }}</span>
+              </div>
+              <div class="flex flex-col justify-center">
+                 <span class="text-[12px] font-bold text-primary-900 leading-none truncate w-24">
+                    {{ session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] }}
+                 </span>
+              </div>
+           </div>
+        </div>
+
+        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <img src="/images/title_logo.png" alt="搭帳日誌" class="h-8 md:h-10 w-auto object-contain" />
         </div>
+        
         <!-- Settings Button -->
-        <button @click="isSettingsModalOpen = true" class="w-8 h-8 flex items-center justify-center text-primary-400 hover:text-primary-600 transition-colors" title="設定">
-           <Settings class="w-5 h-5" />
-        </button>
+        <div class="z-10 relative">
+          <button @click="isSettingsModalOpen = true" class="w-8 h-8 flex items-center justify-center text-primary-400 hover:text-primary-600 transition-colors" title="設定">
+             <Settings class="w-5 h-5" />
+          </button>
+        </div>
       </header>
   
       <!-- Main Content -->
