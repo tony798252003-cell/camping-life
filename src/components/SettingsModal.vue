@@ -360,12 +360,13 @@ const shareInviteLink = async () => {
   
   const url = `${window.location.origin}?invite_code=${userFamily.value.invite_code}`
   const text = `加入我的露營家庭「${userFamily.value.name}」！點擊連結加入：\n${url}`
+  const shareText = `加入我的露營家庭「${userFamily.value.name}」！點擊連結加入：`
   
   if (navigator.share) {
     try {
       await navigator.share({
         title: '加入露營家庭',
-        text: text,
+        text: shareText,
         url: url
       })
     } catch (e) {

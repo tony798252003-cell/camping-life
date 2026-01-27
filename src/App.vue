@@ -221,6 +221,8 @@ onMounted(() => {
   const code = params.get('invite_code')
   if (code) {
     inviteCode.value = code
+    // Persist for auth flow
+    localStorage.setItem('pending_invite_code', code)
     window.history.replaceState({}, '', window.location.pathname)
   }
 
@@ -259,6 +261,14 @@ onMounted(() => {
     
     session.value = _session
     if (_session) {
+      // Check for pending invite code from pre-login
+      const pendingCode = localStorage.getItem('pending_invite_code')
+      if (pendingCode) {
+        console.log('[App] Restoring pending invite code:', pendingCode)
+        inviteCode.value = pendingCode
+        localStorage.removeItem('pending_invite_code')
+      }
+
       if (isAuthReady.value) {
         await fetchUserProfile()
         await fetchTrips()
