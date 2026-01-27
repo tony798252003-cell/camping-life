@@ -17,6 +17,9 @@
              <span v-else-if="currentView === 'gear'">
                <Tent class="w-5 h-5 text-accent-orange" /> 裝備管理
              </span>
+             <span v-else-if="currentView === 'admin'">
+               <ShieldAlert class="w-5 h-5 text-red-600" /> 管理員專區
+             </span>
            </h2>
         </div>
         <button @click="$emit('close')" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-white rounded-full transition-colors">
@@ -68,6 +71,19 @@
                  </div>
               </div>
               <ChevronRight class="w-5 h-5 text-gray-400 group-hover:text-orange-500" />
+           </button>
+
+           <button @click="currentView = 'admin'" class="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-white border border-gray-200 hover:border-red-200 rounded-xl transition-all group">
+              <div class="flex items-center gap-3">
+                 <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform">
+                    <ShieldAlert class="w-5 h-5" />
+                 </div>
+                 <div class="text-left">
+                    <h3 class="font-bold text-gray-900">管理員專區</h3>
+                    <p class="text-xs text-gray-500">批次數據維護 (隱藏功能)</p>
+                 </div>
+              </div>
+              <ChevronRight class="w-5 h-5 text-gray-400 group-hover:text-red-500" />
            </button>
 
            <div class="h-px bg-gray-100 my-2"></div>
@@ -243,6 +259,50 @@
            <GearROIView :trips="trips" />
         </div>
 
+        <!-- ADMIN VIEW -->
+        <div v-else-if="currentView === 'admin'" class="p-6 space-y-6">
+           <div class="bg-red-50 border border-red-100 rounded-xl p-4">
+              <h3 class="font-bold text-red-800 mb-2 flex items-center gap-2">
+                 <ShieldAlert class="w-5 h-5" />
+                 危險操作區
+              </h3>
+              <p class="text-xs text-red-600 mb-4">
+                 此區域功能會直接修改資料庫大量數據，請謹慎使用。
+              </p>
+              
+              <div class="space-y-4">
+                 <div class="bg-white p-4 rounded-lg border border-red-200 shadow-sm">
+                    <h4 class="font-bold text-gray-800 mb-1">批次更新 GPS 與地點</h4>
+                    <p class="text-xs text-gray-500 mb-3">
+                       搜尋所有缺少經緯度的營地，透過 Google Maps API 自動填入座標，並強制標準化縣市/鄉鎮欄位。
+                    </p>
+                    
+                    <div v-if="batchProgress.total > 0" class="mb-3">
+                       <div class="flex justify-between text-xs mb-1">
+                          <span>進度: {{ batchProgress.current }} / {{ batchProgress.total }}</span>
+                          <span v-if="batchProgress.errors > 0" class="text-red-500">失敗: {{ batchProgress.errors }}</span>
+                       </div>
+                       <div class="w-full bg-gray-200 rounded-full h-2">
+                          <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" :style="{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }"></div>
+                       </div>
+                       <div class="mt-2 max-h-32 overflow-y-auto text-[10px] font-mono bg-gray-900 text-green-400 p-2 rounded">
+                          <div v-for="(log, i) in batchLogs" :key="i">{{ log }}</div>
+                       </div>
+                    </div>
+
+                    <button 
+                       @click="startBatchUpdateGPS"
+                       :disabled="isBatchProcessing"
+                       class="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                       <Loader2 v-if="isBatchProcessing" class="w-4 h-4 animate-spin" />
+                       {{ isBatchProcessing ? '處理中...' : '開始批次更新' }}
+                    </button>
+                 </div>
+              </div>
+           </div>
+        </div>
+
       </div>
 
       <!-- Footer (Removed unified footer, moved save button to Location View) -->
@@ -251,9 +311,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { Settings, X, MapPin, Navigation, LogOut, Loader2, User, ChevronRight, ChevronLeft, Tent } from 'lucide-vue-next'
+import { ref, watch, reactive } from 'vue'
+import { Settings, X, MapPin, Navigation, LogOut, Loader2, User, ChevronRight, ChevronLeft, Tent, ShieldAlert } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { parseTaiwanLocation } from '../utils/googleMaps'
 import type { CampingTripWithCampsite } from '../types/database'
 import GearROIView from './GearROIView.vue'
 
@@ -265,7 +326,7 @@ const props = defineProps<{
   initialInviteCode?: string
 }>()
 
-type ViewState = 'menu' | 'location' | 'gear' | 'family'
+type ViewState = 'menu' | 'location' | 'gear' | 'family' | 'admin'
 const currentView = ref<ViewState>('menu')
 
 // Reset view on open
@@ -538,6 +599,136 @@ const saveSettings = async () => {
   } finally {
     isSaving.value = false
   }
+}
+
+// --- Batch Update Logic ---
+const isBatchProcessing = ref(false)
+const batchProgress = reactive({ current: 0, total: 0, errors: 0 })
+const batchLogs = ref<string[]>([])
+
+const addLog = (msg: string) => {
+   batchLogs.value.unshift(`[${new Date().toLocaleTimeString()}] ${msg}`)
+}
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+const startBatchUpdateGPS = async () => {
+   if (!confirm('確定要開始批次更新嗎？這將會消耗大量的 Google Maps API 配額。')) return
+   
+   if (!window.google || !window.google.maps || !window.google.maps.places) {
+      alert('Google Maps API 尚未載入，請稍後再試')
+      return
+   }
+
+   isBatchProcessing.value = true
+   batchLogs.value = []
+   batchProgress.current = 0
+   batchProgress.total = 0
+   batchProgress.errors = 0
+   
+   try {
+      addLog('正在搜尋缺少座標的營地...')
+      
+      // 1. Fetch campsites with missing coordinates (lat is null or 0)
+      const { data: targets, error } = await supabase
+         .from('campsites')
+         .select('*')
+         .is('latitude', null) // or .eq('latitude', 0) if you use 0, but usually null
+      
+      if (error) throw error
+      
+      // Also check for 0 if schema allows
+      const { data: targets0 } = await supabase.from('campsites').select('*').eq('latitude', 0)
+      
+      // Combine and dedup
+      const allTargets = [...((targets || []) as any[]), ...((targets0 || []) as any[])].filter((v,i,a) => a.findIndex((t: any) => t.id === v.id) === i)
+      
+      if (allTargets.length === 0) {
+         addLog('沒有發現缺少座標的營地。')
+         isBatchProcessing.value = false
+         return
+      }
+      
+      batchProgress.total = allTargets.length
+      addLog(`找到 ${allTargets.length} 筆資料，準備開始處理...`)
+      
+      const service = new google.maps.places.PlacesService(document.createElement('div'))
+      
+      // 2. Process one by one
+      for (const campsite of allTargets) {
+         const site = campsite as any
+         addLog(`正在處理: ${site.name}...`)
+         
+         await new Promise<void>((resolve) => {
+            const query = `${site.city || ''}${site.district || ''} ${site.name}`.trim()
+            
+            service.findPlaceFromQuery({
+               query,
+               fields: ['place_id', 'name', 'geometry']
+            }, (results, status) => {
+               if (status === google.maps.places.PlacesServiceStatus.OK && results && results[0] && results[0].place_id) {
+                  
+                  // Get Details
+                  service.getDetails({
+                     placeId: results[0].place_id!,
+                     fields: ['name', 'geometry', 'address_components']
+                  }, async (place, detailStatus) => {
+                     if (detailStatus === google.maps.places.PlacesServiceStatus.OK && place && place.geometry && place.geometry.location) {
+                        
+                        // Parse location
+                        const { cityId, districtId } = place.address_components ? parseTaiwanLocation(place.address_components as any) : { cityId: '', districtId: '' }
+                        
+                        const updates: any = {
+                           latitude: place.geometry.location.lat(),
+                           longitude: place.geometry.location.lng()
+                        }
+                        
+                        // Only update text if we found a standardized ID, otherwise keep original? 
+                        // User request: "縣市鄉鎮也同步做覆蓋" -> implies overwrite with standard data
+                        if (cityId) updates.city = cityId
+                        if (districtId) updates.district = districtId
+                        
+                        // Update DB
+                        const { error: updateError } = await (supabase
+                           .from('campsites') as any)
+                           .update(updates)
+                           .eq('id', site.id)
+                           
+                        if (updateError) {
+                           addLog(`❌ DB 更新失敗: ${site.name} - ${updateError.message}`)
+                           batchProgress.errors++
+                        } else {
+                           addLog(`✅ 更新成功: ${site.name} (${updates.city}/${updates.district})`)
+                        }
+                        
+                     } else {
+                        addLog(`⚠️ 無法取得詳細資訊: ${site.name}`)
+                        batchProgress.errors++
+                     }
+                     resolve()
+                  })
+               } else {
+                  addLog(`⚠️ 找不到地點: ${site.name}`)
+                  batchProgress.errors++
+                  resolve()
+               }
+            })
+         })
+         
+         batchProgress.current++
+         // Rate limit delay (Google Places API limit is tight for JS client)
+         await sleep(1500) 
+      }
+      
+      addLog('處理完成！')
+      emit('saved', {}) // Refresh needed
+      
+   } catch (e: any) {
+      console.error(e)
+      addLog(`❌ 發生錯誤: ${e.message}`)
+   } finally {
+      isBatchProcessing.value = false
+   }
 }
 
 const handleLogout = () => {

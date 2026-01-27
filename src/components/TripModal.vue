@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { 
-  X, MapPin, Mountain, CloudRain, Moon, Tent, Wind, Save, RotateCcw, Calendar, Pencil
+  X, MapPin, Mountain, CloudRain, Moon, Tent, Wind, Save, RotateCcw, Calendar, Pencil, Globe
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import TripWeather from './TripWeather.vue'
+import GooglePlaceSearch from './GooglePlaceSearch.vue'
 
 interface Props {
   isOpen: boolean
@@ -79,6 +80,9 @@ const campsiteSearchResults = ref<Campsite[]>([])
 const showCampsiteDropdown = ref(false)
 const isSearchingCampsite = ref(false)
 let searchDebounce: ReturnType<typeof setTimeout> | null = null
+
+// --- Google Places Search ---
+const useGoogleSearch = ref(false)
 
 // --- Map ---
 const mapContainer = ref<HTMLElement | null>(null)
@@ -318,6 +322,33 @@ const clearCampsite = () => {
 
 const closeDropdown = () => setTimeout(() => { showCampsiteDropdown.value = false }, 200)
 
+const handleGooglePlaceSelected = (place: any) => {
+  formData.value.campsite_name = place.name
+  formData.value.latitude = place.lat
+  formData.value.longitude = place.lng
+  
+  // Parse address for location
+  if (place.formatted_address) {
+    // Extract city/district from formatted address
+    const addressParts = place.formatted_address.split(',')
+    if (addressParts.length > 0) {
+      formData.value.location = addressParts[0].trim()
+    }
+  }
+  
+  // Refresh map
+  nextTick(() => {
+    initMap()
+  })
+}
+
+const toggleSearchMode = () => {
+  useGoogleSearch.value = !useGoogleSearch.value
+  // Clear search results when switching
+  campsiteSearchResults.value = []
+  showCampsiteDropdown.value = false
+}
+
 // --- Resources Load ---
 onMounted(async () => {
   const { data } = await supabase.from('camping_gear').select('*').order('name')
@@ -403,24 +434,51 @@ const formatDateRange = (dateString: string, duration: number | null = 1) => {
                                    <X class="w-5 h-5" />
                                  </button>
                               </div>
-                              <div v-else class="relative">
-                                 <input 
-                                   v-model="formData.campsite_name"
-                                   type="text"
-                                   class="text-2xl font-bold text-primary-900 w-full border-b-2 border-transparent hover:border-primary-200 focus:border-primary-500 outline-none px-2 py-1 bg-transparent placeholder-gray-300 transition-colors"
-                                   placeholder="輸入營地名稱..."
-                                   @input="searchCampsites(($event.target as HTMLInputElement).value)"
-                                   @focus="searchCampsites(formData.campsite_name)"
-                                   @blur="closeDropdown"
-                                 />
-                                 <!-- Dropdown -->
-                                 <div v-if="showCampsiteDropdown && campsiteSearchResults.length > 0" class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden text-sm">
-                                   <ul>
-                                     <li v-for="site in campsiteSearchResults" :key="site.id" @mousedown="selectCampsite(site)" class="px-4 py-3 hover:bg-surface-50 cursor-pointer flex justify-between items-center border-b border-gray-50 last:border-none">
-                                        <span class="font-bold text-gray-800">{{ site.name }}</span>
-                                        <span v-if="site.city" class="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{{ site.city }}</span>
-                                     </li>
-                                   </ul>
+                              <div v-else class="space-y-2">
+                                 <!-- Search Mode Toggle -->
+                                 <div class="flex items-center justify-end gap-2 mb-2">
+                                   <span class="text-xs text-gray-500">搜尋來源：</span>
+                                   <button
+                                     type="button"
+                                     @click="toggleSearchMode"
+                                     class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                                     :class="useGoogleSearch 
+                                       ? 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100' 
+                                       : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'"
+                                   >
+                                     <Globe class="w-3.5 h-3.5" />
+                                     {{ useGoogleSearch ? 'Google 地圖' : '本地資料庫' }}
+                                   </button>
+                                 </div>
+
+                                 <!-- Google Places Search -->
+                                 <div v-if="useGoogleSearch">
+                                   <GooglePlaceSearch
+                                     v-model="formData.campsite_name"
+                                     @place-selected="handleGooglePlaceSelected"
+                                   />
+                                 </div>
+
+                                 <!-- Local Database Search -->
+                                 <div v-else class="relative">
+                                    <input 
+                                      v-model="formData.campsite_name"
+                                      type="text"
+                                      class="text-2xl font-bold text-primary-900 w-full border-b-2 border-transparent hover:border-primary-200 focus:border-primary-500 outline-none px-2 py-1 bg-transparent placeholder-gray-300 transition-colors"
+                                      placeholder="輸入營地名稱..."
+                                      @input="searchCampsites(($event.target as HTMLInputElement).value)"
+                                      @focus="searchCampsites(formData.campsite_name)"
+                                      @blur="closeDropdown"
+                                    />
+                                    <!-- Dropdown -->
+                                    <div v-if="showCampsiteDropdown && campsiteSearchResults.length > 0" class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden text-sm">
+                                      <ul>
+                                        <li v-for="site in campsiteSearchResults" :key="site.id" @mousedown="selectCampsite(site)" class="px-4 py-3 hover:bg-surface-50 cursor-pointer flex justify-between items-center border-b border-gray-50 last:border-none">
+                                           <span class="font-bold text-gray-800">{{ site.name }}</span>
+                                           <span v-if="site.city" class="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{{ site.city }}</span>
+                                        </li>
+                                      </ul>
+                                    </div>
                                  </div>
                               </div>
                            </div>

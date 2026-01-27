@@ -225,6 +225,13 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
     }
 
     const fetchWeather = async () => {
+        // Reset state immediately when fetch starts (new trip or refresh)
+        weatherDays.value = []
+        tripSummary.value = null
+        packingStatus.value = null
+        error.value = null
+        loading.value = false // Default to false, set true if fetching
+
         if (!trip.value) return
         if (isPastTrip.value) return
         if (!trip.value.trip_date) return
@@ -241,16 +248,14 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
         const today = new Date()
         const tripDateStr = tr.trip_date
         const tripTime = new Date(tripDateStr).getTime()
+
         // 16 days limit
+        // If too far, we just stop (state is already cleared above)
         if ((tripTime - today.getTime()) / (1000 * 3600 * 24) > 16) {
-            loading.value = false
             return
         }
 
         loading.value = true
-        error.value = null
-        packingStatus.value = null
-        tripSummary.value = null
 
         try {
             let elevation = tr.campsites?.altitude ?? tr.altitude
