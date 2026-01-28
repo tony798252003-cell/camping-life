@@ -41,8 +41,8 @@ const yearTitle = computed(() => {
 })
 
 // 產生指定月份的格子
-const generateMonthData = (year: number, month: number) => {
-  const days = []
+const generateMonthData = (year: number, month: number) =>{
+  const allDays = []
   const firstDay = new Date(year, month, 1)
   const lastDay = new Date(year, month + 1, 0)
   
@@ -50,10 +50,11 @@ const generateMonthData = (year: number, month: number) => {
   // getDay(): 0=Sun, 1=Mon...
   let padding = (firstDay.getDay() + 6) % 7
   
-  // 補上個月
-  for (let i = 0; i < padding; i++) {
-    const d = new Date(year, month, -i + 1)
-    days.unshift({ date: d, isCurrentMonth: false, trips: [] as CampingTripWithCampsite[] })
+  // 補上個月日期
+  const prevMonthLastDay = new Date(year, month, 0).getDate()
+  for (let i = padding - 1; i >= 0; i--) {
+   const d = new Date(year, month - 1, prevMonthLastDay - i)
+    allDays.push({ date: d, isCurrentMonth: false, trips: [] as CampingTripWithCampsite[] })
   }
   
   // 當月天數
@@ -69,9 +70,7 @@ const generateMonthData = (year: number, month: number) => {
       return d >= tripStart && d <= tripEnd
     })
     
-    // Sort trips logic if needed, currently camping trips usually distinct
-    
-    days.push({ 
+    allDays.push({ 
       date: d, 
       isCurrentMonth: true, 
       trips: daysTrips,
@@ -79,14 +78,25 @@ const generateMonthData = (year: number, month: number) => {
     })
   }
   
-  // 補下個月 (補滿到 35 或 42 格)
-  const remainingCells = 42 - days.length
-  for (let i = 1; i <= remainingCells; i++) {
+  // 補下個月日期 (補滿到該週結尾)
+  const remainingInWeek = (7 - (allDays.length % 7)) % 7
+  for (let i = 1; i <= remainingInWeek; i++) {
     const d = new Date(year, month + 1, i)
-    days.push({ date: d, isCurrentMonth: false, trips: [] as CampingTripWithCampsite[] })
+    allDays.push({ date: d, isCurrentMonth: false, trips: [] as CampingTripWithCampsite[] })
   }
   
-  return days
+  // 將 allDays 分組成週，並過濾掉完全沒有本月日期的週
+  const weeks = []
+  for (let i = 0; i < allDays.length; i += 7) {
+    const week = allDays.slice(i, i + 7)
+    // 只保留至少有一天是本月的週
+    if (week.some(day => day.isCurrentMonth)) {
+      weeks.push(week)
+    }
+  }
+  
+  // 攤平回單一陣列
+  return weeks.flat()
 }
 
 // Mobile: 單一月份
@@ -174,7 +184,7 @@ const getTripColor = (trip: CampingTrip) => {
              :key="day.date.toISOString()" 
              class="relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer group/day"
              :class="[
-               day.isCurrentMonth ? 'text-primary-700' : 'text-primary-200',
+               day.isCurrentMonth ? 'text-primary-700' : 'text-gray-300',
                day.isToday ? 'bg-primary-200 font-bold text-accent-sky ring-2 ring-accent-sky/30' : 'hover:bg-surface-50/50 active:bg-primary-100',
                day.trips.length > 0 ? 'bg-primary-50 border border-primary-300' : ''
              ]"
@@ -223,7 +233,7 @@ const getTripColor = (trip: CampingTrip) => {
                    :key="dIdx" 
                    class="relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer group/day"
                    :class="[
-                     day.isCurrentMonth ? 'text-primary-700' : 'text-primary-100',
+                     day.isCurrentMonth ? 'text-primary-700' : 'text-gray-300',
                      day.isToday ? 'bg-primary-50 font-bold text-accent-sky' : 'hover:bg-primary-50',
                      day.trips.length > 0 ? 'bg-white ring-1 ring-accent-sky/30 shadow-sm' : ''
                    ]"

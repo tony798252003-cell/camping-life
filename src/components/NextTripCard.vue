@@ -133,6 +133,24 @@ const titleClass = computed(() => {
   return 'text-xl md:text-3xl'
 })
 
+// Zone Font Size Logic (Dynamic scaling)
+const zoneClass = computed(() => {
+  const zone = props.trip.zone || ''
+  const len = zone.length
+  if (len <= 4) return 'text-base sm:text-lg'
+  if (len <= 7) return 'text-sm sm:text-base'
+  return 'text-xs sm:text-sm'
+})
+
+// Companions Font Size Logic (Dynamic scaling)
+const companionsClass = computed(() => {
+  const companions = props.trip.companions || ''
+  const len = companions.length
+  if (len <= 4) return 'text-base sm:text-lg'
+  if (len <= 7) return 'text-sm sm:text-base'
+  return 'text-xs sm:text-sm'
+})
+
 const navigateToGoogleMaps = () => {
   const trip = props.trip
   const latitude = trip.campsites?.latitude ?? trip.latitude
@@ -176,7 +194,7 @@ const formattedLocation = computed(() => {
     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-[-0.5rem] px-4">NEXT ADVENTURE</h3>
 
     <!-- 1. HERO CARD (Visuals + Countdown) -->
-    <div class="relative w-full overflow-hidden rounded-[2.5rem] card-organic group min-h-[360px] md:min-h-[380px] shrink-0">
+    <div class="relative w-full overflow-hidden rounded-[2.5rem] card-organic group min-h-[300px] md:min-h-[320px] shrink-0">
         <!-- Background Art (Restored) -->
         <div class="absolute inset-0 z-0 bg-gray-200">
            <img 
@@ -199,10 +217,10 @@ const formattedLocation = computed(() => {
                 <button 
                   :disabled="isPastTrip"
                   @click.stop="toggleNightRush"
-                  class="w-12 h-12 rounded-full flex items-center justify-center transition-all bg-white/80 backdrop-blur-md shadow-md border-2 border-white/50 text-primary-300 hover:text-primary-600 hover:scale-105 active:scale-95"
+                  class="w-10 h-10 rounded-full flex items-center justify-center transition-all bg-white/80 backdrop-blur-md shadow-md border-2 border-white/50 text-primary-300 hover:text-primary-600 hover:scale-105 active:scale-95"
                   :class="{ 'bg-blue-500/20 border-blue-400/60 text-blue-600': trip.night_rush }"
                 >
-                  <Moon class="w-6 h-6" :class="{ '-rotate-12 fill-current': trip.night_rush }" />
+                  <Moon class="w-5 h-5" :class="{ '-rotate-12 fill-current': trip.night_rush }" />
                 </button>
             </div>
 
@@ -216,9 +234,9 @@ const formattedLocation = computed(() => {
                     </div>
                 </div>
                 
-                <!-- Title (Centered) -->
-                <div class="flex items-center justify-center w-full mb-1">
-                    <h2 :class="titleClass" class="font-black text-primary-900 tracking-tight leading-none text-center drop-shadow-sm whitespace-nowrap overflow-hidden text-ellipsis w-full pb-1">
+                <!-- Title (Centered) - Fixed Height Container -->
+                <div class="flex items-center justify-center w-full mb-1 h-14">
+                    <h2 :class="titleClass" class="font-black text-primary-900 tracking-tight leading-none text-center drop-shadow-sm whitespace-nowrap overflow-hidden text-ellipsis w-full">
                          {{ trip.campsites?.name || trip.campsite_name }}
                     </h2>
                 </div>
@@ -228,9 +246,9 @@ const formattedLocation = computed(() => {
             </span>
 
             <!-- Countdown -->
-            <div class="flex-1 flex flex-col items-center justify-center relative w-full">
+            <div class="flex-1 flex flex-col items-center justify-center relative w-full px-20">
                 <div class="leading-none font-black drop-shadow-sm tracking-tighter z-10 font-sans" 
-                     :class="isPastTrip ? 'text-6xl md:text-7xl text-primary-400 opacity-60 py-6 md:py-9' : 'text-[7rem] md:text-[9rem] text-accent-sky scale-110'">
+                     :class="isPastTrip ? 'text-4xl md:text-7xl text-primary-400 opacity-60 py-6 md:py-9' : 'text-[5rem] md:text-[7rem] text-accent-sky'">
                      {{ isPastTrip ? 'COMPLETE' : countdown }}
                 </div>
                 <div class="text-primary-600 font-bold tracking-[0.2em] text-xs uppercase mt-1 mb-8">
@@ -270,13 +288,13 @@ const formattedLocation = computed(() => {
             </div>
             
             <!-- Reset Button (Below Night Rush Button) -->
-            <div v-if="showResetButton" class="absolute top-[4.5rem] right-5 z-40 animate-fade-in">
+            <div v-if="showResetButton" class="absolute top-[4rem] right-5 z-40 animate-fade-in">
                 <button 
                   @click.stop="$emit('reset')"
-                  class="group flex items-center justify-center w-12 h-12 rounded-full transition-all bg-white/80 backdrop-blur-md shadow-md border-2 border-white/50 text-primary-300 hover:text-primary-600 hover:scale-105 active:scale-95"
+                  class="group flex items-center justify-center w-10 h-10 rounded-full transition-all bg-white/80 backdrop-blur-md shadow-md border-2 border-white/50 text-primary-300 hover:text-primary-600 hover:scale-105 active:scale-95"
                   title="回本次行程"
                 >
-                  <RotateCcw class="w-6 h-6 transition-transform duration-500 group-hover:-rotate-180" />
+                  <RotateCcw class="w-5 h-5 transition-transform duration-500 group-hover:-rotate-180" />
                 </button>
             </div>
         </div>
@@ -291,21 +309,21 @@ const formattedLocation = computed(() => {
              <div v-if="loadingWeather && !weatherSummary" class="absolute inset-0 bg-white/80 animate-pulse z-20"></div>
 
              <!-- Left: Weather Info or Placeholder -->
-             <div class="flex items-center gap-4">
+             <div class="flex items-center gap-2 sm:gap-4">
                  <template v-if="weatherSummary">
-                     <div class="w-14 h-14 rounded-2xl bg-yellow-50 flex items-center justify-center text-yellow-500 shadow-sm border border-yellow-100">
-                         <component :is="getWeatherIcon(weatherSummary.summary.code)" class="w-8 h-8" />
+                     <div class="w-10 h-10 rounded-2xl bg-yellow-50 flex items-center justify-center text-yellow-500 shadow-sm border border-yellow-100">
+                         <component :is="getWeatherIcon(weatherSummary.summary.code)" class="w-6 h-6" />
                      </div>
-                     <div class="flex flex-col">
+                     <div class="flex flex-col justify-center">
                          <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">溫度預測</div>
                          <div class="text-lg sm:text-2xl font-black text-gray-800 leading-none">
                              {{ weatherSummary.summary.temp_min }}° - {{ weatherSummary.summary.temp_max }}°
                          </div>
                      </div>
                      <!-- Packing Badge (Text Only) -->
-                     <div v-if="packingStatus" class="ml-2 mr-auto flex flex-col">
+                     <div v-if="packingStatus" class="ml-1 sm:ml-2 mr-auto flex flex-col justify-center">
                         <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">收帳預測</div>
-                        <span class="text-base sm:text-xl font-black"
+                        <span class="text-base sm:text-xl font-black leading-none"
                               :class="{
                                 'text-emerald-500': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
                                 'text-red-500': packingStatus.status === 'wet',
@@ -318,16 +336,16 @@ const formattedLocation = computed(() => {
                  </template>
                  <template v-else>
                      <div v-if="!isPastTrip" class="flex items-center gap-4">
-                         <div class="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 shadow-sm border border-gray-100">
-                             <Calendar class="w-8 h-8" />
+                         <div class="w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-300 shadow-sm border border-gray-100">
+                             <Calendar class="w-6 h-6" />
                          </div>
                          <div class="flex flex-col">
                              <span class="text-sm font-bold text-gray-400">接近日期顯示天氣</span>
                          </div>
                      </div>
                      <div v-else class="flex items-center gap-4">
-                         <div class="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 shadow-sm border border-gray-100">
-                             <Calendar class="w-8 h-8" />
+                         <div class="w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-300 shadow-sm border border-gray-100">
+                             <Calendar class="w-6 h-6" />
                          </div>
                          <div class="flex flex-col">
                              <span class="text-sm font-bold text-gray-400">過去行程無天氣資料</span>
@@ -337,26 +355,26 @@ const formattedLocation = computed(() => {
              </div>
 
              <!-- Right: Amenities List (Always show if data exists) -->
-             <div class="flex items-center gap-4 ml-auto" v-if="trip.campsites?.amenities">
+             <div class="flex items-center gap-2 ml-auto" v-if="trip.campsites?.amenities">
                   <!-- Fridge -->
-                  <div class="flex flex-col items-center gap-1 min-w-[30px]">
-                      <div class="relative w-6 h-6 flex items-center justify-center">
+                  <div class="flex flex-col items-center gap-1 min-w-[24px]">
+                      <div class="relative w-5 h-5 flex items-center justify-center">
                           <Snowflake class="w-full h-full transition-opacity" :class="trip.campsites.amenities.has_fridge ? 'text-sky-500' : 'text-slate-300'" />
                           <div v-if="!trip.campsites.amenities.has_fridge" class="absolute w-[140%] h-[2px] bg-red-500/80 rotate-45 rounded-full z-10"></div>
                       </div>
                       <span class="text-[10px] font-bold mt-0.5" :class="trip.campsites.amenities.has_fridge ? 'text-sky-700' : 'text-slate-400'">冷藏</span>
                   </div>
                   <!-- Freezer -->
-                  <div class="flex flex-col items-center gap-1 min-w-[30px]">
-                      <div class="relative w-6 h-6 flex items-center justify-center">
+                  <div class="flex flex-col items-center gap-1 min-w-[24px]">
+                      <div class="relative w-5 h-5 flex items-center justify-center">
                           <IceCream class="w-full h-full transition-opacity" :class="trip.campsites.amenities.has_freezer ? 'text-indigo-500' : 'text-slate-300'" />
                           <div v-if="!trip.campsites.amenities.has_freezer" class="absolute w-[140%] h-[2px] bg-red-500/80 rotate-45 rounded-full z-10"></div>
                       </div>
                       <span class="text-[10px] font-bold mt-0.5" :class="trip.campsites.amenities.has_freezer ? 'text-indigo-700' : 'text-slate-400'">冷凍</span>
                   </div>
                   <!-- Water -->
-                  <div class="flex flex-col items-center gap-1 min-w-[30px]">
-                      <div class="relative w-6 h-6 flex items-center justify-center">
+                  <div class="flex flex-col items-center gap-1 min-w-[24px]">
+                      <div class="relative w-5 h-5 flex items-center justify-center">
                           <Droplets class="w-full h-full transition-opacity" :class="trip.campsites.amenities.has_water_dispenser ? 'text-teal-500' : 'text-slate-300'" />
                           <div v-if="!trip.campsites.amenities.has_water_dispenser" class="absolute w-[140%] h-[2px] bg-red-500/80 rotate-45 rounded-full z-10"></div>
                       </div>
@@ -372,23 +390,23 @@ const formattedLocation = computed(() => {
         <div class="grid grid-cols-2 gap-3">
              <!-- Zone Card -->
              <div class="bg-white rounded-[2rem] p-4 flex items-center gap-3 shadow-sm border border-gray-50 overflow-hidden">
-                 <div class="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-500 shrink-0">
+                 <div class="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-500 shrink-0">
                      <Tent class="w-6 h-6" />
                  </div>
                  <div class="flex flex-col min-w-0">
                      <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">區域</span>
-                     <div class="font-black text-gray-800 text-lg truncate leading-tight">{{ trip.zone || '未指定' }}</div>
+                     <div :class="zoneClass" class="font-black text-gray-800 truncate leading-tight">{{ trip.zone || '未指定' }}</div>
                  </div>
              </div>
              
              <!-- Companions Card -->
              <div class="bg-white rounded-[2rem] p-4 flex items-center gap-3 shadow-sm border border-gray-50 overflow-hidden">
-                 <div class="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
+                 <div class="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
                      <Users class="w-6 h-6" />
                  </div>
                  <div class="flex flex-col min-w-0">
                      <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">露友</span>
-                     <div class="font-black text-gray-800 text-lg truncate leading-tight">{{ trip.companions || '無' }}</div>
+                     <div :class="companionsClass" class="font-black text-gray-800 truncate leading-tight">{{ trip.companions || '無' }}</div>
                  </div>
              </div>
         </div>
