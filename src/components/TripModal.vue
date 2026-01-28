@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { 
   MapPin, Mountain, CloudRain, Moon, Tent, Wind, Save, RotateCcw, 
-  Globe, ChevronLeft, Users, Home, Trash2, Snowflake, IceCream, Droplets
+  Globe, ChevronLeft, ChevronRight, Users, Home, Trash2, Snowflake, IceCream, Droplets
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
@@ -16,6 +16,7 @@ interface Props {
   isOpen: boolean
   trip?: CampingTrip | null | any
   isAdmin?: boolean
+  userProfile?: any
 }
 
 const props = defineProps<Props>()
@@ -57,7 +58,8 @@ const formData = ref<NewCampingTrip>({
   notes: '',
   road_condition: undefined,
   cleanliness: undefined,
-  scenery: undefined
+  scenery: undefined,
+  start_location: ''
 })
 
 const hasChanges = computed(() => {
@@ -97,6 +99,10 @@ const useGoogleSearch = ref(false)
 const mapContainer = ref<HTMLElement | null>(null)
 let map: L.Map | null = null
 
+// --- UI State ---
+const isStartLocationExpanded = ref(false)
+const isEditingStartLocation = ref(false)
+
 // --- Initialization ---
 const initFormData = (newTrip: any) => {
   if (newTrip) {
@@ -126,6 +132,7 @@ const initFormData = (newTrip: any) => {
       longitude: linkedCampsite?.longitude ?? newTrip.longitude ?? undefined,
       start_latitude: newTrip.start_latitude ?? undefined,
       start_longitude: newTrip.start_longitude ?? undefined,
+      start_location: newTrip.start_location ?? '',
       tent_id: newTrip.tent_id ?? undefined,
       tarp_id: newTrip.tarp_id ?? undefined,
       campsite_id: newTrip.campsite_id ?? undefined,
@@ -190,6 +197,10 @@ watch(() => props.trip, (val) => initFormData(val), { immediate: true })
 // CRITICAL: Watch isOpen to reset state when re-opening same trip
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
+    // Reset UI state
+    isStartLocationExpanded.value = false
+    isEditingStartLocation.value = false
+    
     if (props.trip) {
       initFormData(props.trip)
     } else {
@@ -311,6 +322,13 @@ const handleGooglePlaceSelected = (place: any) => {
     if (addressParts.length > 0) formData.value.location = addressParts[0].trim()
   }
   nextTick(() => { initMap() })
+}
+
+const handleStartLocationSelected = (place: any) => {
+  // Save place name (e.g., "台北車站"), NOT full address
+  formData.value.start_location = place.name || place.formatted_address || ''
+  formData.value.start_latitude = place.lat
+  formData.value.start_longitude = place.lng
 }
 
 const toggleSearchMode = () => {
@@ -493,7 +511,65 @@ const initMap = () => {
                   <TripWeather :trip="weatherTrip" :isOpen="!!weatherTrip" @close="weatherTrip = null" />
 
                   <!-- Section Header: Basic Info -->
-                  <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4 px-1">CAMPSITE INFO</h3>
+                  <div class="flex items-center justify-between mt-4 px-1 mb-2">
+                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">CAMPSITE INFO</h3>
+                     
+                     <!-- Collapsible Start Location Trigger -->
+                     <button type="button" @click="isStartLocationExpanded = !isStartLocationExpanded" class="flex items-center gap-1 text-[10px] bg-white border border-gray-100 px-2 py-1 rounded-full text-gray-500 hover:text-primary-600 transition-colors">
+                        <MapPin class="w-3 h-3" />
+                        <span class="max-w-[150px] truncate">
+                           {{ formData.start_location ? `自訂出發地：${formData.start_location}` : '自訂出發地' }}
+                        </span>
+                        <ChevronRight class="w-3 h-3 transition-transform duration-300" :class="{'rotate-90': isStartLocationExpanded}" />
+                     </button>
+                  </div>
+                  
+                  <!-- Collapsible Start Location Input -->
+                  <div v-if="isStartLocationExpanded" class="px-1 mb-4 animate-in slide-in-from-top-2 fade-in duration-200">
+                     <div class="card-organic bg-white p-3 border-l-4 border-l-blue-400">
+                        <div class="flex justify-between items-center mb-2">
+                           <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">自訂本次出發地</label> 
+                           <span v-if="userProfile?.location_name && !formData.start_location" class="text-[10px] text-gray-400 truncate max-w-[150px]">
+                              預設: {{ userProfile.location_name }}
+                           </span>
+                        </div>
+
+                        <!-- 1. LOCKED VIEW: Show Selected Address -->
+                        <div v-if="formData.start_location && !isEditingStartLocation" class="flex items-center justify-between bg-surface-50 rounded-xl p-2">
+                           <div class="flex items-center gap-2 overflow-hidden">
+                              <MapPin class="w-4 h-4 text-primary-500 shrink-0" />
+                              <span class="text-sm font-bold text-gray-800 truncate">{{ formData.start_location }}</span>
+                           </div>
+                           <div class="flex items-center gap-1 shrink-0">
+                               <button type="button" @click="isEditingStartLocation = true" class="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg text-xs font-medium transition-colors">修改</button>
+                               <button 
+                                 type="button" 
+                                 @click="formData.start_location = ''; formData.start_latitude = undefined; formData.start_longitude = undefined; isEditingStartLocation = false"
+                                 class="p-1.5 text-red-400 hover:bg-red-50 rounded-lg text-xs font-medium transition-colors"
+                               >
+                                 清除
+                               </button>
+                           </div>
+                        </div>
+
+                        <!-- 2. SEARCH VIEW -->
+                        <div v-else>
+                           <GooglePlaceSearch
+                              v-model="formData.start_location"
+                              @place-selected="(p) => { handleStartLocationSelected(p); isEditingStartLocation = false }"
+                              class="w-full bg-surface-50 border-none rounded-xl p-2 text-sm font-bold text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-primary-100 transition-all"
+                              placeholder="輸入地址，轉換為本次出發座標..."
+                           />
+                           <div class="mt-2 flex justify-end" v-if="isEditingStartLocation">
+                               <button type="button" @click="isEditingStartLocation = false" class="text-xs text-gray-400 hover:text-gray-600">取消</button>
+                           </div>
+                        </div>
+                        
+                        <p class="text-[10px] text-gray-400 mt-2 leading-relaxed">
+                           若本次露營出發地非預設出發地，可在此設定。系統將依此計算路程與導航。
+                        </p>
+                     </div>
+                  </div>
 
                   <!-- INFO CARDS (Home Style) - Grid -->
                   <div class="grid grid-cols-2 gap-3">

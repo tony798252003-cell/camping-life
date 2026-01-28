@@ -253,7 +253,7 @@ onMounted(() => {
     inviteCode.value = code
     // Persist for auth flow
     localStorage.setItem('pending_invite_code', code)
-    window.history.replaceState({}, '', window.location.pathname) 
+    // window.history.replaceState({}, '', window.location.pathname) 
   }
 
   const hasAuthHash = (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('refresh_token'))) || 
@@ -463,6 +463,7 @@ onMounted(() => {
         :is-open="isModalOpen"
         :trip="activeTrip"
         :is-admin="userProfile?.is_admin || false"
+        :user-profile="userProfile"
         @close="isModalOpen = false"
         @submit="handleSubmit"
         @edit-campsite="handleEditCampsite"

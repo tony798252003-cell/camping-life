@@ -64,6 +64,7 @@ export interface CampingTrip {
     night_rush: boolean
     start_latitude: number | null
     start_longitude: number | null
+    start_location: string | null
     scenery: number | null
     cleanliness: number | null
     road_condition: number | null
@@ -106,6 +107,7 @@ export interface NewCampingTrip {
     night_rush?: boolean
     start_latitude?: number
     start_longitude?: number
+    start_location?: string
     scenery?: number
     cleanliness?: number
     road_condition?: number

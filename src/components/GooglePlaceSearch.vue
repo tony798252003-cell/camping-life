@@ -10,7 +10,7 @@ interface PlaceResult {
 }
 
 const props = defineProps<{
-  modelValue: string // campsite name
+  modelValue?: string | null | undefined
 }>()
 
 const emit = defineEmits<{
@@ -19,12 +19,12 @@ const emit = defineEmits<{
 }>()
 
 const inputRef = ref<HTMLInputElement | null>(null)
-const searchValue = ref(props.modelValue)
+const searchValue = ref(props.modelValue || '')
 let autocomplete: google.maps.places.Autocomplete | null = null
 
 // Watch for external changes
 watch(() => props.modelValue, (newVal) => {
-  searchValue.value = newVal
+  searchValue.value = newVal || ''
 })
 
 // Watch for user typing

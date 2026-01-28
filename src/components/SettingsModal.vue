@@ -8,16 +8,16 @@
               <ChevronLeft class="w-5 h-5" />
            </button>
            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-             <span v-if="currentView === 'menu'">
+             <span v-if="currentView === 'menu'" class="flex items-center gap-2">
                <Settings class="w-5 h-5 text-blue-600" /> 設定
              </span>
-             <span v-else-if="currentView === 'location'">
+             <span v-else-if="currentView === 'location'" class="flex items-center gap-2">
                <MapPin class="w-5 h-5 text-blue-600" /> 起始地點
              </span>
-             <span v-else-if="currentView === 'gear'">
+             <span v-else-if="currentView === 'gear'" class="flex items-center gap-2">
                <Tent class="w-5 h-5 text-accent-orange" /> 裝備管理
              </span>
-             <span v-else-if="currentView === 'admin'">
+             <span v-else-if="currentView === 'admin'" class="flex items-center gap-2">
                <ShieldAlert class="w-5 h-5 text-red-600" /> 管理員專區
              </span>
            </h2>
@@ -234,16 +234,21 @@
 
             <div class="space-y-3" :class="{'opacity-60 pointer-events-none': userFamily && !isFamilyHead}">
               <div>
-                <label class="block text-xs text-gray-500 mb-1">地點名稱 (例如: 家)</label>
-                <input 
-                  v-model="formData.location_name" 
-                  type="text" 
-                  class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-gray-400"
-                  placeholder="輸入名稱..."
-                >
+                 <label class="block text-xs text-gray-500 mb-1">搜尋地點 (輸入地址或地標)</label>
+                 <GooglePlaceSearch
+                   v-model="formData.location_name"
+                   @place-selected="handlePlaceSelected"
+                   class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-gray-400"
+                   placeholder="例如: 台北車站"
+                 />
+                 <p v-if="formData.latitude && formData.longitude" class="mt-1 text-[10px] text-green-600 flex items-center gap-1">
+                    <MapPin class="w-3 h-3" /> 
+                    已設定座標: {{ formData.latitude.toFixed(4) }}, {{ formData.longitude.toFixed(4) }}
+                 </p>
               </div>
 
-              <div class="grid grid-cols-2 gap-3">
+              <!-- Hidden Lat/Lng inputs just in case, or removed as requested -->
+              <div class="hidden">
                 <div>
                   <label class="block text-xs text-gray-500 mb-1">緯度 (Lat)</label>
                   <input 
@@ -354,6 +359,7 @@ import { supabase } from '../lib/supabase'
 import { parseTaiwanLocation } from '../utils/googleMaps'
 import type { CampingTripWithCampsite } from '../types/database'
 import GearROIView from './GearROIView.vue'
+import GooglePlaceSearch from './GooglePlaceSearch.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -380,6 +386,13 @@ watch(() => props.initialInviteCode, (newCode) => {
 
 const emit = defineEmits(['close', 'logout', 'saved'])
 // ... (rest of existing code)
+
+const handlePlaceSelected = (place: any) => {
+  // Save place name (e.g., "台北車站"), NOT full address
+  formData.value.location_name = place.name || place.formatted_address || ''
+  formData.value.latitude = place.lat
+  formData.value.longitude = place.lng
+}
 
 // --- Added Share Logic ---
 import { Share2 } from 'lucide-vue-next' // Add icons to imports if needed
