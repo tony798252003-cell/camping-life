@@ -316,19 +316,19 @@ const formattedLocation = computed(() => {
                      </div>
                      <div class="flex flex-col justify-center">
                          <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">溫度預測</div>
-                         <div class="text-lg sm:text-2xl font-black text-gray-800 leading-none">
+                         <div class="text-base sm:text-2xl font-black text-gray-800 leading-none whitespace-nowrap">
                              {{ weatherSummary.summary.temp_min }}° - {{ weatherSummary.summary.temp_max }}°
                          </div>
                      </div>
                      <!-- Packing Badge (Text Only) -->
                      <div v-if="packingStatus" class="ml-1 sm:ml-2 mr-auto flex flex-col justify-center">
                         <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">收帳預測</div>
-                        <span class="text-base sm:text-xl font-black leading-none"
+                        <span class="text-base sm:text-2xl font-black leading-none whitespace-nowrap"
                               :class="{
                                 'text-emerald-500': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
                                 'text-red-500': packingStatus.status === 'wet',
                                 'text-orange-500': packingStatus.status === 'damp' || packingStatus.status === 'risk',
-                                'text-yellow-500 text-shadow-sm': packingStatus.status === 'drying' || packingStatus.status === 'chance',
+                                'text-yellow-500': packingStatus.status === 'drying' || packingStatus.status === 'chance',
                               }">
                            {{ packingStatus.label }}
                         </span>
@@ -355,30 +355,30 @@ const formattedLocation = computed(() => {
              </div>
 
              <!-- Right: Amenities List (Always show if data exists) -->
-             <div class="flex items-center gap-2 ml-auto" v-if="trip.campsites?.amenities">
+             <div class="flex items-center gap-2 sm:gap-6 ml-auto pr-1 sm:pr-2" v-if="trip.campsites?.amenities">
                   <!-- Fridge -->
-                  <div class="flex flex-col items-center gap-1 min-w-[24px]">
-                      <div class="relative w-5 h-5 flex items-center justify-center">
+                  <div class="flex flex-col items-center gap-1 min-w-[24px] sm:min-w-[32px]">
+                      <div class="relative w-5 h-5 sm:w-8 sm:h-8 flex items-center justify-center">
                           <Snowflake class="w-full h-full transition-opacity" :class="trip.campsites.amenities.has_fridge ? 'text-sky-500' : 'text-slate-300'" />
                           <div v-if="!trip.campsites.amenities.has_fridge" class="absolute w-[140%] h-[2px] bg-red-500/80 rotate-45 rounded-full z-10"></div>
                       </div>
-                      <span class="text-[10px] font-bold mt-0.5" :class="trip.campsites.amenities.has_fridge ? 'text-sky-700' : 'text-slate-400'">冷藏</span>
+                      <span class="text-[10px] sm:text-xs font-bold mt-0.5" :class="trip.campsites.amenities.has_fridge ? 'text-sky-700' : 'text-slate-400'">冷藏</span>
                   </div>
                   <!-- Freezer -->
-                  <div class="flex flex-col items-center gap-1 min-w-[24px]">
-                      <div class="relative w-5 h-5 flex items-center justify-center">
+                  <div class="flex flex-col items-center gap-1 min-w-[24px] sm:min-w-[32px]">
+                      <div class="relative w-5 h-5 sm:w-8 sm:h-8 flex items-center justify-center">
                           <IceCream class="w-full h-full transition-opacity" :class="trip.campsites.amenities.has_freezer ? 'text-indigo-500' : 'text-slate-300'" />
                           <div v-if="!trip.campsites.amenities.has_freezer" class="absolute w-[140%] h-[2px] bg-red-500/80 rotate-45 rounded-full z-10"></div>
                       </div>
-                      <span class="text-[10px] font-bold mt-0.5" :class="trip.campsites.amenities.has_freezer ? 'text-indigo-700' : 'text-slate-400'">冷凍</span>
+                      <span class="text-[10px] sm:text-xs font-bold mt-0.5" :class="trip.campsites.amenities.has_freezer ? 'text-indigo-700' : 'text-slate-400'">冷凍</span>
                   </div>
                   <!-- Water -->
-                  <div class="flex flex-col items-center gap-1 min-w-[24px]">
-                      <div class="relative w-5 h-5 flex items-center justify-center">
+                  <div class="flex flex-col items-center gap-1 min-w-[24px] sm:min-w-[32px]">
+                      <div class="relative w-5 h-5 sm:w-8 sm:h-8 flex items-center justify-center">
                           <Droplets class="w-full h-full transition-opacity" :class="trip.campsites.amenities.has_water_dispenser ? 'text-teal-500' : 'text-slate-300'" />
                           <div v-if="!trip.campsites.amenities.has_water_dispenser" class="absolute w-[140%] h-[2px] bg-red-500/80 rotate-45 rounded-full z-10"></div>
                       </div>
-                      <span class="text-[10px] font-bold mt-0.5" :class="trip.campsites.amenities.has_water_dispenser ? 'text-teal-700' : 'text-slate-400'">飲水</span>
+                      <span class="text-[10px] sm:text-xs font-bold mt-0.5" :class="trip.campsites.amenities.has_water_dispenser ? 'text-teal-700' : 'text-slate-400'">飲水</span>
                   </div>
              </div>
         </div>

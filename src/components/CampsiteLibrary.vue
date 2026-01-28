@@ -164,23 +164,12 @@ onMounted(() => {
              </span>
           </div>
           
-          <div class="flex items-center text-gray-500 text-sm mb-3">
+          <div class="flex items-center text-gray-500 text-sm mb-1">
              <MapPin class="w-4 h-4 mr-1 text-gray-400" />
              {{ site.city }}{{ site.district }}
           </div>
 
-          <!-- Amenities Icons (Small) -->
-          <div v-if="site.amenities" class="flex gap-2 mb-3">
-             <div v-if="site.amenities.has_fridge" class="text-blue-500 bg-blue-50 p-1 rounded-md" title="有冰箱">
-                <Snowflake class="w-3.5 h-3.5" />
-             </div>
-             <div v-if="site.amenities.has_freezer" class="text-indigo-500 bg-indigo-50 p-1 rounded-md" title="有冷凍">
-                <IceCream class="w-3.5 h-3.5" />
-             </div>
-             <div v-if="site.amenities.has_water_dispenser" class="text-cyan-600 bg-cyan-50 p-1 rounded-md" title="有飲水機">
-                <Droplets class="w-3.5 h-3.5" />
-             </div>
-          </div>
+
 
           <!-- Zone Config (Raw) -->
           <div v-if="site.zone_config" class="mb-3 px-3 py-2 bg-gray-50 rounded-lg text-xs text-gray-500 whitespace-pre-wrap border border-gray-100">

@@ -255,5 +255,5 @@ const getTripColor = (trip: CampingTrip) => {
            </div>
         </div>
      </div>
-  </div>
+   </div>
 </template>

@@ -3,6 +3,7 @@ import { computed, watch, ref } from 'vue'
 import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 import StatsHeader from './StatsHeader.vue'
 import NextTripCard from './NextTripCard.vue'
+import TripMemoryWidget from './TripMemoryWidget.vue'
 
 
 const props = defineProps<{
@@ -134,6 +135,9 @@ const resetSlide = () => {
         />
 
       </div>
+
+      <!-- Memories Widget -->
+      <TripMemoryWidget />
       
     </div>
 

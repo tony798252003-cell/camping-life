@@ -137,6 +137,135 @@ export const getSmartTrafficWeight = (distanceKm?: number) => {
     return Math.min(Math.max(weight, 0.90), 1.40)
 }
 
+// === Queue system to prevent 429 ===
+type QueueItem = {
+    sLat: number
+    sLon: number
+    destLat: number
+    destLon: number
+    resolve: (val: any) => void
+    reject: (err: any) => void
+}
+
+const requestQueue: QueueItem[] = []
+let isProcessingQueue = false
+let isRateLimited = false
+const RATE_LIMIT_DELAY = 1500 // 1.5s between requests
+const RATE_LIMIT_COOLDOWN = 60000 // 60s cooldown after 429
+
+// Pending promises to deduplicate simultaneous identical requests
+const pendingRequests = new Map<string, Promise<any>>()
+
+// Helper for fallback calculation
+const fallbackEstimation = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    // 1. Calculate straight line distance
+    const straightDist = getDistance(lat1, lon1, lat2, lon2)
+    // 2. Estimate "Road Distance" (Winding factor ~1.4x for Taiwan mountains/roads)
+    const distance = straightDist * 1.4
+    // 3. Estimate speed (40km/h average in mountains/mixed)
+    const duration = (distance / 40) * 3600
+
+    return {
+        duration,
+        distance
+    }
+}
+
+const processQueue = async () => {
+    if (isProcessingQueue || requestQueue.length === 0) return
+
+    isProcessingQueue = true
+
+    while (requestQueue.length > 0) {
+        if (isRateLimited) {
+            // Drain queue immediately if rate limited
+            const item = requestQueue.shift()
+            if (item) {
+                // Fallback immediately
+                const dist = fallbackEstimation(item.sLat, item.sLon, item.destLat, item.destLon)
+                item.resolve(dist)
+            }
+            continue
+        }
+
+        const item = requestQueue[0] // Peek
+
+        try {
+            const url = `https://router.project-osrm.org/route/v1/driving/${item.sLon},${item.sLat};${item.destLon},${item.destLat}?overview=false`
+
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+            const response = await fetch(url, { signal: controller.signal })
+            clearTimeout(timeoutId)
+
+            if (response.status === 429) {
+                console.warn('OSRM Rate limit hit, enabling cooldown mode.')
+                isRateLimited = true
+                setTimeout(() => { isRateLimited = false }, RATE_LIMIT_COOLDOWN)
+                throw new Error('Rate limit')
+            }
+
+            if (!response.ok) {
+                throw new Error(`OSRM API error: ${response.status}`)
+            }
+
+            const data = await response.json()
+            if (!data.routes || data.routes.length === 0) {
+                throw new Error('No route found')
+            }
+
+            const result = {
+                duration: data.routes[0].duration,
+                distance: data.routes[0].distance ? data.routes[0].distance / 1000 : undefined
+            }
+
+            item.resolve(result)
+            requestQueue.shift() // Remove only on success or non-retryable error
+
+            // Wait before next request
+            await new Promise(r => setTimeout(r, RATE_LIMIT_DELAY))
+
+        } catch (err) {
+            // If error is NOT a rate limit (or we just triggered rate limit), 
+            // we should probably fallback for this specific item and move on 
+            // to avoid blocking the queue forever.
+            console.warn(`OSRM Request failed`, err)
+
+            // Only resolve with fallback if the error wasn't because of rate limit or we just triggered it
+            const dist = fallbackEstimation(item.sLat, item.sLon, item.destLat, item.destLon)
+            item.resolve(dist)
+            requestQueue.shift() // Remove processed item
+        }
+    }
+
+    isProcessingQueue = false
+}
+
+const addToQueue = (sLat: number, sLon: number, destLat: number, destLon: number): Promise<any> => {
+    // If global rate limit is active, fallback immediately
+    if (isRateLimited) {
+        return Promise.resolve(fallbackEstimation(sLat, sLon, destLat, destLon))
+    }
+
+    const key = `${sLat.toFixed(4)},${sLon.toFixed(4)}-${destLat.toFixed(4)},${destLon.toFixed(4)}`
+
+    // Deduplicate
+    if (pendingRequests.has(key)) {
+        return pendingRequests.get(key)!
+    }
+
+    const promise = new Promise<any>((resolve, reject) => {
+        requestQueue.push({ sLat, sLon, destLat, destLon, resolve, reject })
+        processQueue()
+    })
+
+    pendingRequests.set(key, promise)
+    promise.finally(() => pendingRequests.delete(key))
+
+    return promise
+}
+
 export function useTravelTime() {
     const travelTime = ref<string | null>(null)
     const loading = ref(false)
@@ -170,86 +299,38 @@ export function useTravelTime() {
             const cached = routeCache.get(cacheKey)
             const now = Date.now()
 
-            let baseDuration: number
-            let distance: number | undefined
+            let result: { duration: number, distance?: number }
 
             if (cached && (now - cached.timestamp) < CACHE_TTL) {
                 // 使用快取
-                baseDuration = cached.duration
-                distance = cached.distance
+                result = { duration: cached.duration, distance: cached.distance }
             } else {
-                // === 3. 呼叫 OSRM API (嘗試) ===
-                // 此 API 為 Demo Server，有速率限制 (429 Too Many Requests)
-                try {
-                    const url = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${destLon},${destLat}?overview=false`
+                // === 3. 使用佇列系統呼叫 API (Oueue processing) ===
+                result = await addToQueue(sLat, sLon, destLat, destLon)
 
-                    // Add strict timeout (3s) to fallback quickly
-                    const controller = new AbortController()
-                    const timeoutId = setTimeout(() => controller.abort(), 3000)
-
-                    const response = await fetch(url, { signal: controller.signal })
-                    clearTimeout(timeoutId)
-
-                    if (!response.ok) {
-                        throw new Error(`OSRM API error: ${response.status}`)
-                    }
-
-                    const data = await response.json()
-
-                    if (!data.routes || data.routes.length === 0) {
-                        throw new Error('No route found')
-                    }
-
-                    baseDuration = data.routes[0].duration
-                    distance = data.routes[0].distance ? data.routes[0].distance / 1000 : undefined // 轉換為公里
-
-                    // 存入快取
-                    routeCache.set(cacheKey, {
-                        key: cacheKey,
-                        duration: baseDuration,
-                        distance,
-                        timestamp: now
-                    })
-                    saveCache() // Persist to local storage
-
-                    // 清理過期快取
-                    if (routeCache.size > 50) {
-                        const entries = Array.from(routeCache.entries())
-                        entries.sort((a, b) => a[1].timestamp - b[1].timestamp)
-                        entries.slice(0, 10).forEach(([key]) => routeCache.delete(key))
-                        saveCache()
-                    }
-                } catch (apiError) {
-                    console.warn(`OSRM API failed (${apiError}), falling back to straight-line estimation.`)
-
-                    // === Fallback Calculation ===
-                    // 1. Calculate straight line distance
-                    const straightDist = getDistance(sLat, sLon, destLat, destLon)
-
-                    // 2. Estimate "Road Distance" (Winding factor ~1.4x for Taiwan mountains/roads)
-                    distance = straightDist * 1.4
-
-                    // 3. Estimate Duration (Avg speed 45km/h for mixed city/mountain)
-                    // Speed: 45 km/h => 45/3600 km/s = 0.0125 km/s
-                    // Duration = Distance / Speed
-                    baseDuration = (distance / 45) * 3600
-                }
+                // 存入快取 (Caching result regardless of source - API or fallback)
+                routeCache.set(cacheKey, {
+                    key: cacheKey,
+                    duration: result.duration,
+                    distance: result.distance,
+                    timestamp: now
+                })
+                saveCache() // Persist to local storage
             }
 
-            // === 4. 計算直線距離（若皆無，再次確認）===
-            if (!distance) {
-                distance = getDistance(sLat, sLon, destLat, destLon)
-            }
+            // === 4. 格式化輸出 ===
+            // 基礎時間
+            const baseDuration = result.duration
+            const distance = result.distance
 
             // === 5. 智慧加權 (Traffic + Winding adjustment already in weight) ===
-            const weight = getSmartTrafficWeight(distance)
+            const smartWeight = distance ? getSmartTrafficWeight(distance) : 1.1
+            const weightedDuration = baseDuration * smartWeight
 
             // 基礎緩衝時間
-            const baseBuffer = distance < 50 ? 5 * 60 : 10 * 60
+            const baseBuffer = (distance || 0) < 50 ? 5 * 60 : 10 * 60
+            const durationSeconds = Math.round(weightedDuration + baseBuffer)
 
-            const durationSeconds = Math.round((baseDuration * weight) + baseBuffer)
-
-            // === 6. 格式化輸出 ===
             const hours = Math.floor(durationSeconds / 3600)
             const minutes = Math.round((durationSeconds % 3600) / 60)
 

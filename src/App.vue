@@ -63,7 +63,11 @@ const fetchTrips = async () => {
 
     if (error) throw error
     trips.value = (data as unknown as CampingTripWithCampsite[]) || []
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError' || error.message?.includes('AbortError')) {
+       console.log('[App] Fetch cancelled')
+       return
+    }
     console.error('獲取資料失敗:', error)
     alert('無法載入露營記錄，請檢查 Supabase 連線設定')
   } finally {
@@ -207,7 +211,8 @@ const fetchUserProfile = async () => {
         family_id: (data as any).family_id
       }
     }
-  } catch (e) {
+  } catch (e: any) {
+    if (e.name === 'AbortError' || e.message?.includes('AbortError')) return
     console.error('[App] Error loading profile', e)
   }
 }
@@ -256,6 +261,9 @@ onMounted(() => {
 
   // Get initial session
   supabase.auth.getSession().then(async ({ data }) => {
+    // Only proceed if not already ready (e.g. handled by onAuthStateChange)
+    if (isAuthReady.value) return
+
     session.value = data.session
     console.log('[App] Initial session:', !!session.value)
     
@@ -335,7 +343,7 @@ onMounted(() => {
         <div class="flex items-center gap-3 z-10 relative"> 
            <div v-if="session?.user" class="flex items-center gap-3">
               <!-- Name (Left of Avatar) -->
-              <span class="font-bold text-gray-700 text-sm md:text-base tracking-tight">
+              <span class="font-display font-bold text-primary-900 text-base md:text-lg tracking-tight">
                   Hi, {{ session.user.user_metadata?.full_name || session.user.email?.split('@')[0] }}
               </span>
 

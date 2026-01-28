@@ -9,6 +9,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import TripWeather from './TripWeather.vue'
 import GooglePlaceSearch from './GooglePlaceSearch.vue'
+import PhotoGallery from './PhotoGallery.vue'
 
 interface Props {
   isOpen: boolean
@@ -634,6 +635,11 @@ const formatDateRange = (dateString: string, duration: number | null = 1) => {
                   </div>
 
 
+
+                  <!-- Memories (Photos) -->
+                  <div v-if="trip?.id" class="mb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                     <PhotoGallery :tripId="trip.id" :isEditable="isEditing && !!trip?.id" /> 
+                  </div>
 
                   <!-- Map & Weather (Always Visible) -->
                   <div v-if="formData.latitude && formData.longitude" class="rounded-2xl overflow-hidden border border-primary-100 h-64 relative z-0 mb-20 shadow-sm">

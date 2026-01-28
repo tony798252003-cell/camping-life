@@ -166,6 +166,28 @@ export interface NewGearItem {
     family_id?: string | null
 }
 
+export interface TripPhoto {
+    id: number
+    user_id: string
+    trip_id: number
+    url: string
+    public_id: string | null
+    caption: string | null
+    width: number | null
+    height: number | null
+    created_at: string
+}
+
+export interface NewTripPhoto {
+    user_id: string
+    trip_id: number
+    url: string
+    public_id?: string | null
+    caption?: string | null
+    width?: number | null
+    height?: number | null
+}
+
 export interface Database {
     public: {
         Tables: {
@@ -193,6 +215,11 @@ export interface Database {
                 Row: GearItem
                 Insert: NewGearItem
                 Update: Partial<NewGearItem>
+            }
+            trip_photos: {
+                Row: TripPhoto
+                Insert: NewTripPhoto
+                Update: Partial<NewTripPhoto>
             }
         }
     }
