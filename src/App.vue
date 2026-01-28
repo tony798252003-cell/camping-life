@@ -15,7 +15,7 @@ import CampsiteLibrary from './components/CampsiteLibrary.vue'
 import CampsiteEditModal from './components/CampsiteEditModal.vue'
 
 // Icons
-import { Home, List as ListIcon, Calendar as CalendarIcon, Plus, Settings, Search } from 'lucide-vue-next'
+import { Plus, Home, Calendar as CalendarIcon, List as ListIcon, Search } from 'lucide-vue-next'
 
 // State
 const isAuthReady = ref(false)
@@ -324,36 +324,31 @@ onMounted(() => {
     <!-- Main App -->
     <template v-else>
       <!-- Global Header -->
-      <header class="bg-white/70 backdrop-blur-lg sticky top-0 z-50 border-b border-primary-100 px-6 py-4 supports-[backdrop-filter]:bg-white/60 flex items-center justify-between relative">
-        <!-- User Info -->
-        <div class="flex items-center gap-2 z-10 relative max-w-[40%]"> 
-           <div v-if="session?.user" class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-xs shadow-md shrink-0 overflow-hidden">
-                  <img 
-                     v-if="session.user.user_metadata?.avatar_url" 
-                     :src="session.user.user_metadata.avatar_url" 
-                     class="w-full h-full object-cover"
-                     alt="Avatar"
-                  />
-                  <span v-else>{{ session.user.email?.charAt(0).toUpperCase() || 'U' }}</span>
-              </div>
-              <div class="flex flex-col justify-center">
-                 <span class="text-[12px] font-bold text-primary-900 leading-none truncate w-24">
-                    {{ session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] }}
-                 </span>
-              </div>
-           </div>
+      <header class="bg-white/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between relative">
+        
+        <!-- Brand / Logo (Left) -->
+        <div class="flex items-center">
+             <img src="/images/title_logo.png" alt="Camp Life" class="h-8 md:h-10 w-auto object-contain" />
         </div>
 
-        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <img src="/images/title_logo.png" alt="搭帳日誌" class="h-8 md:h-10 w-auto object-contain" />
-        </div>
-        
-        <!-- Settings Button -->
-        <div class="z-10 relative">
-          <button @click="isSettingsModalOpen = true" class="w-8 h-8 flex items-center justify-center text-primary-400 hover:text-primary-600 transition-colors" title="設定">
-             <Settings class="w-5 h-5" />
-          </button>
+        <!-- User Profile (Right) -->
+        <div class="flex items-center gap-3 z-10 relative"> 
+           <div v-if="session?.user" class="flex items-center gap-3">
+              <!-- Name (Left of Avatar) -->
+              <span class="font-bold text-gray-700 text-sm md:text-base tracking-tight">
+                  Hi, {{ session.user.user_metadata?.full_name || session.user.email?.split('@')[0] }}
+              </span>
+
+              <!-- Avatar (Click to Open Settings) -->
+               <div @click="isSettingsModalOpen = true" class="cursor-pointer relative group">
+                   <div class="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm overflow-hidden transition-all group-hover:scale-105 group-hover:shadow-md group-active:scale-95 ring-2 ring-transparent group-hover:ring-primary-100">
+                        <img v-if="session.user.user_metadata?.avatar_url" :src="session.user.user_metadata.avatar_url" class="w-full h-full object-cover" />
+                        <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200 text-primary-600 font-black text-lg">
+                            {{ (session.user.user_metadata?.full_name || session.user.email)?.[0]?.toUpperCase() }}
+                        </div>
+                   </div>
+               </div>
+           </div>
         </div>
       </header>
   
