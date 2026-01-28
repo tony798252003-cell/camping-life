@@ -3,7 +3,7 @@ import { computed, watch, ref } from 'vue'
 import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 import StatsHeader from './StatsHeader.vue'
 import NextTripCard from './NextTripCard.vue'
-import { RotateCcw } from 'lucide-vue-next'
+
 
 const props = defineProps<{
   trips: CampingTripWithCampsite[]
@@ -124,23 +124,15 @@ const resetSlide = () => {
           :trip="displayedTrip" 
           :has-prev="currentIndex > 0"
           :has-next="currentIndex < sortedTrips.length - 1"
+          :show-reset-button="currentIndex !== defaultIndex"
           :user-origin="userOrigin"
           @prev="prevSlide"
           @next="nextSlide"
+          @reset="resetSlide"
           @click="emit('view-detail', displayedTrip)" 
           @update-night-rush="payload => emit('update-night-rush', payload)"
         />
-        
-        <!-- Jump Back Button -->
-        <div v-if="currentIndex !== defaultIndex" class="absolute top-6 left-6 md:top-8 md:left-8 z-30 animate-fade-in">
-           <button 
-             @click.stop="resetSlide"
-             class="group flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full transition-all duration-500 shadow-md border backdrop-blur-md bg-white/60 border-white/60 text-primary-300 hover:bg-white hover:text-primary-600 hover:shadow-lg"
-             title="回到最近"
-           >
-             <RotateCcw class="w-5 h-5 md:w-6 md:h-6 transition-transform duration-500 group-hover:-rotate-180" />
-           </button>
-        </div>
+
       </div>
       
     </div>
