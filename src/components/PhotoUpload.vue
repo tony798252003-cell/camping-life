@@ -14,7 +14,7 @@ const emit = defineEmits<{
   (e: 'uploaded'): void
 }>()
 
-const { uploadImage, isUploading, progress } = useCloudinary()
+const { uploadImage, isUploading } = useCloudinary()
 const { addPhoto } = useTripPhotos()
 // Need authenticating user ID for the DB insert
 // We'll trust supabase client to have session, but need user_id for the insert object

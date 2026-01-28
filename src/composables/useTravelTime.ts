@@ -189,6 +189,10 @@ const processQueue = async () => {
         }
 
         const item = requestQueue[0] // Peek
+        if (!item) {
+            // Queue was modified/empty, skip this iteration
+            continue
+        }
 
         try {
             const url = `https://router.project-osrm.org/route/v1/driving/${item.sLon},${item.sLat};${item.destLon},${item.destLat}?overview=false`

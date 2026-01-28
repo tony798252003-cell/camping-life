@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Search, MapPin, Plus, CheckCircle, Upload, Phone, Tent, AlertTriangle, Snowflake, IceCream, Droplets } from 'lucide-vue-next'
+import { Search, MapPin, Plus, CheckCircle, Upload, Phone, Tent, AlertTriangle } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { Campsite } from '../types/database'
 import ImportCampsites from './ImportCampsites.vue'
