@@ -138,6 +138,16 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
       alert('新增成功！')
     }
     await fetchTrips()
+    
+    // If it was an edit (activeTrip exists), refresh the activeTrip data and keep modal open
+    if (activeTrip.value) {
+      const updatedTrip = trips.value.find(t => t.id === activeTrip.value!.id)
+      if (updatedTrip) {
+        activeTrip.value = updatedTrip
+        return // Exit without closing modal
+      }
+    }
+
     isModalOpen.value = false
     activeTrip.value = null
   } catch (error) {
@@ -456,6 +466,7 @@ onMounted(() => {
         @close="isModalOpen = false"
         @submit="handleSubmit"
         @edit-campsite="handleEditCampsite"
+        @delete="deleteTrip"
       />
 
       <SettingsModal

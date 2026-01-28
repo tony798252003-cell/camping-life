@@ -47,10 +47,20 @@ const closeLightbox = () => {
        />
     </div>
 
+    <!-- Loading State -->
+    <div v-if="loading && photos.length === 0" class="flex justify-center py-12">
+        <div class="flex flex-col items-center gap-2 text-primary-400">
+             <div class="animate-spin">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-loader-2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+             </div>
+             <span class="text-xs font-bold">載入中...</span>
+        </div>
+    </div>
+
     <!-- Empty State -->
-    <div v-if="!loading && photos.length === 0" class="text-center py-8 bg-surface-50 rounded-2xl border-2 border-dashed border-primary-100">
-        <div class="text-4xl mb-2">🏔️</div>
-        <p class="text-primary-400 font-medium">還沒有照片，上傳幾張來記錄回憶吧！</p>
+    <div v-else-if="photos.length === 0" class="text-center py-8 bg-surface-50 rounded-2xl border-2 border-dashed border-primary-100 flex flex-col items-center justify-center">
+        <div class="text-4xl mb-2 grayscale opacity-50">🏔️</div>
+        <p class="text-primary-400 font-medium text-sm">還沒有照片<br/><span class="text-xs opacity-75">上傳幾張來記錄回憶吧！</span></p>
     </div>
 
     <!-- Gallery Grid -->
@@ -84,19 +94,14 @@ const closeLightbox = () => {
         </div>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading && photos.length === 0" class="flex justify-center py-8">
-        <div class="animate-spin text-primary-400">Loading...</div>
-    </div>
-
     <!-- Lightbox -->
-    <div v-if="selectedPhoto" class="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm" @click="closeLightbox">
-         <button @click="closeLightbox" class="absolute top-4 right-4 text-white hover:text-gray-300 p-2">
-             <X class="w-8 h-8" />
+    <div v-if="selectedPhoto" class="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200" @click="closeLightbox">
+         <button @click="closeLightbox" class="absolute top-4 right-4 text-white hover:text-gray-300 p-2 bg-white/10 rounded-full backdrop-blur-md">
+             <X class="w-6 h-6" />
          </button>
          <img 
            :src="selectedPhoto" 
-           class="max-w-full max-h-screen rounded-lg shadow-2xl" 
+           class="max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain" 
            @click.stop
          />
     </div>

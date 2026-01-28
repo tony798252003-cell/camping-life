@@ -41,18 +41,11 @@ const historyTripsList = computed(() => {
 <template>
   <div class="pb-24">
     <!-- 頂部標題與新增按鈕 -->
+    <!-- 頂部標題與列表地圖切換 -->
     <div class="sticky top-0 bg-white/80 backdrop-blur-md z-20 px-4 py-4 border-b border-primary-100 flex items-center justify-between supports-[backdrop-filter]:bg-white/60">
-      <h1 class="text-2xl font-black text-primary-900 tracking-tight">露營列表</h1>
-      <button 
-        @click="emit('add')"
-        class="bg-accent-orange hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-orange-500/20 transition-all active:scale-95 flex items-center"
-      >
-        <span class="text-lg mr-1">+</span> 紀錄
-      </button>
-    </div>
-
-    <!-- View Toggle (List/Map) -->
-    <div class="px-4 pt-2 flex justify-end">
+      <h1 class="text-2xl font-black text-primary-900 tracking-tight">我的足跡</h1>
+      
+      <!-- View Toggle (List/Map) -->
       <div class="bg-surface-100 p-1 rounded-xl flex items-center border border-primary-100">
         <button 
           @click="viewMode = 'list'"
@@ -70,6 +63,8 @@ const historyTripsList = computed(() => {
         </button>
       </div>
     </div>
+
+
 
     <!-- 分頁切換 (只在列表模式顯示) -->
     <div v-if="viewMode === 'list'" class="px-4 py-4">
