@@ -23,8 +23,29 @@ interface RouteCache {
     distance?: number
     timestamp: number
 }
-const routeCache = new Map<string, RouteCache>()
-const CACHE_TTL = 10 * 60 * 1000 // 10 分鐘快取
+
+// Initialize cache from localStorage
+const CACHE_KEY_STORAGE = 'camping_route_cache'
+let routeCache = new Map<string, RouteCache>()
+try {
+    const stored = localStorage.getItem(CACHE_KEY_STORAGE)
+    if (stored) {
+        const parsed = JSON.parse(stored)
+        // Convert object back to Map
+        routeCache = new Map(Object.entries(parsed))
+    }
+} catch (e) {
+    console.warn('Failed to load route cache', e)
+}
+
+const CACHE_TTL = 30 * 60 * 1000 // Increase TTL to 30 mins to save API quota
+const saveCache = () => {
+    try {
+        // Convert Map to Object for JSON
+        const obj = Object.fromEntries(routeCache)
+        localStorage.setItem(CACHE_KEY_STORAGE, JSON.stringify(obj))
+    } catch (e) { }
+}
 
 // 判斷是否為節假日或連假
 const isHoliday = (date: Date): boolean => {
@@ -157,49 +178,74 @@ export function useTravelTime() {
                 baseDuration = cached.duration
                 distance = cached.distance
             } else {
-                // === 3. 呼叫 OSRM API ===
-                const url = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${destLon},${destLat}?overview=false`
-                const response = await fetch(url)
+                // === 3. 呼叫 OSRM API (嘗試) ===
+                // 此 API 為 Demo Server，有速率限制 (429 Too Many Requests)
+                try {
+                    const url = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${destLon},${destLat}?overview=false`
 
-                if (!response.ok) {
-                    throw new Error(`OSRM API error: ${response.status}`)
-                }
+                    // Add strict timeout (3s) to fallback quickly
+                    const controller = new AbortController()
+                    const timeoutId = setTimeout(() => controller.abort(), 3000)
 
-                const data = await response.json()
+                    const response = await fetch(url, { signal: controller.signal })
+                    clearTimeout(timeoutId)
 
-                if (!data.routes || data.routes.length === 0) {
-                    throw new Error('No route found')
-                }
+                    if (!response.ok) {
+                        throw new Error(`OSRM API error: ${response.status}`)
+                    }
 
-                baseDuration = data.routes[0].duration
-                distance = data.routes[0].distance ? data.routes[0].distance / 1000 : undefined // 轉換為公里
+                    const data = await response.json()
 
-                // 存入快取
-                routeCache.set(cacheKey, {
-                    key: cacheKey,
-                    duration: baseDuration,
-                    distance,
-                    timestamp: now
-                })
+                    if (!data.routes || data.routes.length === 0) {
+                        throw new Error('No route found')
+                    }
 
-                // 清理過期快取（最多保留 50 條）
-                if (routeCache.size > 50) {
-                    const entries = Array.from(routeCache.entries())
-                    entries.sort((a, b) => a[1].timestamp - b[1].timestamp)
-                    entries.slice(0, 10).forEach(([key]) => routeCache.delete(key))
+                    baseDuration = data.routes[0].duration
+                    distance = data.routes[0].distance ? data.routes[0].distance / 1000 : undefined // 轉換為公里
+
+                    // 存入快取
+                    routeCache.set(cacheKey, {
+                        key: cacheKey,
+                        duration: baseDuration,
+                        distance,
+                        timestamp: now
+                    })
+                    saveCache() // Persist to local storage
+
+                    // 清理過期快取
+                    if (routeCache.size > 50) {
+                        const entries = Array.from(routeCache.entries())
+                        entries.sort((a, b) => a[1].timestamp - b[1].timestamp)
+                        entries.slice(0, 10).forEach(([key]) => routeCache.delete(key))
+                        saveCache()
+                    }
+                } catch (apiError) {
+                    console.warn(`OSRM API failed (${apiError}), falling back to straight-line estimation.`)
+
+                    // === Fallback Calculation ===
+                    // 1. Calculate straight line distance
+                    const straightDist = getDistance(sLat, sLon, destLat, destLon)
+
+                    // 2. Estimate "Road Distance" (Winding factor ~1.4x for Taiwan mountains/roads)
+                    distance = straightDist * 1.4
+
+                    // 3. Estimate Duration (Avg speed 45km/h for mixed city/mountain)
+                    // Speed: 45 km/h => 45/3600 km/s = 0.0125 km/s
+                    // Duration = Distance / Speed
+                    baseDuration = (distance / 45) * 3600
                 }
             }
 
-            // === 4. 計算直線距離（用於權重調整）===
+            // === 4. 計算直線距離（若皆無，再次確認）===
             if (!distance) {
                 distance = getDistance(sLat, sLon, destLat, destLon)
             }
 
-            // === 5. 智慧加權 ===
+            // === 5. 智慧加權 (Traffic + Winding adjustment already in weight) ===
             const weight = getSmartTrafficWeight(distance)
 
-            // 基礎緩衝時間（紅綠燈、收費站等）
-            const baseBuffer = distance < 50 ? 8 * 60 : 12 * 60 // 短途 8 分鐘，長途 12 分鐘
+            // 基礎緩衝時間
+            const baseBuffer = distance < 50 ? 5 * 60 : 10 * 60
 
             const durationSeconds = Math.round((baseDuration * weight) + baseBuffer)
 
@@ -214,7 +260,7 @@ export function useTravelTime() {
             }
 
         } catch (e) {
-            console.error('Failed to fetch travel time:', e)
+            console.error('Failed to calculate travel time:', e)
             travelTime.value = null
         } finally {
             loading.value = false

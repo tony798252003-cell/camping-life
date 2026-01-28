@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue'
-import { CloudSun, CloudRain, Sun, Cloud, Moon, Tent, MapPin, Calendar, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { CloudSun, CloudRain, Sun, Cloud, Moon, Tent, MapPin, Calendar, ChevronLeft, ChevronRight, Snowflake, IceCream, Droplets, Ban } from 'lucide-vue-next'
 import type { CampingTripWithCampsite } from '../types/database'
 import { useTripWeather } from '../composables/useTripWeather'
 
@@ -183,6 +183,8 @@ const titleClass = computed(() => {
 
 
 
+
+
       <!-- Date (Centered) -->
       <div class="relative mb-2 md:mb-6 w-full flex justify-center">
          <div class="relative text-lg md:text-xl font-bold text-primary-800 font-mono tracking-tight">
@@ -239,7 +241,7 @@ const titleClass = computed(() => {
       </div>
 
       <!-- Content Area with Fixed Height to prevent jumping -->
-      <div class="w-full flex justify-center min-h-[5rem] items-center mt-auto">
+      <div class="w-full flex flex-col justify-center min-h-[5rem] items-center mt-auto gap-2">
         
          <!-- Rating Card for Past Trips (Detail Modal Style) -->
          <div v-if="isPastTrip" class="relative z-40 w-full max-w-sm bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-sm border border-white/60">
@@ -324,6 +326,38 @@ const titleClass = computed(() => {
                   <span class="text-sm font-bold tracking-wide">接近出發日期時將顯示天氣</span>
               </div>
           </div>
+
+
+          
+          <!-- Amenities Widget (Below Weather) -->
+          <div v-if="trip.campsites?.amenities" class="relative z-40 flex items-center justify-center gap-5 px-5 py-2 rounded-full bg-white/60 backdrop-blur-md border border-white/40 shadow-sm mt-1">
+              <!-- Fridge -->
+              <div class="flex items-center gap-1.5" :class="trip.campsites.amenities.has_fridge ? 'opacity-100' : 'opacity-50 grayscale'">
+                 <div class="relative">
+                    <Snowflake class="w-3.5 h-3.5 text-sky-600" />
+                    <Ban v-if="!trip.campsites.amenities.has_fridge" class="absolute inset-0 text-gray-500/60 w-full h-full" />
+                 </div>
+                 <span class="text-[10px] font-bold" :class="trip.campsites.amenities.has_fridge ? 'text-sky-700' : 'text-gray-600'">冷藏</span>
+              </div>
+              <div class="w-px h-3 bg-gray-300/50"></div>
+              <!-- Freezer -->
+              <div class="flex items-center gap-1.5" :class="trip.campsites.amenities.has_freezer ? 'opacity-100' : 'opacity-50 grayscale'">
+                 <div class="relative">
+                    <IceCream class="w-3.5 h-3.5 text-indigo-600" />
+                    <Ban v-if="!trip.campsites.amenities.has_freezer" class="absolute inset-0 text-gray-500/60 w-full h-full" />
+                 </div>
+                 <span class="text-[10px] font-bold" :class="trip.campsites.amenities.has_freezer ? 'text-indigo-700' : 'text-gray-600'">冷凍</span>
+              </div>
+              <div class="w-px h-3 bg-gray-300/50"></div>
+              <!-- Water -->
+              <div class="flex items-center gap-1.5" :class="trip.campsites.amenities.has_water_dispenser ? 'opacity-100' : 'opacity-50 grayscale'">
+                 <div class="relative">
+                    <Droplets class="w-3.5 h-3.5 text-teal-600" />
+                    <Ban v-if="!trip.campsites.amenities.has_water_dispenser" class="absolute inset-0 text-gray-500/60 w-full h-full" />
+                 </div>
+                 <span class="text-[10px] font-bold" :class="trip.campsites.amenities.has_water_dispenser ? 'text-teal-700' : 'text-gray-600'">飲水機</span>
+              </div>
+          </div>
           
       </div>
 
@@ -341,6 +375,8 @@ const titleClass = computed(() => {
           <span class="font-bold text-[10px] md:text-xs max-w-[100px] truncate">{{ trip.companions }}</span>
         </div>
       </div>
+
+
 
       <!-- Navigation Zones (1/5 Width) -->
       <div 

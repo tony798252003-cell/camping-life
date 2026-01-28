@@ -269,8 +269,9 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
                 } catch (e) { }
             }
 
-            let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=weather_code,temperature_2m,precipitation_probability,precipitation,relative_humidity_2m&forecast_days=16&past_days=1&models=gem_global&timezone=auto`
-            if (elevation) apiUrl += `&elevation=${elevation}`
+            let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=weather_code,temperature_2m,precipitation_probability,precipitation,relative_humidity_2m&forecast_days=16&past_days=1&models=best_match&timezone=auto`
+            // Remove elevation correction per user request
+            // if (elevation) apiUrl += `&elevation=${elevation}`
 
             // Check Cache
             const cacheKey = `weather_v4_${tr.id}_${tr.trip_date}`

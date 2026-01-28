@@ -31,6 +31,16 @@ export interface Campsite {
     tags?: string[]
     phone?: string
     zone_config?: string
+    // New Features v2
+    amenities?: {
+        has_fridge?: boolean
+        has_freezer?: boolean
+        has_water_dispenser?: boolean
+    }
+    check_in_time?: string
+    check_out_time?: string
+    night_rush_time?: string
+    shower_restrictions?: string
 }
 
 export interface CampingTrip {

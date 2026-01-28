@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Search, MapPin, Plus, CheckCircle, Upload, Phone, Tent, AlertTriangle } from 'lucide-vue-next'
+import { Search, MapPin, Plus, CheckCircle, Upload, Phone, Tent, AlertTriangle, Snowflake, IceCream, Droplets } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { Campsite } from '../types/database'
 import ImportCampsites from './ImportCampsites.vue'
@@ -19,7 +19,7 @@ const editingCampsite = ref<Campsite | null>(null)
 const isEditModalOpen = ref(false)
 
 const handleEdit = (site: Campsite) => {
-  if (!props.isAdmin) return
+  // Allow everyone to view details
   editingCampsite.value = site
   isEditModalOpen.value = true
 }
@@ -169,6 +169,19 @@ onMounted(() => {
              {{ site.city }}{{ site.district }}
           </div>
 
+          <!-- Amenities Icons (Small) -->
+          <div v-if="site.amenities" class="flex gap-2 mb-3">
+             <div v-if="site.amenities.has_fridge" class="text-blue-500 bg-blue-50 p-1 rounded-md" title="有冰箱">
+                <Snowflake class="w-3.5 h-3.5" />
+             </div>
+             <div v-if="site.amenities.has_freezer" class="text-indigo-500 bg-indigo-50 p-1 rounded-md" title="有冷凍">
+                <IceCream class="w-3.5 h-3.5" />
+             </div>
+             <div v-if="site.amenities.has_water_dispenser" class="text-cyan-600 bg-cyan-50 p-1 rounded-md" title="有飲水機">
+                <Droplets class="w-3.5 h-3.5" />
+             </div>
+          </div>
+
           <!-- Zone Config (Raw) -->
           <div v-if="site.zone_config" class="mb-3 px-3 py-2 bg-gray-50 rounded-lg text-xs text-gray-500 whitespace-pre-wrap border border-gray-100">
              {{ site.zone_config }}
@@ -227,6 +240,7 @@ onMounted(() => {
       v-if="isEditModalOpen && editingCampsite"
       :is-open="isEditModalOpen"
       :campsite="editingCampsite"
+      :is-editable="props.isAdmin"
       @close="isEditModalOpen = false"
       @saved="handleEditSaved"
     />
