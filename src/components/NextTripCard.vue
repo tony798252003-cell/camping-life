@@ -277,13 +277,13 @@ const formattedLocation = computed(() => {
 
             <!-- Navigation (Explicit Buttons) - Full Height Hit Areas -->
             <div v-if="hasPrev" @click.stop="$emit('prev')" class="absolute left-0 top-0 bottom-0 w-20 z-30 cursor-pointer group/nav flex items-center justify-start pl-4">
-                 <div class="p-3 bg-black/10 hover:bg-black/30 backdrop-blur-sm rounded-full transition-all text-white shadow-lg border border-white/20 group-active/nav:scale-95">
-                    <ChevronLeft class="w-8 h-8 md:w-10 md:h-10 drop-shadow-md" />
+                 <div class="p-2 md:p-3 bg-white/30 hover:bg-white/50 backdrop-blur-md rounded-full transition-all text-slate-500 shadow-lg border border-white/50 group-active/nav:scale-95">
+                    <ChevronLeft class="w-6 h-6 md:w-10 md:h-10 drop-shadow-sm" />
                  </div>
             </div>
             <div v-if="hasNext" @click.stop="$emit('next')" class="absolute right-0 top-0 bottom-0 w-20 z-30 cursor-pointer group/nav flex items-center justify-end pr-4">
-                 <div class="p-3 bg-black/10 hover:bg-black/30 backdrop-blur-sm rounded-full transition-all text-white shadow-lg border border-white/20 group-active/nav:scale-95">
-                    <ChevronRight class="w-8 h-8 md:w-10 md:h-10 drop-shadow-md" />
+                 <div class="p-2 md:p-3 bg-white/30 hover:bg-white/50 backdrop-blur-md rounded-full transition-all text-slate-500 shadow-lg border border-white/50 group-active/nav:scale-95">
+                    <ChevronRight class="w-6 h-6 md:w-10 md:h-10 drop-shadow-sm" />
                  </div>
             </div>
             
