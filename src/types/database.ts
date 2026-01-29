@@ -190,6 +190,18 @@ export interface NewTripPhoto {
     height?: number | null
 }
 
+export interface SystemAsset {
+    id: number
+    created_at: string
+    type: string
+    url: string
+    name: string | null
+    width: number | null
+    height: number | null
+    public_id: string | null
+    brand: string | null
+}
+
 export interface Database {
     public: {
         Tables: {
@@ -222,6 +234,11 @@ export interface Database {
                 Row: TripPhoto
                 Insert: NewTripPhoto
                 Update: Partial<NewTripPhoto>
+            }
+            system_assets: {
+                Row: SystemAsset
+                Insert: Omit<SystemAsset, 'id' | 'created_at'>
+                Update: Partial<SystemAsset>
             }
         }
     }

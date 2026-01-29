@@ -133,7 +133,7 @@ const updateMarkers = () => {
   
   // 最後加入下次露營標記，確保在最上層
   if (nextTripMarker) {
-    nextTripMarker.addTo(map!)
+    (nextTripMarker as L.CircleMarker).addTo(map!)
     markers.value.push(nextTripMarker)
   }
 

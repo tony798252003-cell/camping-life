@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { 
   MapPin, Mountain, CloudRain, Moon, Tent, Wind, Save, RotateCcw, 
-  Globe, ChevronLeft, ChevronRight, Users, Home, Trash2, Snowflake, IceCream, Droplets
+  Globe, ChevronLeft, ChevronRight, Users, Home, Trash2, Snowflake, IceCream, Droplets, Pencil
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
@@ -91,6 +91,26 @@ const campsiteSearchResults = ref<Campsite[]>([])
 const showCampsiteDropdown = ref(false)
 const isSearchingCampsite = ref(false)
 let searchDebounce: ReturnType<typeof setTimeout> | null = null
+
+// Fetch tents for selection
+const fetchTents = async () => {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return
+
+  try {
+    const { data, error } = await supabase
+      .from('camping_gear')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .eq('type', 'tent')
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    tents.value = data || []
+  } catch (error) {
+    console.error('Error fetching tents:', error)
+  }
+}
 
 // --- Google Places Search ---
 const useGoogleSearch = ref(false)
@@ -197,9 +217,12 @@ watch(() => props.trip, (val) => initFormData(val), { immediate: true })
 // CRITICAL: Watch isOpen to reset state when re-opening same trip
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
-    // Reset UI state
+    //Reset UI state
     isStartLocationExpanded.value = false
     isEditingStartLocation.value = false
+    
+    // Fetch tents for selection
+    fetchTents()
     
     if (props.trip) {
       initFormData(props.trip)
@@ -671,8 +694,13 @@ const initMap = () => {
 
                       <!-- 5. Tent Selection -->
                       <div class="card-organic bg-white p-4 flex items-center gap-3 overflow-hidden">
-                           <div class="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 shrink-0">
-                              <Home class="w-5 h-5" />
+                           <div class="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 shrink-0 overflow-hidden">
+                              <img 
+                                v-if="formData.tent_id && tents.find(t => t.id === formData.tent_id)?.image_url" 
+                                :src="tents.find(t => t.id === formData.tent_id)?.image_url || ''" 
+                                class="w-full h-full object-contain"
+                              />
+                              <Home v-else class="w-5 h-5" />
                            </div>
                            <div class="flex flex-col flex-1 min-w-0">
                                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">使用帳篷</span>

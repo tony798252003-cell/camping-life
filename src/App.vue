@@ -1,47 +1,40 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+import { useRouter, useRoute, RouterView } from 'vue-router'
 import { supabase } from './lib/supabase'
 import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './types/database'
 import type { Session } from '@supabase/supabase-js'
 
 // Components
 import TripModal from './components/TripModal.vue'
-import HomeView from './components/HomeView.vue'
-import TripListView from './components/TripListView.vue'
-import CalendarView from './components/CalendarView.vue'
-import LoginView from './components/LoginView.vue'
-import SettingsModal from './components/SettingsModal.vue'
-import CampsiteLibrary from './components/CampsiteLibrary.vue'
 import CampsiteEditModal from './components/CampsiteEditModal.vue'
 
 // Icons
 import { Plus, Home, Calendar as CalendarIcon, List as ListIcon, Search } from 'lucide-vue-next'
 
 // State
+const router = useRouter()
+const route = useRoute()
 const isAuthReady = ref(false)
 const session = ref<Session | null>(null)
 const trips = ref<CampingTripWithCampsite[]>([])
 const loading = ref(true)
 const isModalOpen = ref(false)
 const activeTrip = ref<CampingTripWithCampsite | null>(null)
-const isSettingsModalOpen = ref(false)
 const userProfile = ref<{latitude: number, longitude: number, location_name: string, is_admin: boolean, family_id?: string} | null>(null)
 const isCampsiteEditOpen = ref(false)
 const editingCampsiteData = ref<any>(null)
 const campsiteLibraryKey = ref(0) // Used to force refresh CampsiteLibrary
 const inviteCode = ref('') // Store invite code from URL
 
-const activeTab = ref<'home' | 'list' | 'calendar' | 'library'>('home')
-
-// Auto-open settings if invite code exists
+// Auto-navigate to settings if invite code exists
 watch(() => [isAuthReady.value, session.value], ([ready, sess]) => {
   if (ready && sess && inviteCode.value) {
-    isSettingsModalOpen.value = true
+    router.push('/settings?invite_code=' + inviteCode.value)
   }
 })
 
 // Fetch Trips
-
 const fetchTrips = async () => {
   if (!session.value) return 
   
@@ -186,7 +179,6 @@ const handleCampsiteSaved = () => {
 }
 
 const handleSettingsSaved = () => {
-  isSettingsModalOpen.value = false
   fetchUserProfile()
 }
 
@@ -207,8 +199,6 @@ const fetchUserProfile = async () => {
       .single()
     
     if (error) {
-       // If error is about missing column, we might be in a state where SQL didn't run.
-       // We should still proceed.
        console.warn('[App] Profile fetch warning:', error.message)
     }
 
@@ -227,16 +217,13 @@ const fetchUserProfile = async () => {
   }
 }
 
-// ... (other functions)
-
-onMounted(() => {
+onMounted(async () => {
   console.log('[App] Mounted')
+  
   // Check URL params for invite code
-  // Check URL params for invite code (Search or Hash)
   const params = new URLSearchParams(window.location.search)
   let code = params.get('invite_code')
   
-  // Also check hash for params (e.g. /#/?invite_code=...)
   if (!code && window.location.hash.includes('invite_code')) {
      const hashParts = window.location.hash.split('?')
      if (hashParts.length > 1) {
@@ -245,86 +232,48 @@ onMounted(() => {
      }
   }
 
-  console.log('[App] Parsed Code from URL/Hash:', code)
-  console.log('[App] Current Search:', window.location.search)
-  console.log('[App] Current Hash:', window.location.hash)
-  
   if (code) {
     inviteCode.value = code
-    // Persist for auth flow
     localStorage.setItem('pending_invite_code', code)
-    // window.history.replaceState({}, '', window.location.pathname) 
   }
 
-  const hasAuthHash = (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('refresh_token'))) || 
-                      (window.location.search && window.location.search.includes('code') && !window.location.search.includes('invite_code'))
-  console.log('[App] hasAuthHash:', hasAuthHash)
-  
-  // Backup timeout: Force ready state after 4 seconds to avoid infinite loading
-  setTimeout(() => {
-     if (!isAuthReady.value) {
-        console.warn('[App] Auth check timed out, forcing ready state.')
-        isAuthReady.value = true
-        loading.value = false
-     }
-  }, 4000)
+  // Set up auth state listener first
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, _session) => {
+    console.log('[App] Auth Change:', event)
+    session.value = _session
 
-  // Get initial session
-  supabase.auth.getSession().then(async ({ data }) => {
-    // Only proceed if not already ready (e.g. handled by onAuthStateChange)
-    if (isAuthReady.value) return
-
-    session.value = data.session
-    console.log('[App] Initial session:', !!session.value)
-    
-    if (session.value) {
-      await fetchUserProfile()
-      await fetchTrips()
-      isAuthReady.value = true
-    } else if (!hasAuthHash) {
-      isAuthReady.value = true
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || (event === 'INITIAL_SESSION' && _session)) {
+        if (_session) {
+            const pendingCode = localStorage.getItem('pending_invite_code')
+            if (pendingCode) {
+                inviteCode.value = pendingCode
+                localStorage.removeItem('pending_invite_code')
+            }
+            await fetchUserProfile()
+            await fetchTrips()
+        }
+    } else if (event === 'SIGNED_OUT') {
+        trips.value = []
+        userProfile.value = null
     }
+
+    // Always mark auth as ready after first event or session load
+    isAuthReady.value = true
   })
 
-  // Listen for auth changes
-  supabase.auth.onAuthStateChange(async (_event, _session) => {
-    console.log('[App] Auth Change:', _event)
-    if (hasAuthHash && _session) {
-      isAuthReady.value = true
-    }
-    
-    session.value = _session
-    if (_session) {
-      // Check for pending invite code from pre-login
-      const pendingCode = localStorage.getItem('pending_invite_code')
-      if (pendingCode) {
-        console.log('[App] Restoring pending invite code from LocalStorage:', pendingCode)
-        inviteCode.value = pendingCode
-        localStorage.removeItem('pending_invite_code')
-      }
-
-      if (isAuthReady.value) {
+  // Initial Check (can be redundant if onAuthStateChange fires immediately, but safe for cold start)
+  try {
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        session.value = data.session
         await fetchUserProfile()
         await fetchTrips()
-      } 
-    } else {
-      trips.value = []
-      if (hasAuthHash) {
-         setTimeout(() => { isAuthReady.value = true }, 1000)
       }
-    }
-  })
-
-  // Watch for invite code and session to auto-open settings
-  watch([inviteCode, session], ([newCode, newSession]) => {
-     if (newCode && newSession) {
-        console.log('[App] Watcher: Code and Session ready, opening settings:', newCode)
-        // Short delay to ensure Profile fetch has started? 
-        setTimeout(() => {
-           isSettingsModalOpen.value = true
-        }, 300)
-     }
-  }, { immediate: true })
+  } catch (e) {
+      console.error('Initial session check failed', e)
+  } finally {
+      isAuthReady.value = true
+  }
 })
 </script>
 
@@ -336,127 +285,39 @@ onMounted(() => {
        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
     </div>
 
-    <!-- Login View -->
-    <LoginView v-else-if="!session" />
-
-    <!-- Main App -->
+    <!-- Login View (handled by Router View for auth path, or if no session and strictly forcing it, but here we use RouterView mostly) -->
+    <!-- However, if we want to force LoginView when !session and route is not auth, we have a guard. 
+         So we can just rely on <router-view> for everything. -->
+    
     <template v-else>
-      <!-- Global Header -->
-      <header class="bg-white/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between relative">
-        
-        <!-- Brand / Logo (Left) -->
-        <div class="flex items-center cursor-pointer" @click="activeTab = 'home'">
-             <img src="/images/title_logo.png" alt="Camp Life" class="h-8 md:h-10 w-auto object-contain" />
-        </div>
-
-        <!-- User Profile (Right) -->
-        <div class="flex items-center gap-3 z-10 relative"> 
-           <div v-if="session?.user" class="flex items-center gap-3">
-              <!-- Name (Left of Avatar) -->
-              <span class="font-display font-bold text-primary-900 text-base md:text-lg tracking-tight">
-                  Hi, {{ session.user.user_metadata?.full_name || session.user.email?.split('@')[0] }}
-              </span>
-
-              <!-- Avatar (Click to Open Settings) -->
-               <div @click="isSettingsModalOpen = true" class="cursor-pointer relative group">
-                   <div class="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm overflow-hidden transition-all group-hover:scale-105 group-hover:shadow-md group-active:scale-95 ring-2 ring-transparent group-hover:ring-primary-100">
-                        <img v-if="session.user.user_metadata?.avatar_url" :src="session.user.user_metadata.avatar_url" class="w-full h-full object-cover" />
-                        <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200 text-primary-600 font-black text-lg">
-                            {{ (session.user.user_metadata?.full_name || session.user.email)?.[0]?.toUpperCase() }}
-                        </div>
-                   </div>
-               </div>
-           </div>
-        </div>
-      </header>
-  
       <!-- Main Content -->
-      <main v-if="!loading" class="pb-24 flex-1 overflow-y-auto">
-        <HomeView 
-          v-if="activeTab === 'home'" 
-          :trips="trips" 
-          :user-origin="userProfile"
-          :loading="loading"
-          @view-detail="handleViewDetail"
-          @update-night-rush="handleUpdateNightRush"
-        />
-  
-        <TripListView 
-          v-if="activeTab === 'list'" 
-          :trips="trips"
-          @add="handleAdd"
-          @view-detail="handleViewDetail"
-          @edit="handleEdit"
-          @delete="deleteTrip"
-        />
-  
-        <!-- Map View Container -->
-  
-        <CalendarView 
-          v-if="activeTab === 'calendar'" 
-          :trips="trips"
-          @view-detail="handleViewDetail" 
-        />
-  
-        <CampsiteLibrary 
-          v-if="activeTab === 'library'" 
-          :key="campsiteLibraryKey"
-          :is-admin="userProfile?.is_admin || false"
-          @edit-campsite="handleEditCampsite"
-        />
+      <main v-if="!loading || route.name === 'auth'" class="flex-1 overflow-y-auto bg-surface-50">
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" 
+              :trips="trips"
+              :user-origin="userProfile"
+              :loading="loading"
+              :user-id="session?.user?.id"
+              :session="session"
+              :is-admin="userProfile?.is_admin || false"
+              @view-detail="handleViewDetail"
+              @update-night-rush="handleUpdateNightRush"
+              @add="handleAdd"
+              @edit="handleEdit"
+              @delete="deleteTrip"
+              @edit-campsite="handleEditCampsite"
+              @saved="handleSettingsSaved"
+              @logout="handleLogout"
+            />
+          </transition>
+        </router-view>
       </main>
   
       <!-- Loading State -->
       <div v-else class="flex justify-center items-center h-screen">
          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
       </div>
-  
-      <!-- Bottom Navigation -->
-      <nav class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-primary-100 px-6 py-3 flex justify-between items-center z-40 pb-safe shadow-[0_-4px_20px_-1px_rgba(14,165,233,0.1)]">
-        <button 
-          @click="activeTab = 'home'"
-          class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-          :class="activeTab === 'home' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
-        >
-          <Home class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'home'}" />
-          <span class="text-[10px] font-medium mb-1">首頁</span>
-        </button>
-  
-        <button 
-          @click="activeTab = 'list'"
-          class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-          :class="activeTab === 'list' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
-        >
-          <ListIcon class="w-6 h-6" />
-          <span class="text-[10px] font-medium mb-1">足跡</span>
-        </button>
-  
-        <!-- FAB (Floating Action Button) for Add -->
-        <button 
-          @click="handleAdd"
-          class="btn-cta flex flex-col items-center justify-center -mt-10 rounded-full w-14 h-14 shadow-lg shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300 border-4 border-surface-50 z-50"
-        >
-          <Plus class="w-7 h-7" />
-        </button>
-  
-        <button 
-          @click="activeTab = 'calendar'"
-          class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-          :class="activeTab === 'calendar' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
-        >
-          <CalendarIcon class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'calendar'}" />
-          <span class="text-[10px] font-medium mb-1">行事曆</span>
-        </button>
-  
-        <button 
-          @click="activeTab = 'library'"
-          class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-          :class="activeTab === 'library' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
-        >
-          <Search class="w-6 h-6" :class="{'fill-primary-100': activeTab === 'library'}" />
-          <span class="text-[10px] font-medium mb-1">找營地</span>
-        </button>
-      </nav>
   
       <!-- Modals -->
       <TripModal
@@ -468,16 +329,6 @@ onMounted(() => {
         @submit="handleSubmit"
         @edit-campsite="handleEditCampsite"
         @delete="deleteTrip"
-      />
-
-      <SettingsModal
-        :is-open="isSettingsModalOpen"
-        :user-id="session?.user?.id || ''"
-        :trips="trips"
-        :initial-invite-code="inviteCode"
-        @close="isSettingsModalOpen = false"
-        @logout="handleLogout"
-        @saved="handleSettingsSaved"
       />
 
       <CampsiteEditModal
@@ -494,5 +345,15 @@ onMounted(() => {
 <style>
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
