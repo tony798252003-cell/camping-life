@@ -44,7 +44,8 @@ export const tripQueries = {
     async create(tripData: NewCampingTrip) {
         const { data, error } = await supabase
             .from('camping_trips')
-            .insert([tripData as any])
+            // @ts-expect-error - Supabase type inference limitation
+            .insert([tripData])
             .select()
             .single()
 
@@ -58,7 +59,8 @@ export const tripQueries = {
     async update(tripId: number, tripData: Partial<NewCampingTrip>) {
         const { data, error } = await supabase
             .from('camping_trips')
-            .update(tripData as any)
+            // @ts-expect-error - Supabase type inference limitation
+            .update(tripData)
             .eq('id', tripId)
             .select()
             .single()
@@ -103,7 +105,8 @@ export const gearQueries = {
     async create(gearData: NewGearItem) {
         const { data, error } = await supabase
             .from('camping_gear')
-            .insert([gearData as any])
+            // @ts-expect-error - Supabase type inference limitation
+            .insert([gearData])
             .select()
             .single()
 
@@ -117,7 +120,8 @@ export const gearQueries = {
     async update(gearId: number, gearData: Partial<NewGearItem>) {
         const { error } = await supabase
             .from('camping_gear')
-            .update(gearData as any)
+            // @ts-expect-error - Supabase type inference limitation
+            .update(gearData)
             .eq('id', gearId)
 
         if (error) throw error
@@ -159,7 +163,8 @@ export const photoQueries = {
     async create(photoData: NewTripPhoto) {
         const { data, error } = await supabase
             .from('trip_photos')
-            .insert([photoData as any])
+            // @ts-expect-error - Supabase type inference limitation
+            .insert([photoData])
             .select()
             .single()
 
@@ -203,7 +208,8 @@ export const systemAssetQueries = {
     async create(assetData: Omit<SystemAsset, 'id' | 'created_at'>) {
         const { data, error } = await supabase
             .from('system_assets')
-            .insert([assetData as any])
+            // @ts-expect-error - Supabase type inference limitation
+            .insert([assetData])
             .select()
             .single()
 
@@ -217,7 +223,8 @@ export const systemAssetQueries = {
     async update(assetId: number, assetData: Partial<SystemAsset>) {
         const { error } = await supabase
             .from('system_assets')
-            .update(assetData as any)
+            // @ts-expect-error - Supabase type inference limitation
+            .update(assetData)
             .eq('id', assetId)
 
         if (error) throw error
