@@ -281,6 +281,16 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- Loading State -->
+      <div v-else-if="loading" class="flex justify-center items-center py-16 h-[60vh]">
+        <div class="flex flex-col items-center gap-3 text-primary-400">
+          <div class="animate-spin">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          </div>
+          <span class="text-sm font-medium">載入中...</span>
+        </div>
+      </div>
+
       <!-- Empty State -->
       <div v-else class="text-center py-16 flex flex-col items-center justify-center h-[60vh]">
         <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
