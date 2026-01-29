@@ -77,6 +77,19 @@ const fetchAssets = async () => {
 }
 
 const deleteAsset = async (id: number) => {
+    const { useConfirm } = await import('../composables/useConfirm')
+    const { confirm: showConfirm } = useConfirm()
+    
+    const confirmed = await showConfirm({
+        title: '確定要刪除此資產嗎？',
+        message: '刪除後將無法復原。',
+        confirmText: '確定刪除',
+        cancelText: '取消',
+        type: 'danger'
+    })
+    
+    if (!confirmed) return
+    
     try {
         const { error } = await supabase
             .from('system_assets')

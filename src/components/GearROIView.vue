@@ -98,6 +98,19 @@ const updateItem = async (item: CampingGear) => {
 }
 
 const removeItem = async (id: number) => {
+  const { useConfirm } = await import('../composables/useConfirm')
+  const { confirm: showConfirm } = useConfirm()
+  
+  const confirmed = await showConfirm({
+    title: '確定要刪除此裝備嗎？',
+    message: '刪除後將無法復原。',
+    confirmText: '確定刪除',
+    cancelText: '取消',
+    type: 'danger'
+  })
+  
+  if (!confirmed) return
+  
   try {
     const { error } = await supabase
       .from('camping_gear')
@@ -113,6 +126,19 @@ const removeItem = async (id: number) => {
 }
 
 const resetData = async () => {
+  const { useConfirm } = await import('../composables/useConfirm')
+  const { confirm: showConfirm } = useConfirm()
+  
+  const confirmed = await showConfirm({
+    title: '確定要重置為範例資料嗎？',
+    message: '此操作將清除現有資料並無法復原。',
+    confirmText: '確定重置',
+    cancelText: '取消',
+    type: 'danger'
+  })
+  
+  if (!confirmed) return
+  
   loading.value = true
   try {
     // 1. Delete all existing

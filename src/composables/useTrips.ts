@@ -65,6 +65,19 @@ export function useTrips() {
      * Delete a trip
      */
     const deleteTrip = async (tripId: number) => {
+        const { useConfirm } = await import('./useConfirm')
+        const { confirm: showConfirm } = useConfirm()
+
+        const confirmed = await showConfirm({
+            title: '確定要刪除這筆記錄嗎？',
+            message: '此操作無法復原，刪除後將無法恢復。',
+            confirmText: '確定刪除',
+            cancelText: '取消',
+            type: 'danger'
+        })
+
+        if (!confirmed) return false
+
         try {
             await tripQueries.delete(tripId)
             success('刪除成功！')

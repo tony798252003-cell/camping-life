@@ -181,6 +181,19 @@ const saveTent = async () => {
 
 // Remove tent
 const removeTent = async (id: number) => {
+  const { useConfirm } = await import('../composables/useConfirm')
+  const { confirm: showConfirm } = useConfirm()
+  
+  const confirmed = await showConfirm({
+    title: '確定要刪除此帳篷嗎？',
+    message: '刪除後將無法復原。',
+    confirmText: '確定刪除',
+    cancelText: '取消',
+    type: 'danger'
+  })
+  
+  if (!confirmed) return
+  
   try {
     const { error } = await supabase
       .from('camping_gear')

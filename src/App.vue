@@ -7,6 +7,7 @@ import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './typ
 import TripModal from './components/TripModal.vue'
 import CampsiteEditModal from './components/CampsiteEditModal.vue'
 import ToastNotification from './components/ToastNotification.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 
 // Composables
 import { useAuth } from './composables/useAuth'
@@ -228,8 +229,9 @@ onMounted(async () => {
         @saved="handleCampsiteSaved"
       />
       
-      <!-- Toast Notifications -->
+      <!-- Global Components -->
       <ToastNotification />
+      <ConfirmDialog />
     </template>
   </div>
 </template>

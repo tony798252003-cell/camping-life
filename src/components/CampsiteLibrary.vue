@@ -69,6 +69,19 @@ const filteredCampsites = computed(() => {
 })
 
 const verifyCampsite = async (id: number) => {
+  const { useConfirm } = await import('../composables/useConfirm')
+  const { confirm: showConfirm } = useConfirm()
+  
+  const confirmed = await showConfirm({
+    title: '確定要審核通過此營地嗎？',
+    message: '審核通過後，此營地將可供所有用戶查看。',
+    confirmText: '確定審核通過',
+    cancelText: '取消',
+    type: 'info'
+  })
+  
+  if (!confirmed) return
+  
   try {
     const { error } = await (supabase
       .from('campsites') as any)

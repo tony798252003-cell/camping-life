@@ -540,6 +540,19 @@ watch(userFamily, (newVal) => {
 }, { immediate: true })
 
 const kickMember = async (targetId: string) => {
+   const { useConfirm } = await import('../composables/useConfirm')
+   const { confirm: showConfirm } = useConfirm()
+   
+   const confirmed = await showConfirm({
+       title: '確定要移除此成員嗎？',
+       message: '該成員將無法看到家庭行程，但其個人行程會保留。',
+       confirmText: '確定移除',
+       cancelText: '取消',
+       type: 'warning'
+   })
+   
+   if (!confirmed) return
+   
    try {
       // Cast to any for new RPC
       const { error } = await (supabase.rpc as any)('kick_family_member', { target_user_id: targetId })
@@ -554,6 +567,19 @@ const kickMember = async (targetId: string) => {
 }
 
 const leaveFamily = async () => {
+   const { useConfirm } = await import('../composables/useConfirm')
+   const { confirm: showConfirm } = useConfirm()
+   
+   const confirmed = await showConfirm({
+       title: '確定要退出家庭嗎？',
+       message: '退出後您將無法看到家庭共有行程，頁面將重新整理。',
+       confirmText: '確定退出',
+       cancelText: '取消',
+       type: 'warning'
+   })
+   
+   if (!confirmed) return
+   
    try {
       const { error } = await (supabase.rpc as any)('leave_family')
       if (error) throw error

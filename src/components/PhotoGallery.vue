@@ -17,6 +17,19 @@ onMounted(() => {
 })
 
 const handleDelete = async (id: number) => {
+  const { useConfirm } = await import('../composables/useConfirm')
+  const { confirm: showConfirm } = useConfirm()
+  
+  const confirmed = await showConfirm({
+    title: '確定要刪除這張照片嗎？',
+    message: '此操作無法復原，照片將永久刪除。',
+    confirmText: '確定刪除',
+    cancelText: '取消',
+    type: 'danger'
+  })
+  
+  if (!confirmed) return
+  
   await deletePhoto(id)
 }
 
