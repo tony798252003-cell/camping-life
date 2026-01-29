@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterView } from 'vue-router'
-import { supabase } from './lib/supabase'
 import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './types/database'
-import type { Session } from '@supabase/supabase-js'
-import { tripQueries } from './services/supabaseQueries'
 
 // Components
 import TripModal from './components/TripModal.vue'
@@ -12,23 +9,26 @@ import CampsiteEditModal from './components/CampsiteEditModal.vue'
 import ToastNotification from './components/ToastNotification.vue'
 
 // Composables
-import { useNotification } from './composables/useNotification'
+import { useAuth } from './composables/useAuth'
+import { useUserProfile } from './composables/useUserProfile'
+import { useTrips } from './composables/useTrips'
 
-// Icons
+// Router
 const router = useRouter()
 const route = useRoute()
-const { success, error: notifyError } = useNotification()
-const isAuthReady = ref(false)
-const session = ref<Session | null>(null)
-const trips = ref<CampingTripWithCampsite[]>([])
-const loading = ref(true)
+
+// Initialize composables
+const { session, isAuthReady, initAuth, logout } = useAuth()
+const { userProfile, fetchProfile, clearProfile, familyId, isAdmin, userOrigin } = useUserProfile()
+const { trips, loading, fetchTrips, createTrip, updateTrip, deleteTrip, updateNightRush, findTripById, clearTrips } = useTrips()
+
+// Modal state
 const isModalOpen = ref(false)
 const activeTrip = ref<CampingTripWithCampsite | null>(null)
-const userProfile = ref<{latitude: number, longitude: number, location_name: string, is_admin: boolean, family_id?: string} | null>(null)
 const isCampsiteEditOpen = ref(false)
 const editingCampsiteData = ref<any>(null)
-const campsiteLibraryKey = ref(0) // Used to force refresh CampsiteLibrary
-const inviteCode = ref('') // Store invite code from URL
+const campsiteLibraryKey = ref(0)
+const inviteCode = ref('')
 
 // Auto-navigate to settings if invite code exists
 watch(() => [isAuthReady.value, session.value], ([ready, sess]) => {
@@ -36,29 +36,6 @@ watch(() => [isAuthReady.value, session.value], ([ready, sess]) => {
     router.push('/settings?invite_code=' + inviteCode.value)
   }
 })
-
-// Fetch Trips
-const fetchTrips = async () => {
-  if (!session.value) return 
-  
-  loading.value = true
-  try {
-    trips.value = await tripQueries.fetchAll(
-      session.value.user.id,
-      userProfile.value?.family_id
-    )
-  } catch (error: any) {
-    if (error.name === 'AbortError' || error.message?.includes('AbortError')) {
-       console.log('[App] Fetch cancelled')
-       return
-    }
-    console.error('獲取資料失敗:', error)
-    notifyError('無法載入露營記錄,請檢查網路連線')
-  } finally {
-
-    loading.value = false
-  }
-}
 
 // Actions
 const handleViewDetail = (trip: CampingTrip) => {
@@ -76,65 +53,49 @@ const handleEdit = (trip: CampingTrip) => {
   isModalOpen.value = true
 }
 
-const deleteTrip = async (id: number) => {
-  if (!confirm('確定要刪除這筆記錄嗎？')) return
-
-  try {
-    await tripQueries.delete(id)
-    await fetchTrips()
-    success('刪除成功！')
-  } catch (error) {
-    console.error('刪除失敗:', error)
-    notifyError('刪除失敗，請稍後再試')
+const handleDeleteTrip = async (id: number) => {
+  const success = await deleteTrip(id)
+  if (success) {
+    await fetchTrips(session.value!.user.id, familyId())
   }
 }
 
 const handleSubmit = async (tripData: NewCampingTrip) => {
   if (!session.value) return
 
-  try {
-    // Attach User ID and Family ID to the new trip data
-    const dataToSave = {
-      ...tripData,
-      user_id: session.value.user.id,
-      family_id: userProfile.value?.family_id ?? null
-    }
+  const dataToSave = {
+    ...tripData,
+    user_id: session.value.user.id,
+    family_id: familyId() ?? null
+  }
 
-    if (activeTrip.value) {
-      // Update
-      await tripQueries.update(activeTrip.value.id, dataToSave)
-      success('更新成功！')
-    } else {
-      // Create
-      await tripQueries.create(dataToSave)
-      success('新增成功！')
-    }
-    await fetchTrips()
+  let success = false
+  if (activeTrip.value) {
+    success = await updateTrip(activeTrip.value.id, dataToSave)
+  } else {
+    success = await createTrip(dataToSave)
+  }
+
+  if (success) {
+    await fetchTrips(session.value.user.id, familyId())
     
-    // If it was an edit (activeTrip exists), refresh the activeTrip data and keep modal open
     if (activeTrip.value) {
-      const updatedTrip = trips.value.find(t => t.id === activeTrip.value!.id)
+      const updatedTrip = findTripById(activeTrip.value.id)
       if (updatedTrip) {
         activeTrip.value = updatedTrip
-        return // Exit without closing modal
+        return
       }
     }
 
     isModalOpen.value = false
     activeTrip.value = null
-  } catch (error) {
-    console.error('儲存失敗:', error)
-    notifyError('儲存失敗，請稍後再試')
   }
 }
 
 const handleUpdateNightRush = async ({ id, value }: { id: number, value: boolean }) => {
-  try {
-    await tripQueries.update(id, { night_rush: value })
-    await fetchTrips()
-  } catch (error) {
-    console.error('更新夜衝狀態失敗:', error)
-    notifyError('更新失敗，請檢查網路')
+  const success = await updateNightRush(id, value)
+  if (success && session.value) {
+    await fetchTrips(session.value.user.id, familyId())
   }
 }
 
@@ -146,47 +107,22 @@ const handleEditCampsite = (campsite: any) => {
 const handleCampsiteSaved = () => {
   isCampsiteEditOpen.value = false
   editingCampsiteData.value = null
-  campsiteLibraryKey.value++ // Refresh library
-  fetchTrips() // Refresh trips in case campsite data changed
+  campsiteLibraryKey.value++
+  if (session.value) {
+    fetchTrips(session.value.user.id, familyId())
+  }
 }
 
 const handleSettingsSaved = () => {
-  fetchUserProfile()
+  if (session.value) {
+    fetchProfile(session.value.user.id)
+  }
 }
 
 const handleLogout = async () => {
-  await supabase.auth.signOut()
-  session.value = null
-  trips.value = []
-}
-
-const fetchUserProfile = async () => {
-  if (!session.value) return
-  try {
-    console.log('[App] Fetching user profile...')
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('latitude, longitude, location_name, is_admin, family_id')
-      .eq('id', session.value.user.id)
-      .single()
-    
-    if (error) {
-       console.warn('[App] Profile fetch warning:', error.message)
-    }
-
-    if (data) {
-      userProfile.value = {
-        latitude: (data as any).latitude,
-        longitude: (data as any).longitude,
-        location_name: (data as any).location_name || '自訂起點',
-        is_admin: (data as any).is_admin || false,
-        family_id: (data as any).family_id
-      }
-    }
-  } catch (e: any) {
-    if (e.name === 'AbortError' || e.message?.includes('AbortError')) return
-    console.error('[App] Error loading profile', e)
-  }
+  await logout()
+  clearTrips()
+  clearProfile()
 }
 
 onMounted(async () => {
@@ -209,43 +145,24 @@ onMounted(async () => {
     localStorage.setItem('pending_invite_code', code)
   }
 
-  // Set up auth state listener first
-  supabase.auth.onAuthStateChange(async (event, _session) => {
-    console.log('[App] Auth Change:', event)
-    session.value = _session
+  // Initialize auth - this will set up listeners
+  await initAuth()
 
-    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || (event === 'INITIAL_SESSION' && _session)) {
-        if (_session) {
-            const pendingCode = localStorage.getItem('pending_invite_code')
-            if (pendingCode) {
-                inviteCode.value = pendingCode
-                localStorage.removeItem('pending_invite_code')
-            }
-            await fetchUserProfile()
-            await fetchTrips()
-        }
-    } else if (event === 'SIGNED_OUT') {
-        trips.value = []
-        userProfile.value = null
+  // Watch for auth changes to load user data
+  watch([session, isAuthReady], async ([sess, ready]) => {
+    if (ready && sess) {
+      const pendingCode = localStorage.getItem('pending_invite_code')
+      if (pendingCode) {
+        inviteCode.value = pendingCode
+        localStorage.removeItem('pending_invite_code')
+     }
+      await fetchProfile(sess.user.id)
+      await fetchTrips(sess.user.id, familyId())
+    } else if (ready && !sess) {
+      clearProfile()
+      clearTrips()
     }
-
-    // Always mark auth as ready after first event or session load
-    isAuthReady.value = true
-  })
-
-  // Initial Check (can be redundant if onAuthStateChange fires immediately, but safe for cold start)
-  try {
-      const { data } = await supabase.auth.getSession()
-      if (data.session) {
-        session.value = data.session
-        await fetchUserProfile()
-        await fetchTrips()
-      }
-  } catch (e) {
-      console.error('Initial session check failed', e)
-  } finally {
-      isAuthReady.value = true
-  }
+  }, { immediate: true })
 })
 </script>
 
@@ -268,16 +185,16 @@ onMounted(async () => {
           <transition name="fade" mode="out-in">
             <component :is="Component" 
               :trips="trips"
-              :user-origin="userProfile"
+              :user-origin="userOrigin()"
               :loading="loading"
               :user-id="session?.user?.id"
               :session="session"
-              :is-admin="userProfile?.is_admin || false"
+              :is-admin="isAdmin()"
               @view-detail="handleViewDetail"
               @update-night-rush="handleUpdateNightRush"
               @add="handleAdd"
               @edit="handleEdit"
-              @delete="deleteTrip"
+              @delete="handleDeleteTrip"
               @edit-campsite="handleEditCampsite"
               @saved="handleSettingsSaved"
               @logout="handleLogout"
