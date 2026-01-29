@@ -297,6 +297,32 @@ const formattedLocation = computed(() => {
                   <RotateCcw class="w-5 h-5 transition-transform duration-500 group-hover:-rotate-180" />
                 </button>
             </div>
+
+            <!-- RPG Gear Slot (Bottom Left) -->
+            <div class="absolute bottom-5 left-5 z-40 flex flex-col items-center gap-2 group/gear animate-fade-in-up">
+                <!-- Label Tag -->
+                <div class="px-2 py-0.5 backdrop-blur-md rounded text-[8px] font-black tracking-widest uppercase border shadow-sm transition-colors duration-300 bg-gray-900/60 text-white/90 border-white/20">
+                    {{ trip.tent ? 'EQUIPPED' : 'NO GEAR' }}
+                </div>
+                
+                <!-- Slot Container -->
+                <div class="relative w-16 h-16 md:w-20 md:h-20 backdrop-blur-md rounded-xl border-[3px] shadow-xl overflow-hidden group-hover/gear:scale-105 transition-all duration-300 ring-1 bg-gradient-to-br from-black/20 to-black/40 border-white/30 ring-white/10 group-hover/gear:border-white/50">
+                    
+                    <!-- Rarity Shine -->
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-40"></div>
+                    
+                    <!-- Tent Image or Placeholder -->
+                    <img v-if="trip.tent?.image_url" :src="trip.tent.image_url" class="w-full h-full object-contain p-1.5 drop-shadow-md relative z-10" />
+                    <div v-else class="w-full h-full flex items-center justify-center relative z-10 p-4">
+                         <Tent class="w-full h-full text-white/20" />
+                    </div>
+
+                    <!-- Product Name (In-Slot) -->
+                    <div v-if="trip.tent?.name" class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent text-[8px] text-center text-white/95 pb-1 pt-3 font-bold truncate z-20">
+                        {{ trip.tent.name }}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

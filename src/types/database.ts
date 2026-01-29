@@ -86,6 +86,11 @@ export interface CampingTrip {
 
 export interface CampingTripWithCampsite extends CampingTrip {
     campsites: Campsite | null
+    tent?: {
+        name: string
+        image_url: string | null
+        brand: string | null
+    } | null
 }
 
 export interface NewCampingTrip {

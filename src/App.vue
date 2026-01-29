@@ -42,7 +42,7 @@ const fetchTrips = async () => {
   try {
     let query = supabase
       .from('camping_trips')
-      .select('*, campsites(*)')
+      .select('*, campsites(*), tent:camping_gear!tent_id(name, image_url, brand)')
       .order('trip_date', { ascending: false })
 
     // Family Logic

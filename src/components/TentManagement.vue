@@ -217,51 +217,56 @@ onMounted(() => {
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
 
-      <!-- Tent Grid -->
-      <div v-else-if="tents.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Tent List (Compact) -->
+      <div v-else-if="tents.length > 0" class="flex flex-col space-y-3">
         <div
           v-for="tent in tents"
           :key="tent.id"
-          class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow relative group"
+          @click="startEdit(tent)"
+          class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex items-center justify-between hover:shadow-md transition-all cursor-pointer group"
         >
-           <!-- Buttons (Absolute) -->
-           <div class="absolute top-3 right-3 flex gap-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-               <button
-                 @click.stop="startEdit(tent)"
-                 class="p-2 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-               >
-                 <Edit2 class="w-4 h-4" />
-               </button>
-               <button
-                 @click.stop="removeTent(tent.id)"
-                 class="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-               >
-                 <Trash2 class="w-4 h-4" />
-               </button>
+           <!-- Left: Info -->
+           <div class="flex items-center gap-4">
+             <!-- Image -->
+             <div 
+               class="w-14 h-14 rounded-lg flex items-center justify-center overflow-hidden shrink-0 border border-gray-100 bg-gray-50"
+             >
+               <img v-if="tent.image_url" :src="tent.image_url" class="w-full h-full object-contain p-1" />
+               <Tent v-else class="w-6 h-6 text-gray-300" />
+             </div>
+             
+             <!-- Text -->
+             <div>
+                <div class="font-bold text-gray-900">{{ tent.name }}</div>
+                <div v-if="tent.brand" class="text-xs text-gray-500 font-medium">{{ tent.brand }}</div>
+             </div>
            </div>
-           
-           <!-- Mobile compatible overlay for buttons if needed, relying on group-hover for now -->
 
-          <!-- Tent Icon / Image -->
-          <div class="flex items-center gap-3 mb-3 cursor-pointer" @click="startEdit(tent)">
-            <div 
-              class="w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0"
-              :class="tent.image_url ? '' : 'bg-blue-50 border border-gray-100'"
-            >
-              <img v-if="tent.image_url" :src="tent.image_url" class="w-full h-full object-contain" />
-              <Tent v-else class="w-8 h-8 text-blue-600" />
-            </div>
-            <div class="flex-1">
-               <div class="font-bold text-lg text-gray-900">{{ tent.name }}</div>
-               <div class="text-xs text-gray-400 mt-1">點擊編輯</div>
-            </div>
-          </div>
-
-          <!-- Usage Stats -->
-          <div class="flex items-center justify-between pt-3 border-t border-gray-100">
-            <span class="text-xs text-gray-500 font-medium">使用次數</span>
-            <span class="text-lg font-black text-blue-600">{{ getTentUsage(tent.id) }} 次</span>
-          </div>
+           <!-- Right: Stats & Actions -->
+           <div class="flex items-center gap-4">
+              <!-- Usage Badge -->
+              <div class="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full flex items-center gap-1">
+                 {{ getTentUsage(tent.id) }} 次
+              </div>
+              
+              <!-- Actions (Hidden by default, visible on hover) -->
+              <div class="hidden sm:flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                   <button
+                     @click.stop="startEdit(tent)"
+                     class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                   >
+                     <Edit2 class="w-4 h-4" />
+                   </button>
+                   <button
+                     @click.stop="removeTent(tent.id)"
+                     class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                   >
+                     <Trash2 class="w-4 h-4" />
+                   </button>
+              </div>
+              
+              <ChevronRight class="w-4 h-4 text-gray-300 sm:hidden" />
+           </div>
         </div>
       </div>
 
