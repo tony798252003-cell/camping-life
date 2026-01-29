@@ -278,7 +278,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface-50 flex flex-col font-sans text-primary-900">
+  <div class="h-screen overflow-hidden bg-surface-50 flex flex-col font-sans text-primary-900">
     
     <!-- Loading State (Initial Auth Check) -->
     <div v-if="!isAuthReady" class="flex-1 flex justify-center items-center h-screen bg-surface-50">
@@ -291,7 +291,7 @@ onMounted(async () => {
     
     <template v-else>
       <!-- Main Content -->
-      <main v-if="!loading || route.name === 'auth'" class="flex-1 overflow-y-auto bg-surface-50">
+      <main v-if="!loading || route.name === 'auth'" class="flex-1 overflow-hidden relative bg-surface-50">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" 
