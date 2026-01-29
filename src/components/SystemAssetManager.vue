@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { X, Upload, Trash2, CheckCircle, AlertCircle, Library, Plus, Edit2, Save } from 'lucide-vue-next'
+import { X, Upload, Trash2, CheckCircle, AlertCircle, Library, Plus, Edit2 } from 'lucide-vue-next'
 import { useCloudinary } from '../composables/useCloudinary'
 import { supabase } from '../lib/supabase'
 import type { SystemAsset } from '../types/database'
@@ -128,7 +128,7 @@ const updateAsset = async () => {
         
         // Update locally
         const idx = existingAssets.value.findIndex(a => a.id === editingAsset.value.id)
-        if (idx !== -1) {
+        if (idx !== -1 && existingAssets.value[idx]) {
             existingAssets.value[idx].name = editingAsset.value.name || null
             existingAssets.value[idx].brand = editingAsset.value.brand || null
         }

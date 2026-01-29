@@ -371,7 +371,7 @@
 <script setup lang="ts">
 import { ref, watch, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Settings, X, MapPin, Navigation, LogOut, Loader2, User, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Share2, Images } from 'lucide-vue-next'
+import { Settings, MapPin, Navigation, LogOut, Loader2, User, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Share2, Images } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { CampingTripWithCampsite } from '../types/database'
 import GearROIView from '../components/GearROIView.vue'
@@ -468,7 +468,7 @@ const fetchProfile = async () => {
 
   isLoadingProfile.value = true
   try {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('profiles')
       .select('*, families(*)')
       .eq('id', uid)
@@ -675,7 +675,7 @@ const getCurrentLocation = () => {
       formData.value.longitude = parseFloat(position.coords.longitude.toFixed(6))
       isLoadingLocation.value = false
     },
-    (error) => {
+    (_error) => {
       alert('無法取得目前位置，請確認這是否是安全連線 (HTTPS) 或是已允許定位權限')
       isLoadingLocation.value = false
     }
@@ -715,7 +715,6 @@ const batchLogs = ref<string[]>([])
 const addLog = (msg: string) => {
    batchLogs.value.unshift(`[${new Date().toLocaleTimeString()}] ${msg}`)
 }
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 const startBatchUpdateGPS = async () => {
    if (!confirm('確定要開始批次更新嗎？')) return

@@ -10,9 +10,6 @@ import TripModal from './components/TripModal.vue'
 import CampsiteEditModal from './components/CampsiteEditModal.vue'
 
 // Icons
-import { Plus, Home, Calendar as CalendarIcon, List as ListIcon, Search } from 'lucide-vue-next'
-
-// State
 const router = useRouter()
 const route = useRoute()
 const isAuthReady = ref(false)
@@ -238,7 +235,7 @@ onMounted(async () => {
   }
 
   // Set up auth state listener first
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, _session) => {
+  supabase.auth.onAuthStateChange(async (event, _session) => {
     console.log('[App] Auth Change:', event)
     session.value = _session
 
