@@ -345,7 +345,7 @@ onMounted(() => {
       <header class="bg-white/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between relative">
         
         <!-- Brand / Logo (Left) -->
-        <div class="flex items-center">
+        <div class="flex items-center cursor-pointer" @click="activeTab = 'home'">
              <img src="/images/title_logo.png" alt="Camp Life" class="h-8 md:h-10 w-auto object-contain" />
         </div>
 

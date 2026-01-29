@@ -218,7 +218,7 @@ const formattedLocation = computed(() => {
                   :disabled="isPastTrip"
                   @click.stop="toggleNightRush"
                   class="w-10 h-10 rounded-full flex items-center justify-center transition-all bg-white/80 backdrop-blur-md shadow-md border-2 border-white/50 text-primary-300 hover:text-primary-600 hover:scale-105 active:scale-95"
-                  :class="{ 'bg-blue-500/20 border-blue-400/60 text-blue-600': trip.night_rush }"
+                  :class="{ 'bg-indigo-400/30 border-indigo-300 text-indigo-600': trip.night_rush }"
                 >
                   <Moon class="w-5 h-5" :class="{ '-rotate-12 fill-current': trip.night_rush }" />
                 </button>

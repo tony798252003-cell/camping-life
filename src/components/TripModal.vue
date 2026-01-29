@@ -417,7 +417,7 @@ const initMap = () => {
                         type="button" 
                         @click="formData.night_rush = !formData.night_rush" 
                         class="flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg backdrop-blur-md transition-all active:scale-95 border"
-                        :class="formData.night_rush ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-white/80 border-white/50 text-gray-600 hover:bg-white'"
+                        :class="formData.night_rush ? 'bg-indigo-400 border-indigo-300 text-white' : 'bg-white/80 border-white/50 text-gray-600 hover:bg-white'"
                       >
                          <Moon class="w-4 h-4" :class="{'fill-current': formData.night_rush}" />
                          <span class="text-xs font-bold">夜衝</span>
