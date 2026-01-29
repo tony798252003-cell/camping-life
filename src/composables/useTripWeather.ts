@@ -328,9 +328,12 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
         }
     })
 
-    // Auto fetch
+    // Auto fetch with delay to improve initial page load
     watch(trip, () => {
-        fetchWeather()
+        // Delay weather fetch by 1.5s to prioritize basic content rendering
+        setTimeout(() => {
+            fetchWeather()
+        }, 1500)
     }, { immediate: true, deep: true })
 
     return {

@@ -32,7 +32,6 @@ const { travelTime, fetchTravelTime: doFetchTravelTime } = useTravelTime()
 const fetchTravelTimeEffect = () => {
   if (!props.trip) return
   const t = props.trip
-  // Use trip start location if set, otherwise user origin
   const startLat = t.start_latitude ?? props.userOrigin?.latitude
   const startLng = t.start_longitude ?? props.userOrigin?.longitude
   

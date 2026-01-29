@@ -9,7 +9,7 @@ import { useNotification } from './useNotification'
  */
 export function useTrips() {
     const trips = ref<CampingTripWithCampsite[]>([])
-    const loading = ref(false)
+    const loading = ref(true) // Start with true to prevent empty state flash
     const { success, error: notifyError } = useNotification()
 
     /**

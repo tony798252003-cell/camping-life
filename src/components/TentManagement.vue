@@ -11,7 +11,7 @@ const props = defineProps<{
 
 const tents = ref<CampingGear[]>([])
 const systemImages = ref<SystemAsset[]>([])
-const loading = ref(false)
+const loading = ref(true) // Start with true to prevent empty state flash
 const newTentName = ref('')
 const newTentBrand = ref('') // New
 const newTentImage = ref('')
