@@ -4,14 +4,20 @@ import { useRouter, useRoute, RouterView } from 'vue-router'
 import { supabase } from './lib/supabase'
 import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './types/database'
 import type { Session } from '@supabase/supabase-js'
+import { tripQueries } from './services/supabaseQueries'
 
 // Components
 import TripModal from './components/TripModal.vue'
 import CampsiteEditModal from './components/CampsiteEditModal.vue'
+import ToastNotification from './components/ToastNotification.vue'
+
+// Composables
+import { useNotification } from './composables/useNotification'
 
 // Icons
 const router = useRouter()
 const route = useRoute()
+const { success, error: notifyError } = useNotification()
 const isAuthReady = ref(false)
 const session = ref<Session | null>(null)
 const trips = ref<CampingTripWithCampsite[]>([])
@@ -37,30 +43,19 @@ const fetchTrips = async () => {
   
   loading.value = true
   try {
-    let query = supabase
-      .from('camping_trips')
-      .select('*, campsites(*), tent:camping_gear!tent_id(name, image_url, brand)')
-      .order('trip_date', { ascending: false })
-
-    // Family Logic
-    if (userProfile.value?.family_id) {
-       query = query.eq('family_id', userProfile.value.family_id)
-    } else {
-       query = query.eq('user_id', session.value.user.id)
-    }
-
-    const { data, error } = await query
-
-    if (error) throw error
-    trips.value = (data as unknown as CampingTripWithCampsite[]) || []
+    trips.value = await tripQueries.fetchAll(
+      session.value.user.id,
+      userProfile.value?.family_id
+    )
   } catch (error: any) {
     if (error.name === 'AbortError' || error.message?.includes('AbortError')) {
        console.log('[App] Fetch cancelled')
        return
     }
     console.error('獲取資料失敗:', error)
-    alert('無法載入露營記錄，請檢查 Supabase 連線設定')
+    notifyError('無法載入露營記錄,請檢查網路連線')
   } finally {
+
     loading.value = false
   }
 }
@@ -85,18 +80,12 @@ const deleteTrip = async (id: number) => {
   if (!confirm('確定要刪除這筆記錄嗎？')) return
 
   try {
-    const { error } = await supabase
-      .from('camping_trips')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
-    
+    await tripQueries.delete(id)
     await fetchTrips()
-    alert('刪除成功！')
+    success('刪除成功！')
   } catch (error) {
     console.error('刪除失敗:', error)
-    alert('刪除失敗，請稍後再試')
+    notifyError('刪除失敗，請稍後再試')
   }
 }
 
@@ -113,19 +102,12 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
 
     if (activeTrip.value) {
       // Update
-      const { error } = await (supabase
-        .from('camping_trips') as any)
-        .update(dataToSave)
-        .eq('id', activeTrip.value.id)
-      if (error) throw error
-      alert('更新成功！')
+      await tripQueries.update(activeTrip.value.id, dataToSave)
+      success('更新成功！')
     } else {
       // Create
-      const { error } = await (supabase
-        .from('camping_trips') as any)
-        .insert([dataToSave])
-      if (error) throw error
-      alert('新增成功！')
+      await tripQueries.create(dataToSave)
+      success('新增成功！')
     }
     await fetchTrips()
     
@@ -142,24 +124,17 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
     activeTrip.value = null
   } catch (error) {
     console.error('儲存失敗:', error)
-    alert('儲存失敗，請稍後再試')
+    notifyError('儲存失敗，請稍後再試')
   }
 }
 
 const handleUpdateNightRush = async ({ id, value }: { id: number, value: boolean }) => {
   try {
-    const { error } = await (supabase
-      .from('camping_trips') as any)
-      .update({ night_rush: value })
-      .eq('id', id)
-      
-    if (error) throw error
-    
-    // Optimistic update or refetch
+    await tripQueries.update(id, { night_rush: value })
     await fetchTrips()
   } catch (error) {
     console.error('更新夜衝狀態失敗:', error)
-    alert('更新失敗，請檢查網路')
+    notifyError('更新失敗，請檢查網路')
   }
 }
 
@@ -335,6 +310,9 @@ onMounted(async () => {
         @close="isCampsiteEditOpen = false"
         @saved="handleCampsiteSaved"
       />
+      
+      <!-- Toast Notifications -->
+      <ToastNotification />
     </template>
   </div>
 </template>
