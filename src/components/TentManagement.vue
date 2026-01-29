@@ -181,8 +181,6 @@ const saveTent = async () => {
 
 // Remove tent
 const removeTent = async (id: number) => {
-  if (!confirm('確定要刪除此帳篷嗎？')) return
-
   try {
     const { error } = await supabase
       .from('camping_gear')

@@ -69,7 +69,6 @@ const filteredCampsites = computed(() => {
 })
 
 const verifyCampsite = async (id: number) => {
-  if (!confirm('確定要審核通過此營地嗎？')) return
   try {
     const { error } = await (supabase
       .from('campsites') as any)

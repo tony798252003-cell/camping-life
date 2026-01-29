@@ -528,8 +528,6 @@ watch(userFamily, (newVal) => {
 }, { immediate: true })
 
 const kickMember = async (targetId: string) => {
-   if (!confirm('確定要將此成員移除嗎？\n該成員將無法看到家庭行程，但其個人行程會保留。')) return
-   
    try {
       const { error } = await (supabase.rpc as any)('kick_family_member', { target_user_id: targetId })
       if (error) throw error
@@ -541,7 +539,6 @@ const kickMember = async (targetId: string) => {
 }
 
 const leaveFamily = async () => {
-   if (!confirm('確定要退出此家庭嗎？\n退出後您將無法看到家庭共有行程。')) return
    try {
       const { error } = await (supabase.rpc as any)('leave_family')
       if (error) throw error
@@ -592,7 +589,6 @@ const createFamily = async () => {
 
 const handleManualMigration = async () => {
   if (!userFamily.value) return
-  if (!confirm('確定要將所有尚未歸戶的個人行程匯入此家庭嗎？')) return
   
   isProcessingFamily.value = true
   try {
@@ -716,9 +712,7 @@ const addLog = (msg: string) => {
    batchLogs.value.unshift(`[${new Date().toLocaleTimeString()}] ${msg}`)
 }
 
-const startBatchUpdateGPS = async () => {
-   if (!confirm('確定要開始批次更新嗎？')) return
-   
+const startBatchUpdateGPS = async () => {   
    if (!window.google || !window.google.maps || !window.google.maps.places) {
       alert('Google Maps API 尚未載入，請稍後再試')
       return

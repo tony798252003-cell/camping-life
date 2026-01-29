@@ -77,8 +77,6 @@ const fetchAssets = async () => {
 }
 
 const deleteAsset = async (id: number) => {
-    if (!confirm('確定要刪除此圖片嗎？此操作不可復原。')) return
-    
     try {
         const { error } = await supabase
             .from('system_assets')

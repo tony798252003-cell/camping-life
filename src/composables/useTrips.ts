@@ -65,8 +65,6 @@ export function useTrips() {
      * Delete a trip
      */
     const deleteTrip = async (tripId: number) => {
-        if (!confirm('確定要刪除這筆記錄嗎？')) return false
-
         try {
             await tripQueries.delete(tripId)
             success('刪除成功！')

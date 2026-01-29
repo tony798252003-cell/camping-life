@@ -98,8 +98,6 @@ const updateItem = async (item: CampingGear) => {
 }
 
 const removeItem = async (id: number) => {
-  if (!confirm('確定要刪除此裝備嗎？')) return
-
   try {
     const { error } = await supabase
       .from('camping_gear')
@@ -115,8 +113,6 @@ const removeItem = async (id: number) => {
 }
 
 const resetData = async () => {
-  if (!confirm('確定要清除現有資料並重置為範例嗎？此操作無法復原。')) return
-  
   loading.value = true
   try {
     // 1. Delete all existing

@@ -292,13 +292,7 @@ const handleSubmit = async () => {
 }
 
 const handleClose = () => {
-    if (hasChanges.value) {
-       if (confirm('您有未儲存的變更，確定要關閉嗎？')) {
-          emit('close')
-       }
-    } else {
-       emit('close')
-    }
+    emit('close')
 }
 
 // --- Search Logic ---

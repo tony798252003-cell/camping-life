@@ -17,7 +17,6 @@ onMounted(() => {
 })
 
 const handleDelete = async (id: number) => {
-  if (!confirm('確定要刪除這張照片嗎？')) return
   await deletePhoto(id)
 }
 
