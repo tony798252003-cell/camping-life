@@ -6,8 +6,7 @@ import {
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+
 import TripWeather from './TripWeather.vue'
 import GooglePlaceSearch from './GooglePlaceSearch.vue'
 import PhotoGallery from './PhotoGallery.vue'
@@ -115,9 +114,7 @@ const fetchTents = async () => {
 // --- Google Places Search ---
 const useGoogleSearch = ref(false)
 
-// --- Map ---
-const mapContainer = ref<HTMLElement | null>(null)
-let map: L.Map | null = null
+
 
 // --- UI State ---
 const isStartLocationExpanded = ref(false)
@@ -207,7 +204,7 @@ function resetForm() {
 
 const refreshViewData = () => {
   nextTick(() => {
-    initMap()
+
   })
 }
 
@@ -338,7 +335,7 @@ const handleGooglePlaceSelected = (place: any) => {
     const addressParts = place.formatted_address.split(',')
     if (addressParts.length > 0) formData.value.location = addressParts[0].trim()
   }
-  nextTick(() => { initMap() })
+
 }
 
 const handleStartLocationSelected = (place: any) => {
@@ -368,17 +365,7 @@ onMounted(async () => {
   }
 })
 
-const initMap = () => {
-  if (!mapContainer.value || !formData.value.latitude) return
-  if (map) { map.remove(); map = null }
-  const lat = formData.value.latitude
-  const lng = formData.value.longitude
-  if (lat && lng) {
-    map = L.map(mapContainer.value).setView([lat, lng], 14)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map)
-    L.marker([lat, lng]).addTo(map)
-  }
-}
+
 </script>
 
 <template>
@@ -759,13 +746,7 @@ const initMap = () => {
                       <PhotoGallery :tripId="trip.id" :isEditable="true" />
                   </div>
 
-                  <!-- Section Header: Location -->
-                  <div v-if="formData.latitude && formData.longitude">
-                      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">LOCATION</h3>
-                      <div class="rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 h-48 relative z-0">
-                          <div ref="mapContainer" class="w-full h-full"></div>
-                      </div>
-                  </div>
+
               </div>
 
               <div class="h-24"></div> <!-- Spacer -->
