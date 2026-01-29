@@ -7,6 +7,7 @@ import { Map, List } from 'lucide-vue-next'
 
 const props = defineProps<{
   trips: CampingTripWithCampsite[]
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -98,10 +99,21 @@ const historyTripsList = computed(() => {
 
     <div v-else class="px-4 space-y-3 min-h-[50vh]">
       <div v-if="activeTab === 'future'">
-        <div v-if="futureTripsList.length === 0" class="flex flex-col items-center justify-center py-16 text-primary-300/50">
+        <!-- Loading state -->
+        <div v-if="loading" class="flex justify-center py-16">
+          <div class="flex flex-col items-center gap-3 text-primary-400">
+            <div class="animate-spin">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            </div>
+            <span class="text-sm font-medium">載入中...</span>
+          </div>
+        </div>
+        <!-- Empty state -->
+        <div v-else-if="futureTripsList.length === 0" class="flex flex-col items-center justify-center py-16 text-primary-300/50">
           <div class="text-5xl mb-4 opacity-50 grayscale">🏔️</div>
           <p class="font-medium">還沒有安排新的冒險</p>
         </div>
+        <!-- Data -->
         <div v-else class="space-y-4">
           <CampingCard
             v-for="trip in futureTripsList"
@@ -115,10 +127,21 @@ const historyTripsList = computed(() => {
       </div>
 
       <div v-else>
-        <div v-if="historyTripsList.length === 0" class="flex flex-col items-center justify-center py-16 text-primary-300/50">
+        <!-- Loading state -->
+        <div v-if="loading" class="flex justify-center py-16">
+          <div class="flex flex-col items-center gap-3 text-primary-400">
+            <div class="animate-spin">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            </div>
+            <span class="text-sm font-medium">載入中...</span>
+          </div>
+        </div>
+        <!-- Empty state -->
+        <div v-else-if="historyTripsList.length === 0" class="flex flex-col items-center justify-center py-16 text-primary-300/50">
           <div class="text-5xl mb-4 opacity-50 grayscale">📜</div>
           <p class="font-medium">還沒有歷史紀錄</p>
         </div>
+        <!-- Data -->
         <div v-else class="space-y-4">
           <CampingCard
             v-for="trip in historyTripsList"
