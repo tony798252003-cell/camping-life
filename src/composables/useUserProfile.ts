@@ -13,6 +13,7 @@ export function useUserProfile() {
         location_name: string
         is_admin: boolean
         family_id?: string | null
+        onboarding_completed_at?: string | null
     } | null>(null)
 
     const loading = ref(false)
@@ -27,7 +28,7 @@ export function useUserProfile() {
 
             const { data, error } = await supabase
                 .from('profiles')
-                .select('latitude, longitude, location_name, is_admin, family_id')
+                .select('latitude, longitude, location_name, is_admin, family_id, onboarding_completed_at')
                 .eq('id', userId)
                 .single()
 
@@ -43,7 +44,8 @@ export function useUserProfile() {
                     longitude: profileData.longitude || 0,
                     location_name: profileData.location_name || '自訂起點',
                     is_admin: profileData.is_admin || false,
-                    family_id: profileData.family_id
+                    family_id: profileData.family_id,
+                    onboarding_completed_at: profileData.onboarding_completed_at
                 }
             }
         } catch (e: any) {

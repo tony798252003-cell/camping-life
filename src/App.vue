@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterView } from 'vue-router'
 import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './types/database'
 
@@ -8,11 +8,13 @@ import TripModal from './components/TripModal.vue'
 import CampsiteEditModal from './components/CampsiteEditModal.vue'
 import ToastNotification from './components/ToastNotification.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
+import OnboardingWizard from './components/OnboardingWizard.vue'
 
 // Composables
 import { useAuth } from './composables/useAuth'
 import { useUserProfile } from './composables/useUserProfile'
 import { useTrips } from './composables/useTrips'
+import { useOnboarding } from './composables/useOnboarding'
 
 // Router
 const router = useRouter()
@@ -22,6 +24,18 @@ const route = useRoute()
 const { session, isAuthReady, initAuth, logout } = useAuth()
 const { userProfile, fetchProfile, clearProfile, familyId, isAdmin, userOrigin } = useUserProfile()
 const { trips, loading, fetchTrips, createTrip, updateTrip, deleteTrip, updateNightRush, findTripById, clearTrips } = useTrips()
+const {
+  isOnboardingOpen,
+  currentStep,
+  isSubmitting,
+  shouldShowOnboarding,
+  openOnboarding,
+  closeOnboarding,
+  nextStep,
+  previousStep,
+  goToStep,
+  completeOnboarding
+} = useOnboarding()
 
 // Modal state
 const isModalOpen = ref(false)
@@ -30,6 +44,11 @@ const isCampsiteEditOpen = ref(false)
 const editingCampsiteData = ref<any>(null)
 const campsiteLibraryKey = ref(0)
 const inviteCode = ref('')
+
+// Onboarding computed
+const hasTent = computed(() => {
+  return trips.value.some(trip => trip.tent_id)
+})
 
 // Auto-navigate to settings if invite code exists
 watch(() => [isAuthReady.value, session.value], ([ready, sess]) => {
@@ -126,6 +145,15 @@ const handleLogout = async () => {
   clearProfile()
 }
 
+const handleOnboardingComplete = async () => {
+  if (!session.value) return
+
+  const success = await completeOnboarding(session.value.user.id)
+  if (success) {
+    await fetchProfile(session.value.user.id)
+  }
+}
+
 onMounted(async () => {
   console.log('[App] Mounted')
   
@@ -159,6 +187,11 @@ onMounted(async () => {
      }
       await fetchProfile(sess.user.id)
       await fetchTrips(sess.user.id, familyId())
+
+      // Check if onboarding should be shown
+      if (shouldShowOnboarding(userProfile.value, hasTent.value)) {
+        openOnboarding()
+      }
     } else if (ready && !sess) {
       clearProfile()
       clearTrips()
@@ -229,6 +262,21 @@ onMounted(async () => {
         @saved="handleCampsiteSaved"
       />
       
+      <!-- Onboarding Wizard -->
+      <OnboardingWizard
+        v-if="session"
+        :is-open="isOnboardingOpen"
+        :current-step="currentStep"
+        :is-submitting="isSubmitting"
+        :user-id="session.user.id"
+        :user-profile="userProfile"
+        @close="closeOnboarding"
+        @next="nextStep"
+        @previous="previousStep"
+        @go-to-step="goToStep"
+        @complete="handleOnboardingComplete"
+      />
+
       <!-- Global Components -->
       <ToastNotification />
       <ConfirmDialog />
