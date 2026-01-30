@@ -15,6 +15,7 @@ export interface Profile {
     longitude: number | null
     is_admin?: boolean // Added for Admin permissions
     family_id?: string | null // Family Link
+    onboarding_completed_at?: string | null
 }
 
 export interface Campsite {
