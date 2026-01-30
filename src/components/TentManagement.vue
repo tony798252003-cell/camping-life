@@ -304,9 +304,9 @@ onMounted(() => {
     <!-- Floating Action Button -->
     <button
       @click="openAddModal"
-      class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all flex items-center justify-center z-10"
+      class="fixed bottom-6 right-5 w-14 h-14 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 hover:scale-105 active:scale-95 transition-all flex items-center justify-center z-10 border-4 border-surface-50"
     >
-      <Plus class="w-7 h-7" />
+      <Plus class="w-8 h-8" />
     </button>
 
     <!-- Add/Edit Tent Modal -->

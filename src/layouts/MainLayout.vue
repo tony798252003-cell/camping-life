@@ -75,10 +75,10 @@ const go = (path: string) => router.push(path)
           <span class="text-[10px] font-medium mb-1">足跡</span>
         </button>
   
-        <!-- FAB (Add) - Emits 'add' event up to App.vue (handled via attrs) -->
+        <!-- FAB (Add) - Central Orange Button -->
         <button 
           @click="$emit('add')"
-          class="btn-cta flex flex-col items-center justify-center -mt-10 rounded-full w-14 h-14 shadow-lg shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300 border-4 border-surface-50 z-50"
+          class="btn-cta flex flex-col items-center justify-center -mt-10 rounded-full w-14 h-14 shadow-lg shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300 border-4 border-surface-50 z-50 bg-accent-orange text-white"
         >
           <Plus class="w-7 h-7" />
         </button>
@@ -91,7 +91,6 @@ const go = (path: string) => router.push(path)
           <CalendarIcon class="w-6 h-6" :class="{'fill-primary-100': route.name === 'calendar'}" />
           <span class="text-[10px] font-medium mb-1">行事曆</span>
         </button>
-
 
         <button 
           @click="go('/library')"

@@ -154,5 +154,6 @@ const historyTripsList = computed(() => {
         </div>
       </div>
     </div>
+
   </div>
 </template>

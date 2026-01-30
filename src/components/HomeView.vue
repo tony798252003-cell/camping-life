@@ -16,6 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'view-detail', trip: CampingTrip): void
   (e: 'update-night-rush', payload: { id: number, value: boolean }): void
+  (e: 'add'): void
 }>()
 
 // 使用共享的車程計算邏輯
@@ -148,13 +149,13 @@ const resetSlide = () => {
       
     </div>
 
-    <!-- 如果沒有下次露營，顯示空狀態引導 -->
+      <!-- 如果沒有下次露營，顯示空狀態引導 -->
     <div v-else class="px-4 py-12 text-center card-organic rounded-3xl mx-4">
       <div class="text-6xl mb-6 animate-bounce">🏕️</div>
       <h3 class="text-xl font-bold text-primary-900 mb-2">準備好出發了嗎？</h3>
       <p class="text-primary-600 mb-6 font-medium">目前沒有即將到來的行程，開始規劃下一次冒險吧！</p>
-      <!-- CTA Button handled by FAB globally, but could add one here if needed -->
     </div>
+
   </div>
 </template>
 

@@ -223,10 +223,10 @@ onMounted(() => {
       </button>
 
       <button 
-        class="bg-primary-900 text-white p-4 rounded-full shadow-xl hover:scale-105 active:scale-95 transition-all"
+        class="bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 active:scale-90 transition-all z-40 flex items-center justify-center border-4 border-surface-50 w-14 h-14"
         title="新增營地 (管理員)"
       >
-        <Plus class="w-6 h-6" />
+        <Plus class="w-8 h-8" />
       </button>
     </div>
 

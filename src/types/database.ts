@@ -245,6 +245,37 @@ export interface Database {
                 Insert: Omit<SystemAsset, 'id' | 'created_at'>
                 Update: Partial<SystemAsset>
             }
+            calendar_events: {
+                Row: CalendarEvent
+                Insert: NewCalendarEvent
+                Update: Partial<NewCalendarEvent>
+            }
         }
     }
+}
+
+export interface CalendarEvent {
+    id: string
+    created_at: string
+    title: string
+    description: string | null
+    start_time: string
+    end_time: string
+    is_all_day: boolean
+    event_type: string
+    color: string
+    family_id: string | null
+    created_by: string
+}
+
+export interface NewCalendarEvent {
+    title: string
+    description?: string
+    start_time: string
+    end_time: string
+    is_all_day?: boolean
+    event_type?: string
+    color?: string
+    family_id?: string | null
+    created_by?: string
 }
