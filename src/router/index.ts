@@ -6,6 +6,7 @@ import CalendarView from '../components/CalendarView.vue'
 import CampsiteLibrary from '../components/CampsiteLibrary.vue'
 import LoginView from '../components/LoginView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import StatsView from '../views/StatsView.vue'
 import { supabase } from '../lib/supabase'
 
 const routes = [
@@ -32,6 +33,11 @@ const routes = [
                 path: 'library',
                 name: 'library',
                 component: CampsiteLibrary
+            },
+            {
+                path: 'stats',
+                name: 'stats',
+                component: StatsView
             }
         ]
     },

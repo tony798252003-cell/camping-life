@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, ref } from 'vue'
+import { ArrowRight } from 'lucide-vue-next'
 import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 import StatsHeader from './StatsHeader.vue'
 import NextTripCard from './NextTripCard.vue'
@@ -102,9 +103,15 @@ const resetSlide = () => {
   <div class="space-y-2 md:space-y-3 pb-32 md:max-w-4xl md:mx-auto md:pb-8">
     <!-- 統計區塊 -->
     <div class="px-4 mt-4 md:mt-6">
-      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 px-2">STATS OVERVIEW</h3>
-      <StatsHeader :trips="trips" />
-    </div>
+       <div class="flex items-center justify-between mb-3 px-2">
+          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">STATS OVERVIEW</h3>
+          <button @click="$router.push('/stats')" class="text-xs font-bold text-primary-500 hover:text-primary-700 flex items-center gap-1 transition-colors">
+            查看報表
+            <ArrowRight class="w-3 h-3" />
+          </button>
+       </div>
+       <StatsHeader :trips="trips" />
+     </div>
 
     <!-- 下次露營 (如果有的話) -->
     <div v-if="loading" class="px-4 relative animate-pulse">

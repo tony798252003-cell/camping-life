@@ -34,7 +34,7 @@ const go = (path: string) => router.push(path)
             <!-- Avatar (Click to Go to Settings) -->
              <div @click="go('/settings')" class="cursor-pointer relative group">
                  <div class="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm overflow-hidden transition-all group-hover:scale-105 group-hover:shadow-md group-active:scale-95 ring-2 ring-transparent group-hover:ring-primary-100">
-                      <img v-if="session.user.user_metadata?.avatar_url" :src="session.user.user_metadata.avatar_url" class="w-full h-full object-cover" />
+                      <img v-if="session.user.user_metadata?.avatar_url" :src="session.user.user_metadata.avatar_url" class="w-full h-full object-cover" referrerpolicy="no-referrer" />
                       <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200 text-primary-600 font-black text-lg">
                           {{ (session.user.user_metadata?.full_name || session.user.email)?.[0]?.toUpperCase() }}
                       </div>
@@ -91,7 +91,8 @@ const go = (path: string) => router.push(path)
           <CalendarIcon class="w-6 h-6" :class="{'fill-primary-100': route.name === 'calendar'}" />
           <span class="text-[10px] font-medium mb-1">行事曆</span>
         </button>
-  
+
+
         <button 
           @click="go('/library')"
           class="flex flex-col items-center gap-1 transition-all duration-300 w-16"

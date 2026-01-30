@@ -240,25 +240,25 @@ onMounted(() => {
            <div class="flex items-center gap-4">
              <!-- Image -->
              <div 
-               class="w-14 h-14 rounded-lg flex items-center justify-center overflow-hidden shrink-0 border border-gray-100 bg-gray-50"
+               class="w-40 h-32 rounded-xl flex items-center justify-center overflow-hidden shrink-0 border border-gray-100 bg-white"
              >
-               <img v-if="tent.image_url" :src="tent.image_url" class="w-full h-full object-contain p-1" />
-               <Tent v-else class="w-6 h-6 text-gray-300" />
+               <img v-if="tent.image_url" :src="tent.image_url" class="w-full h-full object-contain p-2" />
+               <Tent v-else class="w-12 h-12 text-gray-300" />
              </div>
              
              <!-- Text -->
              <div>
                 <div class="font-bold text-gray-900">{{ tent.name }}</div>
                 <div v-if="tent.brand" class="text-xs text-gray-500 font-medium">{{ tent.brand }}</div>
+                <div class="text-xs text-slate-500 font-bold mt-1">
+                  使用次數：{{ getTentUsage(tent.id) }}
+                </div>
              </div>
            </div>
 
            <!-- Right: Stats & Actions -->
            <div class="flex items-center gap-4">
-              <!-- Usage Badge -->
-              <div class="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full flex items-center gap-1">
-                 {{ getTentUsage(tent.id) }} 次
-              </div>
+
               
               <!-- Actions (Hidden by default, visible on hover) -->
               <div class="hidden sm:flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">

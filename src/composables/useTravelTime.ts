@@ -270,6 +270,67 @@ const addToQueue = (sLat: number, sLon: number, destLat: number, destLon: number
     return promise
 }
 
+// ... (Previous Helper Functions like getSmartTrafficWeight, addToQueue, etc. remain the same) ...
+
+// === EXPORTED ESTIMATION FUNCTION ===
+export const estimateTripDuration = async (
+    destLat: number,
+    destLon: number,
+    startLat?: number,
+    startLon?: number
+): Promise<number | null> => {
+    if (!destLat || !destLon) return null
+
+    // === 1. Determine Start Coords ===
+    let sLat = startLat
+    let sLon = startLon
+
+    if (!sLat || !sLon) {
+        sLat = DEFAULT_ORIGIN.lat
+        sLon = DEFAULT_ORIGIN.lng
+    }
+
+    try {
+        // === 2. Check Cache ===
+        const cacheKey = `${sLat.toFixed(4)},${sLon.toFixed(4)}-${destLat.toFixed(4)},${destLon.toFixed(4)}`
+        const cached = routeCache.get(cacheKey)
+        const now = Date.now()
+
+        let result: { duration: number, distance?: number }
+
+        if (cached && (now - cached.timestamp) < CACHE_TTL) {
+            result = { duration: cached.duration, distance: cached.distance }
+        } else {
+            // === 3. Queue / API / Fallback ===
+            result = await addToQueue(sLat, sLon, destLat, destLon)
+
+            // Save to cache
+            routeCache.set(cacheKey, {
+                key: cacheKey,
+                duration: result.duration,
+                distance: result.distance,
+                timestamp: now
+            })
+            saveCache()
+        }
+
+        // === 4. Smart Weighting ===
+        const baseDuration = result.duration
+        const distance = result.distance
+
+        const smartWeight = distance ? getSmartTrafficWeight(distance) : 1.1
+        const weightedDuration = baseDuration * smartWeight
+
+        // Base Buffer
+        const baseBuffer = (distance || 0) < 50 ? 5 * 60 : 10 * 60
+        return Math.round(weightedDuration + baseBuffer)
+
+    } catch (e) {
+        console.error('Estimate Duration Failed:', e)
+        return null
+    }
+}
+
 export function useTravelTime() {
     const travelTime = ref<string | null>(null)
     const loading = ref(false)
@@ -280,73 +341,22 @@ export function useTravelTime() {
         startLat?: number,
         startLon?: number
     ) => {
-        if (!destLat || !destLon) {
-            travelTime.value = null
-            return
-        }
-
         loading.value = true
-
         try {
-            // === 1. 確定起點座標 ===
-            let sLat = startLat
-            let sLon = startLon
+            const durationSeconds = await estimateTripDuration(destLat, destLon, startLat, startLon)
 
-            if (!sLat || !sLon) {
-                // 不使用定位，直接使用預設起點
-                sLat = DEFAULT_ORIGIN.lat
-                sLon = DEFAULT_ORIGIN.lng
-            }
+            if (durationSeconds !== null) {
+                const hours = Math.floor(durationSeconds / 3600)
+                const minutes = Math.round((durationSeconds % 3600) / 60)
 
-            // === 2. 檢查快取 ===
-            const cacheKey = `${sLat.toFixed(4)},${sLon.toFixed(4)}-${destLat.toFixed(4)},${destLon.toFixed(4)}`
-            const cached = routeCache.get(cacheKey)
-            const now = Date.now()
-
-            let result: { duration: number, distance?: number }
-
-            if (cached && (now - cached.timestamp) < CACHE_TTL) {
-                // 使用快取
-                result = { duration: cached.duration, distance: cached.distance }
+                if (hours > 0) {
+                    travelTime.value = `${hours} 小時 ${minutes} 分`
+                } else {
+                    travelTime.value = `${minutes} 分鐘`
+                }
             } else {
-                // === 3. 使用佇列系統呼叫 API (Oueue processing) ===
-                result = await addToQueue(sLat, sLon, destLat, destLon)
-
-                // 存入快取 (Caching result regardless of source - API or fallback)
-                routeCache.set(cacheKey, {
-                    key: cacheKey,
-                    duration: result.duration,
-                    distance: result.distance,
-                    timestamp: now
-                })
-                saveCache() // Persist to local storage
+                travelTime.value = null
             }
-
-            // === 4. 格式化輸出 ===
-            // 基礎時間
-            const baseDuration = result.duration
-            const distance = result.distance
-
-            // === 5. 智慧加權 (Traffic + Winding adjustment already in weight) ===
-            const smartWeight = distance ? getSmartTrafficWeight(distance) : 1.1
-            const weightedDuration = baseDuration * smartWeight
-
-            // 基礎緩衝時間
-            const baseBuffer = (distance || 0) < 50 ? 5 * 60 : 10 * 60
-            const durationSeconds = Math.round(weightedDuration + baseBuffer)
-
-            const hours = Math.floor(durationSeconds / 3600)
-            const minutes = Math.round((durationSeconds % 3600) / 60)
-
-            if (hours > 0) {
-                travelTime.value = `${hours} 小時 ${minutes} 分`
-            } else {
-                travelTime.value = `${minutes} 分鐘`
-            }
-
-        } catch (e) {
-            console.error('Failed to calculate travel time:', e)
-            travelTime.value = null
         } finally {
             loading.value = false
         }
