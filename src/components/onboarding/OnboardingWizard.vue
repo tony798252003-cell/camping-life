@@ -186,9 +186,9 @@ const handleTentSkip = async () => {
           <div class="w-full max-w-2xl bg-white/80 backdrop-blur-xl rounded-[2.5rem] p-6 md:p-12 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 my-8">
             <!-- Progress indicator -->
             <div class="flex gap-2 mb-8">
-              <div class="h-1 flex-1 rounded-full transition-colors" :class="currentStep >= 1 ? 'bg-primary-500' : 'bg-gray-200'"></div>
-              <div class="h-1 flex-1 rounded-full transition-colors" :class="currentStep >= 2 ? 'bg-primary-500' : 'bg-gray-200'"></div>
-              <div class="h-1 flex-1 rounded-full transition-colors" :class="currentStep >= 3 ? 'bg-primary-500' : 'bg-gray-200'"></div>
+              <div class="h-1 flex-1 rounded-full transition-colors" :class="(currentStep ?? 0) >= 1 ? 'bg-primary-500' : 'bg-gray-200'"></div>
+              <div class="h-1 flex-1 rounded-full transition-colors" :class="(currentStep ?? 0) >= 2 ? 'bg-primary-500' : 'bg-gray-200'"></div>
+              <div class="h-1 flex-1 rounded-full transition-colors" :class="(currentStep ?? 0) >= 3 ? 'bg-primary-500' : 'bg-gray-200'"></div>
             </div>
 
             <!-- Step content -->
