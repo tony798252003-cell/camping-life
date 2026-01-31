@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const items = ref<CampingGear[]>([])
 const loading = ref(false)
+const isSubmitting = ref(false)
 
 // Default examples for reset
 const defaultExamples: NewGearItem[] = [
@@ -43,9 +44,12 @@ const fetchGear = async () => {
 
 // Actions
 const addItem = async () => {
+  if (isSubmitting.value) return
+
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return
 
+  isSubmitting.value = true
   try {
     const newItem: NewGearItem = {
       name: '新裝備',
@@ -58,7 +62,7 @@ const addItem = async () => {
       purchase_date: new Date().toISOString(),
       user_id: session.user.id
     }
-    
+
     const { data, error } = await (supabase
       .from('camping_gear') as any)
       .insert([newItem])
@@ -73,6 +77,8 @@ const addItem = async () => {
   } catch (error) {
     console.error('Error adding item:', error)
     alert('新增失敗')
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -233,14 +239,14 @@ onMounted(() => {
         >
           <RotateCcw class="w-5 h-5" />
         </button>
-        <button 
+        <button
           @click="addItem"
-          class="flex items-center gap-1 bg-primary-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-primary-500/20 hover:bg-primary-700 transition active:scale-95 hover:shadow-xl whitespace-nowrap"
-          :disabled="loading"
+          class="flex items-center gap-1 bg-primary-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-primary-500/20 hover:bg-primary-700 transition active:scale-95 hover:shadow-xl whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="loading || isSubmitting"
         >
           <Plus class="w-4 h-4" />
-          <span class="hidden md:inline">新增裝備</span>
-          <span class="md:hidden">新增</span>
+          <span class="hidden md:inline">{{ isSubmitting ? '新增中...' : '新增裝備' }}</span>
+          <span class="md:hidden">{{ isSubmitting ? '...' : '新增' }}</span>
         </button>
       </div>
     </div>

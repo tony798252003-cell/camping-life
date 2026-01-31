@@ -12,6 +12,7 @@ const props = defineProps<{
 const tents = ref<CampingGear[]>([])
 const systemImages = ref<SystemAsset[]>([])
 const loading = ref(true) // Start with true to prevent empty state flash
+const isSubmitting = ref(false)
 const newTentName = ref('')
 const newTentBrand = ref('') // New
 const newTentImage = ref('')
@@ -115,15 +116,18 @@ const saveTent = async () => {
       return
   }
 
+  if (isSubmitting.value) return
+
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return
 
+  isSubmitting.value = true
   try {
     if (isEditMode.value && editingTentId.value) {
         // Update
         const { error } = await (supabase
             .from('camping_gear') as any)
-            .update({ 
+            .update({
                 name: newTentName.value.trim(),
                 brand: newTentBrand.value.trim(),
                 image_url: newTentImage.value
@@ -131,7 +135,7 @@ const saveTent = async () => {
             .eq('id', editingTentId.value)
 
         if (error) throw error
-        
+
         // Update local
         const idx = tents.value.findIndex(t => t.id === editingTentId.value)
         if (idx !== -1 && tents.value[idx]) {
@@ -156,7 +160,7 @@ const saveTent = async () => {
             image_url: newTentImage.value || undefined
         }
 
-        
+
         const { data, error } = await (supabase
             .from('camping_gear') as any)
             .insert([newTent])
@@ -176,6 +180,8 @@ const saveTent = async () => {
   } catch (error) {
     console.error('Error saving tent:', error)
     alert('儲存失敗')
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -414,10 +420,10 @@ onMounted(() => {
             </button>
             <button
               @click="saveTent"
-              :disabled="!newTentName.trim()"
+              :disabled="!newTentName.trim() || isSubmitting"
               class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {{ isEditMode ? '儲存變更' : '新增' }}
+              {{ isSubmitting ? '儲存中...' : (isEditMode ? '儲存變更' : '新增') }}
             </button>
          </div>
       </div>

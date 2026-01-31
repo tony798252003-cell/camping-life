@@ -53,12 +53,13 @@ export function useCalendarEvents() {
     async function updateEvent(id: string, updates: Partial<NewCalendarEvent>) {
         isLoading.value = true
         try {
-            const { data, error: err } = await supabase
-                .from('calendar_events')
+            const updateResult: any = await (supabase
+                .from('calendar_events') as any)
                 .update(updates)
                 .eq('id', id)
                 .select()
                 .single()
+            const { data, error: err } = updateResult
 
             if (err) throw err
             if (data) {

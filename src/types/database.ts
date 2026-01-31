@@ -213,8 +213,8 @@ export interface Database {
         Tables: {
             profiles: {
                 Row: Profile
-                Insert: Profile
-                Update: Partial<Profile>
+                Insert: Omit<Profile, 'updated_at'>
+                Update: Partial<Omit<Profile, 'id' | 'updated_at'>>
             }
             families: {
                 Row: Family

@@ -1,6 +1,5 @@
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
-import type { Profile } from '../types/database'
 
 export function useOnboarding() {
     const isOnboardingOpen = ref(false)
@@ -8,7 +7,12 @@ export function useOnboarding() {
     const isSubmitting = ref(false)
 
     const shouldShowOnboarding = (
-        profile: Profile | null,
+        profile: {
+            latitude?: number | null
+            longitude?: number | null
+            family_id?: string | null
+            onboarding_completed_at?: string | null
+        } | null,
         hasTent: boolean
     ): boolean => {
         if (!profile) return false
@@ -49,10 +53,11 @@ export function useOnboarding() {
     const completeOnboarding = async (userId: string) => {
         isSubmitting.value = true
         try {
-            const { error } = await supabase
-                .from('profiles')
+            const updateResult: any = await (supabase
+                .from('profiles') as any)
                 .update({ onboarding_completed_at: new Date().toISOString() })
                 .eq('id', userId)
+            const { error } = updateResult
 
             if (error) throw error
 

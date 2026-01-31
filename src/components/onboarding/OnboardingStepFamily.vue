@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { supabase } from '../../lib/supabase'
+import type { Family } from '../../types/database'
 import { Users, Plus, LogIn } from 'lucide-vue-next'
 
 const emit = defineEmits<{
@@ -44,17 +45,18 @@ const handleCreateFamily = async () => {
         name: familyName.value.trim(),
         invite_code: code,
         created_by: user.id
-      })
+      } as any)
       .select()
-      .single()
+      .single() as { data: Family | null; error: any }
 
-    if (familyError) throw familyError
+    if (familyError || !family) throw familyError || new Error('建立家庭失敗')
 
     // Update profile with family_id
-    const { error: profileError } = await supabase
-      .from('profiles')
+    const updateResult: any = await (supabase
+      .from('profiles') as any)
       .update({ family_id: family.id })
       .eq('id', user.id)
+    const { error: profileError } = updateResult
 
     if (profileError) throw profileError
 
@@ -84,7 +86,7 @@ const handleJoinFamily = async () => {
       .from('families')
       .select('id')
       .eq('invite_code', inviteCode.value.trim().toUpperCase())
-      .single()
+      .single() as { data: { id: string } | null; error: any }
 
     if (familyError || !family) {
       error.value = '邀請碼無效或已過期'
@@ -92,10 +94,11 @@ const handleJoinFamily = async () => {
     }
 
     // Update profile with family_id
-    const { error: profileError } = await supabase
-      .from('profiles')
+    const updateResult: any = await (supabase
+      .from('profiles') as any)
       .update({ family_id: family.id })
       .eq('id', user.id)
+    const { error: profileError } = updateResult
 
     if (profileError) throw profileError
 

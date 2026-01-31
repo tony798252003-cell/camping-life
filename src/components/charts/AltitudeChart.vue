@@ -98,7 +98,7 @@ const chartOptions = {
   },
   scales: {
     x: {
-      type: 'linear',
+      type: 'linear' as const,
       min: 0,
       max: 11,
       grid: {
@@ -107,9 +107,10 @@ const chartOptions = {
       },
       ticks: {
          stepSize: 1,
-         callback: (value: number) => {
+         callback: (value: string | number) => {
              // value is 0-11
-             return `${Math.floor(value) + 1}月`
+             const numValue = typeof value === 'string' ? parseFloat(value) : value
+             return `${Math.floor(numValue) + 1}月`
          },
          font: {
             family: "'Inter', sans-serif",

@@ -26,6 +26,9 @@
              <span v-else-if="currentView === 'admin'" class="flex items-center gap-2">
                <ShieldAlert class="w-5 h-5 text-red-600" /> 管理員專區
              </span>
+             <span v-else-if="currentView === 'dev-tools'" class="flex items-center gap-2">
+               <Settings class="w-5 h-5 text-purple-600" /> 開發者工具
+             </span>
            </h2>
         </div>
       </div>
@@ -110,6 +113,20 @@
                  <div class="text-left">
                     <h3 class="font-bold text-gray-900">管理員專區</h3>
                     <p class="text-xs text-gray-500">批次數據維護 (隱藏功能)</p>
+                 </div>
+              </div>
+              <ChevronRight class="w-5 h-5 text-gray-300" />
+           </button>
+
+           <!-- Dev Tools (只在開發環境顯示) -->
+           <button v-if="isDev" @click="currentView = 'dev-tools'" class="w-full flex items-center justify-between p-4 bg-white border border-purple-200 rounded-xl transition-all active:scale-[0.98] shadow-sm">
+              <div class="flex items-center gap-3">
+                 <div class="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                    <Settings class="w-5 h-5" />
+                 </div>
+                 <div class="text-left">
+                    <h3 class="font-bold text-gray-900">🛠️ 開發者工具</h3>
+                    <p class="text-xs text-gray-500">測試與除錯功能</p>
                  </div>
               </div>
               <ChevronRight class="w-5 h-5 text-gray-300" />
@@ -358,6 +375,57 @@
            </div>
         </div>
 
+        <!-- DEV TOOLS VIEW -->
+        <div v-else-if="currentView === 'dev-tools'" class="p-6 space-y-6">
+           <div class="bg-purple-50 border border-purple-100 rounded-xl p-4">
+              <h3 class="font-bold text-purple-800 mb-2 flex items-center gap-2">
+                 <Settings class="w-5 h-5" />
+                 🛠️ 開發者工具
+              </h3>
+              <p class="text-xs text-purple-600 mb-4">
+                 測試與除錯功能，僅在開發環境顯示。
+              </p>
+
+              <div class="space-y-4">
+                 <!-- Reset Onboarding -->
+                 <div class="bg-white p-4 rounded-lg border border-purple-200 shadow-sm">
+                    <h4 class="font-bold text-gray-800 mb-1">🔄 重設 Onboarding</h4>
+                    <p class="text-xs text-gray-500 mb-3">
+                       清除 onboarding 完成標記、起始地點、家庭連結，並刪除所有帳篷裝備，用於測試首次登入流程。
+                    </p>
+
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                       <p class="text-xs text-yellow-800">
+                          <strong>⚠️ 注意：</strong>此操作會：
+                       </p>
+                       <ul class="text-xs text-yellow-700 mt-2 space-y-1 ml-4 list-disc">
+                          <li>清除 onboarding_completed_at</li>
+                          <li>清除起始地點 (latitude, longitude, location_name)</li>
+                          <li>清除家庭連結 (family_id)</li>
+                          <li>刪除所有帳篷裝備 (category = 'tent')</li>
+                       </ul>
+                    </div>
+
+                    <button
+                       @click="resetOnboarding"
+                       :disabled="isResettingOnboarding"
+                       class="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                       <Loader2 v-if="isResettingOnboarding" class="w-4 h-4 animate-spin" />
+                       {{ isResettingOnboarding ? '重設中...' : '重設 Onboarding' }}
+                    </button>
+                 </div>
+
+                 <!-- 未來可以在這裡加入更多開發工具 -->
+                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p class="text-xs text-gray-500 text-center">
+                       💡 更多開發工具即將推出...
+                    </p>
+                 </div>
+              </div>
+           </div>
+        </div>
+
       </div>
       
       <!-- System Asset Manager Modal -->
@@ -404,9 +472,13 @@ const internalIsAdmin = ref(false)
 
 const effectiveUserId = computed(() => props.userId || internalUserId.value)
 
-type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'family' | 'admin'
+type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'family' | 'admin' | 'dev-tools'
 const currentView = ref<ViewState>('menu')
 const isAssetManagerOpen = ref(false)
+
+// Dev tools state
+const isDev = import.meta.env.DEV
+const isResettingOnboarding = ref(false)
 
 // Navigation
 const goBack = () => {
@@ -458,6 +530,64 @@ const shareInviteLink = async () => {
     } catch (e) {
       alert('複製失敗，請手動複製代碼')
     }
+  }
+}
+
+// Dev Tools - Reset Onboarding
+const resetOnboarding = async () => {
+  if (!confirm('確定要重設 Onboarding 流程嗎？這將清除你的起始地點、家庭連結，並刪除所有帳篷裝備。')) {
+    return
+  }
+
+  const uid = effectiveUserId.value
+  if (!uid) {
+    alert('找不到用戶ID')
+    return
+  }
+
+  isResettingOnboarding.value = true
+  try {
+    // 1. 清除 profile 的 onboarding 相關欄位
+    console.log('[Dev Tools] Resetting profile fields...')
+    const updateResult: any = await (supabase
+      .from('profiles') as any)
+      .update({
+        onboarding_completed_at: null,
+        latitude: null,
+        longitude: null,
+        location_name: null,
+        family_id: null
+      })
+      .eq('id', uid)
+
+    if (updateResult.error) {
+      console.error('[Dev Tools] Profile update error:', updateResult.error)
+      throw updateResult.error
+    }
+
+    // 2. 刪除所有帳篷裝備
+    console.log('[Dev Tools] Deleting tent gear...')
+    const { error: gearError, count } = await supabase
+      .from('camping_gear')
+      .delete()
+      .eq('user_id', uid)
+      .eq('category', 'tent')
+
+    if (gearError) {
+      console.error('[Dev Tools] Gear deletion error:', gearError)
+    } else {
+      console.log(`[Dev Tools] Deleted ${count || 0} tent(s)`)
+    }
+
+    alert('✅ Onboarding 已重設！\n已清除：\n- onboarding_completed_at\n- 起始地點\n- 家庭連結\n- 帳篷裝備\n\n請重新整理頁面。')
+
+    // 重新整理頁面
+    window.location.reload()
+  } catch (error: any) {
+    console.error('重設 Onboarding 失敗:', error)
+    alert('❌ 重設失敗: ' + error.message)
+  } finally {
+    isResettingOnboarding.value = false
   }
 }
 

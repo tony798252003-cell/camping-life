@@ -6,9 +6,11 @@ import { useCalendarEvents } from '../composables/useCalendarEvents'
 import { isHoliday } from '../utils/holidays'
 import EventModal from './EventModal.vue'
 
-const props = defineProps<{
-  trips: CampingTripWithCampsite[]
-}>()
+const props = withDefaults(defineProps<{
+  trips?: CampingTripWithCampsite[]
+}>(), {
+  trips: () => []
+})
 
 const emit = defineEmits<{
   (e: 'view-detail', trip: CampingTrip): void
@@ -284,6 +286,9 @@ const handleDeleteEvent = async (id: string) => {
     fetchEvents()
 }
 
+// Filter State
+const currentFilter = ref<'all' | 'trip' | 'custom'>('all')
+
 // Global Event List Logic
 const sortedAllEvents = computed(() => {
     // 1. Map trips
@@ -310,9 +315,21 @@ const sortedAllEvents = computed(() => {
         isAllDay: e.is_all_day
     }))
 
-    // 3. Combine and Sort (Ascending)
-    return [...tripsAsEvents, ...customAsEvents].sort((a, b) => a.date.getTime() - b.date.getTime())
+    // 3. Combine
+    let combined = [...tripsAsEvents, ...customAsEvents]
+
+    // 4. Filter
+    if (currentFilter.value === 'trip') {
+        combined = combined.filter(e => e.type === 'trip')
+    } else if (currentFilter.value === 'custom') {
+        combined = combined.filter(e => e.type === 'custom')
+    }
+
+    // 5. Sort (Ascending)
+    return combined.sort((a, b) => a.date.getTime() - b.date.getTime())
 })
+
+
 
 const handleEventListClick = (event: ViewEvent) => {
     if (event.type === 'trip') {
@@ -324,7 +341,7 @@ const handleEventListClick = (event: ViewEvent) => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-surface-50 overflow-hidden pb-20 md:pb-0 font-sans relative">
+  <div class="h-full flex flex-col bg-surface-50 overflow-hidden md:pb-0 font-sans relative">
      <div class="md:hidden sticky top-0 bg-white/80 backdrop-blur-md z-10 p-4 border-b border-primary-100 flex items-center justify-between supports-[backdrop-filter]:bg-white/60">
         <div class="flex items-center gap-2">
            <h1 class="text-2xl font-black text-primary-900 tracking-tight">露營行事曆</h1>
@@ -425,11 +442,26 @@ const handleEventListClick = (event: ViewEvent) => {
            </div>
         </div>
          <!-- Unified Event List -->
-         <div class="mt-8 mb-24 px-2">
-            <h3 class="text-lg font-black text-primary-800 mb-4 flex items-center gap-2">
-               <Users class="w-5 h-5 text-primary-500" />
-               所有行程
-            </h3>
+         <div class="mt-8 px-2">
+            <div class="flex items-center justify-between mb-4">
+               <h3 class="text-lg font-black text-primary-800 flex items-center gap-2">
+                  <Users class="w-5 h-5 text-primary-500" />
+                  所有行程
+               </h3>
+               
+               <!-- Filter Controls -->
+               <div class="flex items-center bg-gray-100 rounded-lg p-1">
+                   <button 
+                     v-for="filter in ['all', 'trip', 'custom']" 
+                     :key="filter"
+                     @click="currentFilter = filter as any"
+                     class="px-3 py-1 text-xs font-bold rounded-md transition-all"
+                     :class="currentFilter === filter ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'"
+                   >
+                     {{ filter === 'all' ? '全部' : (filter === 'trip' ? '露營' : '其他') }}
+                   </button>
+               </div>
+            </div>
             <div class="flex flex-col gap-3">
                <div 
                  v-for="event in sortedAllEvents" 
@@ -463,12 +495,16 @@ const handleEventListClick = (event: ViewEvent) => {
                <div v-if="sortedAllEvents.length === 0" class="text-center py-10 text-gray-400 text-sm">
                   目前還沒有任何行程喔！
                </div>
+               
+
+               <!-- Spacer for FAB and Bottom Tab -->
+               <div class="h-52 w-full"></div>
             </div>
          </div>
      </div>
 
      <!-- Desktop View: Full Year Grid -->
-     <div class="hidden md:block flex-1 p-8 overflow-y-auto">
+     <div class="hidden md:block flex-1 p-8 pb-32 overflow-y-auto">
         <div class="grid grid-cols-3 xl:grid-cols-4 gap-8">
            <div v-for="(month, mIdx) in fullYearMonths" :key="mIdx" class="bg-white rounded-3xl p-5 border border-primary-100 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] group card-organic">
               <h3 class="text-lg font-bold text-primary-800 mb-3 pl-1 border-l-4 border-primary-400 group-hover:text-primary-600 transition-colors">&nbsp;{{ month.name }}</h3>

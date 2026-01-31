@@ -6,6 +6,7 @@ import {
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
+import { TAIWAN_LOCATIONS } from '../constants/locations'
 
 import TripWeather from './TripWeather.vue'
 import GooglePlaceSearch from './GooglePlaceSearch.vue'
@@ -29,7 +30,28 @@ const emit = defineEmits<{
 // --- State ---
 // Seamless editing: No explicit View/Edit mode toggle.
 // We track changes to show/hide the Save button.
+const isSubmitting = ref(false)
 const originalTripData = ref<any>(null)
+
+// Location selection
+const selectedCity = ref('')
+const selectedDistrict = ref('')
+
+const availableDistricts = computed(() => {
+  if (!selectedCity.value) return []
+  const city = TAIWAN_LOCATIONS.find(c => c.id === selectedCity.value)
+  return city ? city.districts : []
+})
+
+// Update location string when city/district changes
+watch([selectedCity, selectedDistrict], ([city, district]) => {
+  if (city && district) {
+    formData.value.location = `${city}${district}`
+  } else if (city) {
+    formData.value.location = city
+  }
+})
+
 const formData = ref<NewCampingTrip>({
   trip_date: new Date().toISOString().split('T')[0] ?? '',
   duration_days: 2,
@@ -161,6 +183,21 @@ const initFormData = (newTrip: any) => {
     
     formData.value = JSON.parse(JSON.stringify(data))
     originalTripData.value = JSON.parse(JSON.stringify(data))
+
+    // Parse location string to set city and district
+    if (linkedCampsite?.city) {
+      selectedCity.value = linkedCampsite.city
+      selectedDistrict.value = linkedCampsite.district || ''
+    } else if (data.location) {
+      // Try to parse location string (e.g., "新北市三峽區")
+      const city = TAIWAN_LOCATIONS.find(c => data.location.startsWith(c.id))
+      if (city) {
+        selectedCity.value = city.id
+        const districtPart = data.location.substring(city.id.length)
+        const district = city.districts.find(d => d.id === districtPart)
+        selectedDistrict.value = district ? district.id : ''
+      }
+    }
     
     refreshViewData()
   } else {
@@ -199,6 +236,8 @@ function resetForm() {
     scenery: undefined
   }
   formData.value = JSON.parse(JSON.stringify(emptyForm))
+  selectedCity.value = ''
+  selectedDistrict.value = ''
   originalTripData.value = JSON.parse(JSON.stringify(emptyForm))
 }
 
@@ -248,6 +287,9 @@ const handleDelete = () => {
 }
 
 const handleSubmit = async () => {
+  if (isSubmitting.value) return
+
+  isSubmitting.value = true
   try {
     // Handle new campsite logic if needed
     if (!formData.value.campsite_id && formData.value.campsite_name) {
@@ -261,13 +303,13 @@ const handleSubmit = async () => {
            longitude: formData.value.longitude,
            altitude: formData.value.altitude || null,
            is_verified: false,
-           city: formData.value.location ? formData.value.location.substring(0, 3) : null 
+           city: formData.value.location ? formData.value.location.substring(0, 3) : null
          }
          const { data: created, error } = await supabase.from('campsites').insert([newCampsite] as any).select().single()
          if (!error && created) formData.value.campsite_id = (created as any).id
        }
     }
-    
+
     const payload = { ...formData.value }
     const sanitizeNullable = (v: any) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? null : Number(v)
     const sanitizeRequired = (v: any, def = 0) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? def : Number(v)
@@ -276,15 +318,17 @@ const handleSubmit = async () => {
     payload.cost = sanitizeRequired(formData.value.cost, 0)
     payload.price = sanitizeRequired(formData.value.price, 0)
     payload.duration_days = sanitizeRequired(formData.value.duration_days, 1)
-    
+
     if (!payload.location) payload.location = ''
-    
+
     emit('submit', payload)
     // Update original data locally to hide Save button immediately
     originalTripData.value = JSON.parse(JSON.stringify(formData.value))
 
   } catch (e) {
     console.error('Error handling submission', e)
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -495,14 +539,27 @@ onMounted(async () => {
                       </div>
 
                       <!-- Subtitle Location -->
-                      <div class="flex items-center justify-center gap-1.5 text-primary-700 font-bold bg-white/40 backdrop-blur-sm px-3 py-1 rounded-full">
+                      <div class="flex items-center justify-center gap-1.5 text-primary-700 font-bold bg-white/40 backdrop-blur-sm px-2 py-1 rounded-full">
                           <MapPin class="w-4 h-4" />
-                          <input 
-                            v-model="formData.location" 
-                            type="text" 
-                            class="bg-transparent border-none text-sm font-bold text-primary-800 p-0 focus:ring-0 w-[120px] text-center placeholder-primary-600/50"
-                            placeholder="輸入地點..."
-                          />
+                          <select
+                            v-model="selectedCity"
+                            class="bg-transparent border-none text-xs font-bold text-primary-800 p-0 pr-4 focus:ring-0 cursor-pointer"
+                          >
+                            <option value="">選縣市</option>
+                            <option v-for="city in TAIWAN_LOCATIONS" :key="city.id" :value="city.id">
+                              {{ city.name }}
+                            </option>
+                          </select>
+                          <select
+                            v-model="selectedDistrict"
+                            :disabled="!selectedCity"
+                            class="bg-transparent border-none text-xs font-bold text-primary-800 p-0 pr-4 focus:ring-0 cursor-pointer disabled:opacity-50"
+                          >
+                            <option value="">選區域</option>
+                            <option v-for="district in availableDistricts" :key="district.id" :value="district.id">
+                              {{ district.name }}
+                            </option>
+                          </select>
                       </div>
                   </div>
               </div>
@@ -760,8 +817,12 @@ onMounted(async () => {
                  <button @click="cancelEdit" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors">
                      <RotateCcw class="w-5 h-5" />
                  </button>
-                 <button @click="handleSubmit" class="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-full font-bold shadow-lg shadow-primary-500/30 transition-all hover:scale-105 active:scale-95">
-                     <Save class="w-4 h-4" /> 儲存變更
+                 <button
+                   @click="handleSubmit"
+                   :disabled="isSubmitting"
+                   class="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-full font-bold shadow-lg shadow-primary-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                 >
+                     <Save class="w-4 h-4" /> {{ isSubmitting ? '儲存中...' : '儲存變更' }}
                  </button>
              </div>
         </div>

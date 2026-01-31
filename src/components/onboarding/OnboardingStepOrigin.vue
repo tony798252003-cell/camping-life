@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { MapPin } from 'lucide-vue-next'
+import GooglePlaceSearch from '../GooglePlaceSearch.vue'
 
 const props = defineProps<{
   initialData?: { location_name: string; latitude: number | null; longitude: number | null }
@@ -13,43 +14,32 @@ const emit = defineEmits<{
 }>()
 
 const locationName = ref(props.initialData?.location_name || '')
-const selectedLocation = ref<{ lat: number; lng: number } | null>(
+const selectedLocation = ref<{ lat: number; lng: number; name: string } | null>(
   props.initialData?.latitude && props.initialData?.longitude
-    ? { lat: props.initialData.latitude, lng: props.initialData.longitude }
+    ? {
+        lat: props.initialData.latitude,
+        lng: props.initialData.longitude,
+        name: props.initialData.location_name
+      }
     : null
 )
 
-// Mock location search (replace with actual API later)
-const searchResults = ref<Array<{ name: string; lat: number; lng: number }>>([])
-const isSearching = ref(false)
+const handlePlaceSelected = (place: any) => {
+  console.log('[OnboardingStepOrigin] Place selected:', place)
 
-const handleSearch = async () => {
-  if (!locationName.value.trim()) return
-
-  isSearching.value = true
-
-  // TODO: Replace with actual Google Places API or Mapbox Geocoding
-  // Mock results for now
-  await new Promise(resolve => setTimeout(resolve, 500))
-
-  searchResults.value = [
-    { name: locationName.value, lat: 25.0621, lng: 121.1963 }
-  ]
-
-  isSearching.value = false
-}
-
-const selectLocation = (location: { name: string; lat: number; lng: number }) => {
-  locationName.value = location.name
-  selectedLocation.value = { lat: location.lat, lng: location.lng }
-  searchResults.value = []
+  locationName.value = place.name || place.formatted_address || ''
+  selectedLocation.value = {
+    lat: place.lat,
+    lng: place.lng,
+    name: place.name || place.formatted_address || ''
+  }
 }
 
 const handleNext = () => {
   if (!selectedLocation.value) return
 
   emit('next', {
-    location_name: locationName.value,
+    location_name: selectedLocation.value.name,
     latitude: selectedLocation.value.lat,
     longitude: selectedLocation.value.lng
   })
@@ -71,40 +61,15 @@ const handleSkip = () => {
     </div>
 
     <div class="space-y-4">
-      <!-- Search Input -->
+      <!-- Google Places Search -->
       <div>
-        <label class="block text-sm font-medium text-primary-700 mb-2">地點名稱</label>
-        <div class="relative">
-          <input
-            v-model="locationName"
-            type="text"
-            placeholder="例如：家、桃園住處"
-            class="w-full px-4 py-3 pr-24 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
-            @keyup.enter="handleSearch"
-          />
-          <button
-            @click="handleSearch"
-            :disabled="isSearching || !locationName.trim()"
-            class="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-sm rounded-lg transition-all disabled:opacity-50"
-          >
-            {{ isSearching ? '搜尋中...' : '搜尋' }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Search Results -->
-      <div v-if="searchResults.length > 0" class="bg-surface-50 rounded-xl p-4 space-y-2">
-        <button
-          v-for="result in searchResults"
-          :key="`${result.lat}-${result.lng}`"
-          @click="selectLocation(result)"
-          class="w-full text-left px-4 py-3 bg-white hover:bg-primary-50 rounded-lg transition-all"
-        >
-          <div class="flex items-center gap-3">
-            <MapPin class="w-4 h-4 text-primary-500" />
-            <span class="font-medium text-primary-900">{{ result.name }}</span>
-          </div>
-        </button>
+        <label class="block text-sm font-medium text-primary-700 mb-2">
+          搜尋地點（輸入地址或地標）
+        </label>
+        <GooglePlaceSearch
+          placeholder="例如：台北市、桃園住處、信義區"
+          @place-selected="handlePlaceSelected"
+        />
       </div>
 
       <!-- Selected Location Display -->
@@ -113,18 +78,12 @@ const handleSkip = () => {
           <MapPin class="w-5 h-5 text-emerald-600 mt-0.5" />
           <div class="flex-1">
             <p class="font-medium text-emerald-900">已選擇地點</p>
-            <p class="text-sm text-emerald-700">{{ locationName }}</p>
+            <p class="text-sm text-emerald-700">{{ selectedLocation.name }}</p>
             <p class="text-xs text-emerald-600 mt-1">
               {{ selectedLocation.lat.toFixed(4) }}, {{ selectedLocation.lng.toFixed(4) }}
             </p>
           </div>
         </div>
-      </div>
-
-      <!-- Note about map integration -->
-      <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-        <p class="font-medium mb-1">開發提示</p>
-        <p>地圖整合待實作，目前使用模擬資料</p>
       </div>
 
       <!-- Action Buttons -->

@@ -52,7 +52,7 @@ const calculateAllDurations = async () => {
         // Determine Start
         const sLat = t.start_latitude || props.userOrigin?.lat || DEFAULT_ORIGIN.lat
         const sLon = t.start_longitude || props.userOrigin?.lng || DEFAULT_ORIGIN.lng
-        
+
         // Determine End
         const dLat = t.latitude || t.campsites?.latitude
         const dLon = t.longitude || t.campsites?.longitude

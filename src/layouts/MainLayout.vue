@@ -47,7 +47,7 @@ const go = (path: string) => router.push(path)
     <!-- Main Content Slot -->
     <!-- We use router-view here for child routes (Home, List, etc) -->
     <!-- We propagate all props/attrs to the child view -->
-    <main class="flex-1 overflow-y-auto pb-24">
+    <main class="flex-1 overflow-y-auto" :class="route.name === 'calendar' ? 'pb-0' : 'pb-24'">
         <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
                  <component :is="Component" v-bind="$attrs" />

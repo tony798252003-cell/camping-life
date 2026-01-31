@@ -8,7 +8,7 @@ import TripModal from './components/TripModal.vue'
 import CampsiteEditModal from './components/CampsiteEditModal.vue'
 import ToastNotification from './components/ToastNotification.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
-import OnboardingWizard from './components/OnboardingWizard.vue'
+import OnboardingWizard from './components/onboarding/OnboardingWizard.vue'
 
 // Composables
 import { useAuth } from './composables/useAuth'
@@ -151,6 +151,8 @@ const handleOnboardingComplete = async () => {
   const success = await completeOnboarding(session.value.user.id)
   if (success) {
     await fetchProfile(session.value.user.id)
+    // Refetch trips because family_id may have changed (e.g., joined a family)
+    await fetchTrips(session.value.user.id, familyId())
   }
 }
 

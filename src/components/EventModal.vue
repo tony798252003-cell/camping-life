@@ -17,6 +17,7 @@ const emit = defineEmits<{
     (e: 'delete', id: string): void
 }>()
 
+const isSubmitting = ref(false)
 const title = ref('')
 const description = ref('')
 const startDate = ref('')
@@ -82,32 +83,37 @@ watch(startDate, (newStart) => {
     }
 })
 
-const handleSave = () => {
-    if (!isValid.value) return
+const handleSave = async () => {
+    if (!isValid.value || isSubmitting.value) return
 
-    // Construct timestamps carefully to preserve Local Date intent
-    // format: YYYY-MM-DDTHH:mm:ss
-    // For All Day events, use 12:00:00 (Noon) to avoid timezone shifts at 00:00/23:59 boundary
-    const startIsoString = `${startDate.value}T${isAllDay.value ? '12:00:00' : startTime.value}`
-    const endIsoString = `${endDate.value}T${isAllDay.value ? '12:00:00' : endTime.value}`
-    
-    const start = new Date(startIsoString)
-    const end = new Date(endIsoString)
+    isSubmitting.value = true
+    try {
+        // Construct timestamps carefully to preserve Local Date intent
+        // format: YYYY-MM-DDTHH:mm:ss
+        // For All Day events, use 12:00:00 (Noon) to avoid timezone shifts at 00:00/23:59 boundary
+        const startIsoString = `${startDate.value}T${isAllDay.value ? '12:00:00' : startTime.value}`
+        const endIsoString = `${endDate.value}T${isAllDay.value ? '12:00:00' : endTime.value}`
 
-    const eventData: NewCalendarEvent = {
-        title: title.value,
-        description: description.value,
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
-        is_all_day: isAllDay.value,
-        color: color.value,
+        const start = new Date(startIsoString)
+        const end = new Date(endIsoString)
+
+        const eventData: NewCalendarEvent = {
+            title: title.value,
+            description: description.value,
+            start_time: start.toISOString(),
+            end_time: end.toISOString(),
+            is_all_day: isAllDay.value,
+            color: color.value,
+        }
+
+        emit('save', {
+            ...eventData,
+            // @ts-ignore: Temporary hack, parent will handle family_id assignment
+            _isPrivate: !isFamily.value
+        })
+    } finally {
+        isSubmitting.value = false
     }
-    
-    emit('save', {
-        ...eventData,
-        // @ts-ignore: Temporary hack, parent will handle family_id assignment
-        _isPrivate: !isFamily.value 
-    })
 }
 </script>
 
@@ -245,12 +251,12 @@ const handleSave = () => {
               >
                   取消
               </button>
-              <button 
-                @click="handleSave" 
-                :disabled="!isValid"
+              <button
+                @click="handleSave"
+                :disabled="!isValid || isSubmitting"
                 class="px-8 py-3 rounded-xl font-bold text-white bg-primary-600 hover:bg-primary-500 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-95"
               >
-                  儲存
+                  {{ isSubmitting ? '儲存中...' : '儲存' }}
               </button>
           </div>
       </div>

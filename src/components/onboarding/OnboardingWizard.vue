@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useAuth } from '../../composables/useAuth'
 import { useUserProfile } from '../../composables/useUserProfile'
 import { useOnboarding } from '../../composables/useOnboarding'
 import { gearQueries } from '../../services/supabaseQueries'
@@ -10,107 +9,164 @@ import OnboardingStepTent from './OnboardingStepTent.vue'
 
 const props = defineProps<{
   isOpen: boolean
+  userId?: string
+  userProfile?: any
+  currentStep?: number
+  isSubmitting?: boolean
 }>()
 
 const emit = defineEmits<{
   complete: []
   close: []
+  next: []
+  previous: []
 }>()
 
-const { session } = useAuth()
-const { userProfile, updateProfile } = useUserProfile()
-const { currentStep, nextStep, previousStep, completeOnboarding } = useOnboarding()
+const { updateProfile } = useUserProfile()
+const { completeOnboarding } = useOnboarding()
+
+// Use props or fallback to composables
+const userId = computed(() => props.userId)
+const userProfile = computed(() => props.userProfile)
 
 // State for wizard data
 const familyChoice = ref<'create' | 'join' | 'skip' | null>(null)
 const originData = ref({ location_name: '', latitude: null as number | null, longitude: null as number | null })
 const tentData = ref({ name: '', brand: '', image_url: '' })
+const isProcessing = ref(false)
 
 // Handler functions
 const handleFamilyNext = async (choice: 'create' | 'join' | 'skip') => {
   familyChoice.value = choice
 
-  if (choice === 'join' && session.value) {
+  if (choice === 'join' && userId.value) {
     // Join family completes onboarding
-    const success = await completeOnboarding(session.value.user.id)
+    const success = await completeOnboarding(userId.value)
     if (success) {
       emit('complete')
     }
   } else {
     // Create or skip -> continue to step 2
-    nextStep()
+    emit('next')
   }
 }
 
 const handleOriginNext = (data: { location_name: string; latitude: number; longitude: number }) => {
   originData.value = data
-  nextStep()
+  emit('next')
 }
 
 const handleOriginSkip = () => {
-  nextStep()
+  emit('next')
 }
 
 const handleTentNext = async (data: { name: string; brand: string; image_url: string }) => {
-  if (!session.value) return
+  console.log('[OnboardingWizard] handleTentNext called with:', data)
 
+  if (isProcessing.value) {
+    console.warn('[OnboardingWizard] Already processing, ignoring duplicate submission')
+    return
+  }
+
+  if (!userId.value) {
+    console.error('[OnboardingWizard] No user ID found')
+    alert('請先登入')
+    return
+  }
+
+  isProcessing.value = true
   tentData.value = data
 
   try {
+    console.log('[OnboardingWizard] Updating profile...')
     // Update profile with origin data (if set)
     if (originData.value.latitude && originData.value.longitude) {
-      await updateProfile(session.value.user.id, {
+      await updateProfile(userId.value, {
         location_name: originData.value.location_name,
         latitude: originData.value.latitude,
         longitude: originData.value.longitude
       })
     }
 
-    // Create tent gear
-    await gearQueries.create({
+    console.log('[OnboardingWizard] Creating tent gear...')
+    // Create tent gear matching your actual database schema
+    const gearData: any = {
       name: tentData.value.name,
-      brand: tentData.value.brand,
-      category: 'tent',
       image_url: tentData.value.image_url,
-      user_id: session.value.user.id,
-      family_id: userProfile.value?.family_id || null,
-      price: 0,
-      purchase_date: new Date().toISOString().split('T')[0],
-      status: 'active',
-      is_consumable: false,
-      base_usage_count: 0,
+      user_id: userId.value,
+      type: 'tent',
+      category: 'tent',
+      cost: 0,
       rental_price: 0,
-      cost: 0
-    })
+      base_usage_count: 0,
+      usage_count: 0,
+      family_id: userProfile.value?.family_id || null
+    }
 
+    // Add brand if provided
+    if (tentData.value.brand) {
+      gearData.brand = tentData.value.brand
+    }
+
+    try {
+      await gearQueries.create(gearData)
+      console.log('[OnboardingWizard] Tent gear created successfully')
+    } catch (error: any) {
+      console.error('[OnboardingWizard] Failed to create tent gear:', error)
+      alert('建立帳篷失敗：' + error.message)
+      throw error
+    }
+
+    console.log('[OnboardingWizard] Completing onboarding...')
     // Complete onboarding
-    await completeOnboarding(session.value.user.id)
+    await completeOnboarding(userId.value)
 
+    console.log('[OnboardingWizard] Onboarding completed! Emitting complete event')
     emit('complete')
-  } catch (error) {
-    console.error('[OnboardingWizard] Save error:', error)
+  } catch (error: any) {
+    console.error('[OnboardingWizard] Error in handleTentNext:', error)
+    alert('儲存失敗：' + (error.message || '未知錯誤'))
+    isProcessing.value = false
   }
 }
 
 const handleTentSkip = async () => {
-  if (!session.value) return
+  console.log('[OnboardingWizard] handleTentSkip called')
+
+  if (isProcessing.value) {
+    console.warn('[OnboardingWizard] Already processing, ignoring duplicate skip')
+    return
+  }
+
+  if (!userId.value) {
+    console.error('[OnboardingWizard] No user ID found')
+    alert('請先登入')
+    return
+  }
+
+  isProcessing.value = true
 
   try {
+    console.log('[OnboardingWizard] Skipping tent, updating profile...')
     // Update profile with origin data (if set)
     if (originData.value.latitude && originData.value.longitude) {
-      await updateProfile(session.value.user.id, {
+      await updateProfile(userId.value, {
         location_name: originData.value.location_name,
         latitude: originData.value.latitude,
         longitude: originData.value.longitude
       })
     }
 
+    console.log('[OnboardingWizard] Completing onboarding...')
     // Complete onboarding
-    await completeOnboarding(session.value.user.id)
+    await completeOnboarding(userId.value)
 
+    console.log('[OnboardingWizard] Onboarding completed! Emitting complete event')
     emit('complete')
-  } catch (error) {
-    console.error('[OnboardingWizard] Save error:', error)
+  } catch (error: any) {
+    console.error('[OnboardingWizard] Error in handleTentSkip:', error)
+    alert('儲存失敗：' + (error.message || '未知錯誤'))
+    isProcessing.value = false
   }
 }
 </script>
@@ -126,8 +182,8 @@ const handleTentSkip = async () => {
         </div>
 
         <!-- Main content -->
-        <div class="relative z-10 min-h-screen flex items-center justify-center p-4">
-          <div class="w-full max-w-2xl bg-white/80 backdrop-blur-xl rounded-[2.5rem] p-6 md:p-12 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60">
+        <div class="relative z-10 min-h-screen flex items-center justify-center p-4 overflow-y-auto">
+          <div class="w-full max-w-2xl bg-white/80 backdrop-blur-xl rounded-[2.5rem] p-6 md:p-12 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 my-8">
             <!-- Progress indicator -->
             <div class="flex gap-2 mb-8">
               <div class="h-1 flex-1 rounded-full transition-colors" :class="currentStep >= 1 ? 'bg-primary-500' : 'bg-gray-200'"></div>
@@ -146,7 +202,7 @@ const handleTentSkip = async () => {
                   :initial-data="originData"
                   @next="handleOriginNext"
                   @skip="handleOriginSkip"
-                  @back="previousStep"
+                  @back="$emit('previous')"
                 />
               </div>
 
@@ -155,7 +211,7 @@ const handleTentSkip = async () => {
                   :initial-data="tentData"
                   @next="handleTentNext"
                   @skip="handleTentSkip"
-                  @back="previousStep"
+                  @back="$emit('previous')"
                 />
               </div>
             </Transition>
