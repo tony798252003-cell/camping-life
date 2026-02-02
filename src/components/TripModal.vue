@@ -883,6 +883,21 @@ onMounted(async () => {
                       </div>
                   </div>
 
+                  <!-- Campsite Map (Read-Only) -->
+                  <div v-if="trip?.campsites?.layout_image_url" class="mt-6 mb-2">
+                      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">營區配置圖</h3>
+                      <div class="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-white group cursor-zoom-in" onclick="window.open(this.querySelector('img').src)">
+                          <img 
+                            :src="trip.campsites.layout_image_url" 
+                            class="w-full h-auto object-contain bg-gray-50 max-h-[400px]" 
+                            title="點擊查看大圖"
+                          />
+                          <div class="bg-gray-50 px-3 py-2 border-t border-gray-100 flex items-center justify-center text-xs text-gray-400 group-hover:text-primary-600 font-bold transition-colors">
+                             點擊放大查看
+                          </div>
+                      </div>
+                  </div>
+
                   <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">CONDITIONS & NOTES</h3>
 
                   <!-- Tags (Toggleable Buttons) -->

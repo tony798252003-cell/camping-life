@@ -42,6 +42,7 @@ export interface Campsite {
     check_out_time?: string
     night_rush_time?: string
     shower_restrictions?: string
+    layout_image_url?: string
 }
 
 export interface CampingTrip {

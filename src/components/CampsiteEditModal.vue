@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { X, MapPin, Loader2, Navigation, Snowflake, IceCream, Droplets } from 'lucide-vue-next'
+import { X, MapPin, Loader2, Navigation, Snowflake, IceCream, Droplets, Upload, Image as ImageIcon } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { parseTaiwanLocation } from '../utils/googleMaps'
@@ -18,7 +18,65 @@ const emit = defineEmits(['close', 'saved'])
 const form = ref<Partial<Campsite>>({})
 const isSaving = ref(false)
 const isSearchingCoordinates = ref(false)
+const isUploadingMap = ref(false)
+const mapFileInput = ref<HTMLInputElement | null>(null)
 const tagsString = ref('') // Edit tags as comma-separated string for simplicity
+
+const handleMapUpload = async (event: Event) => {
+   const input = event.target as HTMLInputElement
+   if (!input.files || input.files.length === 0) return
+
+   const file = input.files[0]
+   
+   // Basic validation
+   if (!file.type.startsWith('image/')) {
+      alert('請上傳圖片格式 (JPG, PNG)')
+      return
+   }
+   if (file.size > 5 * 1024 * 1024) {
+      alert('圖片大小請勿超過 5MB')
+      return
+   }
+
+   isUploadingMap.value = true
+   try {
+      // 1. Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop()
+      const fileName = `map-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+      const filePath = `${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+         .from('campsite-maps') // Bucket name
+         .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      // 2. Get Public URL
+      const { data } = supabase.storage
+         .from('campsite-maps')
+         .getPublicUrl(filePath)
+      
+      // 3. Update Form
+      form.value.layout_image_url = data.publicUrl
+      
+   } catch (e: any) {
+      console.error('Map upload failed:', e)
+      alert(`上傳失敗: ${e.message}`)
+   } finally {
+      isUploadingMap.value = false
+      if (input) input.value = '' // Reset input
+   }
+}
+
+const triggerMapUpload = () => {
+   mapFileInput.value?.click()
+}
+
+const removeMap = () => {
+   if (confirm('確定要移除這張營區配置圖嗎？')) {
+      form.value.layout_image_url = ''
+   }
+}
 
 const availableDistricts = computed(() => {
   if (!form.value.city) return []
@@ -46,6 +104,12 @@ const handleCityChange = () => {
   form.value.district = ''
 }
 
+const nightRushStart = ref('')
+const nightRushEnd = ref('')
+const showerStart = ref('')
+const showerEnd = ref('')
+const isShower24H = ref(false)
+
 watch(() => props.campsite, (newVal) => {
   if (newVal) {
     form.value = { 
@@ -57,8 +121,58 @@ watch(() => props.campsite, (newVal) => {
       }
     }
     tagsString.value = newVal.tags ? newVal.tags.join(', ') : ''
+
+    // Parse Night Rush
+    if (newVal.night_rush_time && newVal.night_rush_time.includes('-')) {
+       // Handle "18:00-22:00" or "18:00 - 22:00"
+       const parts = newVal.night_rush_time.split('-')
+       if (parts.length === 2) {
+          nightRushStart.value = parts[0].trim()
+          nightRushEnd.value = parts[1].trim()
+       }
+    } else {
+       nightRushStart.value = ''
+       nightRushEnd.value = ''
+    }
+
+    // Parse Shower
+    if (newVal.shower_restrictions === '24H') {
+       isShower24H.value = true
+       showerStart.value = ''
+       showerEnd.value = ''
+    } else if (newVal.shower_restrictions && newVal.shower_restrictions.includes('-')) {
+       isShower24H.value = false
+       const parts = newVal.shower_restrictions.split('-')
+       if (parts.length === 2) {
+          showerStart.value = parts[0].trim()
+          showerEnd.value = parts[1].trim()
+       }
+    } else {
+       isShower24H.value = false
+       showerStart.value = ''
+       showerEnd.value = ''
+    }
   }
 }, { immediate: true })
+
+// Sync back to form
+watch([nightRushStart, nightRushEnd], () => {
+   if (nightRushStart.value && nightRushEnd.value) {
+      form.value.night_rush_time = `${nightRushStart.value} - ${nightRushEnd.value}`
+   } else {
+      form.value.night_rush_time = ''
+   }
+})
+
+watch([showerStart, showerEnd, isShower24H], () => {
+   if (isShower24H.value) {
+      form.value.shower_restrictions = '24H'
+   } else if (showerStart.value && showerEnd.value) {
+      form.value.shower_restrictions = `${showerStart.value} - ${showerEnd.value}`
+   } else {
+      form.value.shower_restrictions = ''
+   }
+})
 
 const save = async () => {
   if (!form.value.id) return
@@ -114,7 +228,7 @@ const autoFetchCoordinates = () => {
   const query = `${form.value.city || ''}${form.value.district || ''} ${form.value.name}`.trim()
   const service = new google.maps.places.PlacesService(document.createElement('div'))
 
-  service.findPlaceFromQuery({
+   service.findPlaceFromQuery({
     query,
     fields: ['place_id', 'name', 'geometry']
   }, (results, status) => {
@@ -147,6 +261,31 @@ const autoFetchCoordinates = () => {
     }
   })
 }
+
+const generateTimeRange = (startHour: number, endHour: number) => {
+  const times = []
+  for (let i = startHour; i <= endHour; i++) {
+    const padded = i.toString().padStart(2, '0')
+    if (i === 24) {
+       times.push('24:00') // Handle end of day explicitly if needed
+       continue
+    }
+    times.push(`${padded}:00`)
+    if (i !== endHour) {
+       times.push(`${padded}:30`)
+    }
+  }
+  return times
+}
+
+const checkInOptions = computed(() => generateTimeRange(8, 14))
+const checkOutOptions = computed(() => generateTimeRange(11, 15))
+const nightRushStartOptions = computed(() => generateTimeRange(15, 18))
+const nightRushEndOptions = computed(() => generateTimeRange(22, 24))
+const showerStartOptions = computed(() => generateTimeRange(7, 10))
+const showerEndOptions = computed(() => generateTimeRange(20, 24))
+const allDayOptions = computed(() => generateTimeRange(0, 24))
+
 </script>
 
 <template>
@@ -312,30 +451,67 @@ const autoFetchCoordinates = () => {
          <div>
              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">時間與規範</label>
              <div class="grid grid-cols-2 gap-4">
-                 <!-- Check In -->
-                 <div>
-                     <label class="text-xs text-gray-400 block mb-1">一般進場</label>
-                     <input v-if="isEditable" v-model="form.check_in_time" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" placeholder="ex: 10:00" />
-                     <div v-else class="text-sm font-bold text-gray-900">{{ form.check_in_time || '--:--' }}</div>
-                 </div>
-                 <!-- Check Out -->
-                 <div>
-                     <label class="text-xs text-gray-400 block mb-1">一般離場</label>
-                     <input v-if="isEditable" v-model="form.check_out_time" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" placeholder="ex: 12:00" />
-                     <div v-else class="text-sm font-bold text-gray-900">{{ form.check_out_time || '--:--' }}</div>
-                 </div>
-                 <!-- Night Rush -->
-                 <div>
-                     <label class="text-xs text-gray-400 block mb-1">夜衝時段</label>
-                     <input v-if="isEditable" v-model="form.night_rush_time" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" placeholder="ex: 18:00 - 22:00" />
-                     <div v-else class="text-sm font-bold text-indigo-700">{{ form.night_rush_time || '未提供' }}</div>
-                 </div>
-                 <!-- Shower -->
-                 <div>
-                     <label class="text-xs text-gray-400 block mb-1">熱水供應</label>
-                     <input v-if="isEditable" v-model="form.shower_restrictions" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm" placeholder="ex: 24H 或 17:00-23:00" />
-                     <div v-else class="text-sm font-bold text-gray-900">{{ form.shower_restrictions || '未提供' }}</div>
-                 </div>
+                  <!-- Check In -->
+                  <div>
+                      <label class="text-xs text-gray-400 block mb-1">一般進場</label>
+                      <select v-if="isEditable" v-model="form.check_in_time" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
+                         <option value="" disabled>請選擇</option>
+                         <option v-for="t in checkInOptions" :key="t" :value="t">{{ t }}</option>
+                      </select>
+                      <div v-else class="text-sm font-bold text-gray-900">{{ form.check_in_time || '--:--' }}</div>
+                  </div>
+                  <!-- Check Out -->
+                  <div>
+                      <label class="text-xs text-gray-400 block mb-1">一般離場</label>
+                      <select v-if="isEditable" v-model="form.check_out_time" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
+                         <option value="" disabled>請選擇</option>
+                         <option v-for="t in checkOutOptions" :key="t" :value="t">{{ t }}</option>
+                      </select>
+                      <div v-else class="text-sm font-bold text-gray-900">{{ form.check_out_time || '--:--' }}</div>
+                  </div>
+                  <!-- Night Rush -->
+                  <div class="col-span-2">
+                      <label class="text-xs text-gray-400 block mb-1">夜衝時段</label>
+                      <div v-if="isEditable" class="flex items-center gap-2">
+                        <select v-model="nightRushStart" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
+                           <option value="" disabled>開始</option>
+                           <option v-for="t in nightRushStartOptions" :key="t" :value="t">{{ t }}</option>
+                        </select>
+                        <span class="text-gray-400">-</span>
+                        <select v-model="nightRushEnd" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
+                           <option value="" disabled>結束</option>
+                           <option v-for="t in nightRushEndOptions" :key="t" :value="t">{{ t }}</option>
+                        </select>
+                      </div>
+                      <div v-else class="text-sm font-bold text-indigo-700">{{ form.night_rush_time || '未提供' }}</div>
+                  </div>
+                  <!-- Shower -->
+                  <div class="col-span-2">
+                      <div class="flex items-center justify-between mb-1">
+                          <label class="text-xs text-gray-400">熱水供應</label>
+                          <div v-if="isEditable" class="flex items-center gap-1">
+                             <input type="checkbox" v-model="isShower24H" id="shower24h" class="rounded text-primary-600 focus:ring-primary-500 w-3 h-3" />
+                             <label for="shower24h" class="text-xs text-gray-500 cursor-pointer">24H</label>
+                          </div>
+                      </div>
+                      <div v-if="isEditable">
+                          <div v-if="!isShower24H" class="flex items-center gap-2">
+                             <select v-model="showerStart" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
+                                <option value="" disabled>開始</option>
+                                <option v-for="t in showerStartOptions" :key="t" :value="t">{{ t }}</option>
+                             </select>
+                             <span class="text-gray-400">-</span>
+                             <select v-model="showerEnd" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
+                                <option value="" disabled>結束</option>
+                                <option v-for="t in showerEndOptions" :key="t" :value="t">{{ t }}</option>
+                             </select>
+                          </div>
+                          <div v-else class="p-2 bg-gray-100 text-gray-500 text-sm rounded-lg text-center">
+                             全天候供應
+                          </div>
+                      </div>
+                      <div v-else class="text-sm font-bold text-gray-900">{{ form.shower_restrictions || '未提供' }}</div>
+                  </div>
              </div>
          </div>
 
@@ -344,6 +520,66 @@ const autoFetchCoordinates = () => {
             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">營位配置說明</label>
             <textarea v-if="isEditable" v-model="form.zone_config" rows="3" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
             <div v-else class="text-gray-800 whitespace-pre-wrap leading-relaxed py-1">{{ form.zone_config || '無說明' }}</div>
+         </div>
+
+         <!-- Campsite Map -->
+         <div>
+             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">營區配置圖</label>
+             
+             <!-- Hidden Input -->
+             <input
+               ref="mapFileInput"
+               type="file"
+               accept="image/*"
+               class="hidden"
+               @change="handleMapUpload"
+             />
+
+             <!-- Edit Mode -->
+             <div v-if="isEditable">
+                 <div 
+                   v-if="form.layout_image_url" 
+                   class="relative w-full rounded-xl overflow-hidden border border-gray-200 group"
+                 >
+                    <img :src="form.layout_image_url" class="w-full h-auto object-contain bg-gray-50" />
+                    <!-- Overlay Actions -->
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-3">
+                        <button @click="triggerMapUpload" class="px-3 py-1.5 bg-white text-gray-700 text-sm font-bold rounded-lg shadow hover:bg-gray-100 flex items-center gap-1">
+                           <Upload class="w-4 h-4" /> 更換
+                        </button>
+                        <button @click="removeMap" class="px-3 py-1.5 bg-red-500 text-white text-sm font-bold rounded-lg shadow hover:bg-red-600 flex items-center gap-1">
+                           <X class="w-4 h-4" /> 移除
+                        </button>
+                    </div>
+                 </div>
+                 
+                 <button 
+                   v-else
+                   @click="triggerMapUpload"
+                   :disabled="isUploadingMap"
+                   class="w-full h-40 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:bg-blue-50/50 transition cursor-pointer text-gray-500 hover:text-blue-600"
+                 >
+                     <Loader2 v-if="isUploadingMap" class="w-8 h-8 animate-spin text-blue-500" />
+                     <template v-else>
+                         <div class="p-3 bg-gray-100 rounded-full">
+                            <ImageIcon class="w-6 h-6" />
+                         </div>
+                         <div class="text-sm font-bold">點擊上傳配置圖</div>
+                         <div class="text-xs text-gray-400">支援 JPG, PNG (Max 5MB)</div>
+                     </template>
+                 </button>
+             </div>
+
+             <!-- View Mode -->
+             <div v-else>
+                 <div v-if="form.layout_image_url" class="rounded-xl overflow-hidden border border-gray-200">
+                    <img :src="form.layout_image_url" class="w-full h-auto object-contain bg-gray-50 cursor-zoom-in" onclick="window.open(this.src)" title="點擊放大" />
+                 </div>
+                 <div v-else class="flex items-center gap-2 text-gray-400 py-2">
+                    <ImageIcon class="w-5 h-5 opacity-50" />
+                    <span class="text-sm">未提供配置圖</span>
+                 </div>
+             </div>
          </div>
          
          <!-- Verified -->
