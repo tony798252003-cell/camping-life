@@ -8,7 +8,8 @@ import RegionChart from '../components/charts/RegionChart.vue'
 import NightRushChart from '../components/charts/NightRushChart.vue'
 import TravelTimeChart from '../components/charts/TravelTimeChart.vue'
 import StatsHeader from '../components/StatsHeader.vue'
-import { BarChart3, TrendingUp, CalendarClock, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Moon, Car } from 'lucide-vue-next'
+import TaiwanChoroplethMap from '../components/charts/TaiwanChoroplethMap.vue'
+import { BarChart3, TrendingUp, CalendarClock, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Moon, Car, Map as MapIcon } from 'lucide-vue-next'
 
 const props = defineProps<{
   trips: CampingTripWithCampsite[]
@@ -126,6 +127,25 @@ const nextYear = () => {
           <div class="w-full">
              <FrequencyChart :trips="validTrips" />
           </div>
+       </div>
+
+       <!-- TAIWAN CHOROPLETH MAP -->
+       <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 shadow-xl border border-slate-700 card-organic text-white overflow-hidden relative">
+           <!-- Decorative bg elements -->
+           <div class="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+
+           <div class="flex items-center justify-between mb-4 relative z-10">
+              <h2 class="text-lg font-bold flex items-center gap-2 text-sky-200">
+                 <MapIcon class="w-5 h-5" />
+                 露營足跡地圖
+              </h2>
+           </div>
+           <div class="w-full relative z-10">
+              <TaiwanChoroplethMap :trips="validTrips" />
+           </div>
+           <div class="text-center text-xs text-slate-400 font-medium relative z-10">
+              各縣市露營次數 • 顏色越深去越多次
+           </div>
        </div>
 
        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
