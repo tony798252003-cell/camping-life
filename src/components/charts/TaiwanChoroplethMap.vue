@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { CampingTripWithCampsite } from '../../types/database'
 import { TAIWAN_MAP_PATHS } from '../../constants/taiwanMapSvg'
 
@@ -56,11 +56,41 @@ const getCityColor = (cityId: string): string => {
   return `hsl(199, 89%, ${lightness}%)`
 }
 
-// Temporary: 避免未使用變數錯誤，這些函式將在後續 Task 中使用
-void maxCount
-void getCityCount
-void getCityName
-void getCityColor
+// Hover 狀態
+const hoveredCity = ref<string | null>(null)
+const tooltipPosition = ref({ x: 0, y: 0 })
+
+// Tooltip 樣式
+const tooltipStyle = computed(() => ({
+  left: `${tooltipPosition.value.x + 15}px`,
+  top: `${tooltipPosition.value.y - 10}px`,
+  transform: 'translateY(-100%)'
+}))
+
+// 處理縣市 hover
+const onCityHover = (cityId: string, event: MouseEvent) => {
+  hoveredCity.value = cityId
+  updateTooltipPosition(event)
+}
+
+// 處理滑鼠移動
+const onCityMove = (event: MouseEvent) => {
+  if (hoveredCity.value) {
+    updateTooltipPosition(event)
+  }
+}
+
+// 更新 tooltip 位置
+const updateTooltipPosition = (event: MouseEvent) => {
+  const svg = (event.currentTarget as HTMLElement).closest('svg')
+  if (!svg) return
+
+  const rect = svg.getBoundingClientRect()
+  tooltipPosition.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  }
+}
 </script>
 
 <template>
@@ -69,6 +99,7 @@ void getCityColor
       viewBox="0 0 400 500"
       class="w-full max-w-md h-[400px]"
       xmlns="http://www.w3.org/2000/svg"
+      @mouseleave="hoveredCity = null"
     >
       <!-- 渲染每個縣市 -->
       <path
@@ -76,10 +107,26 @@ void getCityColor
         :key="city.id"
         :d="city.path"
         :fill="getCityColor(city.id)"
-        stroke="#1e293b"
-        stroke-width="0.5"
-        class="transition-colors duration-200 cursor-pointer"
+        :stroke="hoveredCity === city.id ? '#fbbf24' : '#1e293b'"
+        :stroke-width="hoveredCity === city.id ? 2 : 0.5"
+        class="transition-all duration-200 cursor-pointer"
+        @mouseenter="onCityHover(city.id, $event)"
+        @mousemove="onCityMove($event)"
       />
     </svg>
+
+    <!-- Tooltip -->
+    <div
+      v-if="hoveredCity"
+      :style="tooltipStyle"
+      class="absolute pointer-events-none bg-slate-900/95 border border-sky-400/30
+             rounded-lg px-3 py-2 text-sm backdrop-blur-sm shadow-xl z-50"
+    >
+      <div class="font-bold text-sky-200">{{ getCityName(hoveredCity) }}</div>
+      <div v-if="getCityCount(hoveredCity) > 0" class="text-white text-xs">
+        {{ getCityCount(hoveredCity) }} 次
+      </div>
+      <div v-else class="text-slate-400 text-xs">尚無記錄</div>
+    </div>
   </div>
 </template>
