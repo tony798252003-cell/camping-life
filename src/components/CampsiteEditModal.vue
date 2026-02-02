@@ -27,6 +27,7 @@ const handleMapUpload = async (event: Event) => {
    if (!input.files || input.files.length === 0) return
 
    const file = input.files[0]
+   if (!file) return
    
    // Basic validation
    if (!file.type.startsWith('image/')) {
@@ -126,7 +127,7 @@ watch(() => props.campsite, (newVal) => {
     if (newVal.night_rush_time && newVal.night_rush_time.includes('-')) {
        // Handle "18:00-22:00" or "18:00 - 22:00"
        const parts = newVal.night_rush_time.split('-')
-       if (parts.length === 2) {
+       if (parts.length === 2 && parts[0] && parts[1]) {
           nightRushStart.value = parts[0].trim()
           nightRushEnd.value = parts[1].trim()
        }
@@ -143,7 +144,7 @@ watch(() => props.campsite, (newVal) => {
     } else if (newVal.shower_restrictions && newVal.shower_restrictions.includes('-')) {
        isShower24H.value = false
        const parts = newVal.shower_restrictions.split('-')
-       if (parts.length === 2) {
+       if (parts.length === 2 && parts[0] && parts[1]) {
           showerStart.value = parts[0].trim()
           showerEnd.value = parts[1].trim()
        }
@@ -284,7 +285,6 @@ const nightRushStartOptions = computed(() => generateTimeRange(15, 18))
 const nightRushEndOptions = computed(() => generateTimeRange(22, 24))
 const showerStartOptions = computed(() => generateTimeRange(7, 10))
 const showerEndOptions = computed(() => generateTimeRange(20, 24))
-const allDayOptions = computed(() => generateTimeRange(0, 24))
 
 </script>
 
