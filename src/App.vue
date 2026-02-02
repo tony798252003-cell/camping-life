@@ -43,7 +43,32 @@ const activeTrip = ref<CampingTripWithCampsite | null>(null)
 const isCampsiteEditOpen = ref(false)
 const editingCampsiteData = ref<any>(null)
 const campsiteLibraryKey = ref(0)
+
 const inviteCode = ref('')
+
+// Navigation
+const sortedTrips = computed(() => {
+  return [...trips.value].sort((a, b) => new Date(b.trip_date).getTime() - new Date(a.trip_date).getTime())
+})
+
+const currentTripIndex = computed(() => {
+  if (!activeTrip.value) return -1
+  return sortedTrips.value.findIndex(t => t.id === activeTrip.value?.id)
+})
+
+const hasPrevTrip = computed(() => currentTripIndex.value !== -1 && currentTripIndex.value < sortedTrips.value.length - 1)
+const hasNextTrip = computed(() => currentTripIndex.value > 0)
+
+const navigateTrip = (direction: 'prev' | 'next') => {
+  if (currentTripIndex.value === -1) return
+  
+  // Prev (Left) -> Older (Higher Index)
+  // Next (Right) -> Newer (Lower Index)
+  const newIndex = direction === 'prev' ? currentTripIndex.value + 1 : currentTripIndex.value - 1
+  if (newIndex >= 0 && newIndex < sortedTrips.value.length) {
+    activeTrip.value = sortedTrips.value[newIndex] as CampingTripWithCampsite
+  }
+}
 
 // Onboarding computed
 const hasTent = computed(() => {
@@ -250,10 +275,14 @@ onMounted(async () => {
         :trip="activeTrip"
         :is-admin="userProfile?.is_admin || false"
         :user-profile="userProfile"
+        :has-prev="hasPrevTrip"
+        :has-next="hasNextTrip"
         @close="isModalOpen = false"
         @submit="handleSubmit"
         @edit-campsite="handleEditCampsite"
         @delete="deleteTrip"
+        @prev="navigateTrip('prev')"
+        @next="navigateTrip('next')"
       />
 
       <CampsiteEditModal

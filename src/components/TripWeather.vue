@@ -1,8 +1,31 @@
 <script setup lang="ts">
-import { toRef } from 'vue'
-import { X, Calendar, Sun, Cloud, CloudRain, CloudSun } from 'lucide-vue-next'
+import { toRef, ref, computed } from 'vue'
+import { X, Calendar, Sun, CloudRain, Wind, List, TrendingUp } from 'lucide-vue-next'
 import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 import { useTripWeather } from '../composables/useTripWeather'
+import { Line } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+)
 
 interface Props {
   trip: CampingTrip | CampingTripWithCampsite | null
@@ -29,14 +52,146 @@ const {
 } = useTripWeather(tripRef)
 
 // UI Helpers
-const getWeatherIcon = (code: number) => {
-  if (code <= 3) return Sun 
-  if (code <= 48) return Cloud 
-  if (code <= 67) return CloudRain 
-  if (code <= 77) return CloudSun 
-  if (code > 80) return CloudRain 
-  return CloudSun
+import { getSmartWeatherIcon } from '../utils/weatherHelpers'
+
+const getWeatherIcon = (code: number, pop: number = 0) => {
+  return getSmartWeatherIcon(code, pop)
 }
+// Chart Logic
+const viewMode = ref<'list' | 'chart'>('list')
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: {
+    mode: 'index',
+    intersect: false,
+  },
+  plugins: {
+    legend: {
+      display: false
+    },
+    tooltip: {
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      titleColor: '#1f2937',
+      bodyColor: '#4b5563',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      padding: 10,
+      displayColors: true,
+      callbacks: {
+        label: function(context: any) {
+            return context.dataset.label + ': ' + context.parsed.y
+        }
+      }
+    }
+  },
+  scales: {
+    x: {
+      grid: {
+        display: false
+      },
+      ticks: {
+        font: {
+          size: 10
+        },
+        maxRotation: 0,
+        autoSkip: true,
+        maxTicksLimit: 6
+      }
+    },
+    y: {
+      display: false,
+      grid: {
+        display: false
+      }
+    }
+  },
+  elements: {
+    point: {
+      radius: 0,
+      hitRadius: 10,
+      hoverRadius: 4
+    },
+    line: {
+      tension: 0.4
+    }
+  }
+} as const
+
+const chartDataTemp = computed(() => {
+  if (!selectedDay.value) return { labels: [], datasets: [] }
+  
+  const labels = selectedDay.value.hours.map(h => h.time.split(':')[0])
+  const data = selectedDay.value.hours.map(h => h.temp)
+  
+  return {
+    labels,
+    datasets: [{
+      label: '溫度 (°C)',
+      data,
+      borderColor: '#f97316', // Orange 500
+      backgroundColor: (context: any) => {
+        const ctx = context.chart.ctx
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200)
+        gradient.addColorStop(0, 'rgba(249, 115, 22, 0.4)')
+        gradient.addColorStop(1, 'rgba(249, 115, 22, 0.0)')
+        return gradient
+      },
+      fill: true
+    }]
+  }
+})
+
+const chartDataHumRain = computed(() => {
+  if (!selectedDay.value) return { labels: [], datasets: [] }
+  
+  const labels = selectedDay.value.hours.map(h => h.time.split(':')[0])
+  
+  return {
+    labels,
+    datasets: [
+      {
+        label: '濕度 (%)',
+        data: selectedDay.value.hours.map(h => h.humidity),
+        borderColor: '#3b82f6', // Blue 500
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        fill: true,
+        yAxisID: 'y'
+      },
+      {
+        label: '降雨機率 (%)',
+        data: selectedDay.value.hours.map(h => h.pop),
+        borderColor: '#06b6d4', // Cyan 500
+        borderDash: [5, 5],
+        fill: false,
+        pointRadius: 0
+      }
+    ]
+  }
+})
+
+const chartDataWind = computed(() => {
+  if (!selectedDay.value) return { labels: [], datasets: [] }
+  
+  const labels = selectedDay.value.hours.map(h => h.time.split(':')[0])
+  
+  return {
+    labels,
+    datasets: [{
+      label: '風速 (km/h)',
+      data: selectedDay.value.hours.map(h => h.windSpeed),
+      borderColor: '#64748b', // Slate 500
+      backgroundColor: (context: any) => {
+        const ctx = context.chart.ctx
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200)
+        gradient.addColorStop(0, 'rgba(100, 116, 139, 0.4)')
+        gradient.addColorStop(1, 'rgba(100, 116, 139, 0.0)')
+        return gradient
+      },
+      fill: true
+    }]
+  }
+})
 
 
 </script>
@@ -67,8 +222,9 @@ const getWeatherIcon = (code: number) => {
               <!-- Date -->
               <span class="text-[10px] font-bold mb-1 opacity-80">{{ day.dateLabel }}</span>
               
+              
               <!-- Icon -->
-              <component :is="getWeatherIcon(day.summary.code)" class="w-7 h-7 mb-1 transition-transform group-hover:scale-110" :class="selectedDay?.date === day.date ? 'text-white' : 'text-accent-orange'" />
+              <component :is="getWeatherIcon(day.summary.code, day.summary.max_pop)" class="w-7 h-7 mb-1 transition-transform group-hover:scale-110" :class="selectedDay?.date === day.date ? 'text-white' : 'text-accent-orange'" />
               
               <!-- Temp -->
               <span class="text-xs font-black">{{ day.summary.temp_min }}°-{{ day.summary.temp_max }}°</span>
@@ -137,7 +293,6 @@ const getWeatherIcon = (code: number) => {
          <span class="text-sm font-bold text-primary-400 tracking-wide">接近出發日期時將顯示天氣</span>
     </div>
 
-    <!-- Vertical Detail Modal -->
     <Teleport to="body">
       <div v-if="showDetailModal && selectedDay" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <!-- Backdrop -->
@@ -147,54 +302,141 @@ const getWeatherIcon = (code: number) => {
           <div class="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col max-h-[85vh] animate-fade-in-up overflow-hidden">
               
               <!-- Header -->
-              <div class="flex items-center justify-between p-5 border-b border-gray-100 bg-white z-10">
-                  <div class="flex items-center gap-3">
-                     <div class="text-2xl font-black text-primary-900">{{ selectedDay.dateLabel }}</div>
-                     <div class="text-sm font-medium text-gray-500">{{ selectedDay.fullDateLabel.split(' ')[1] }}</div>
+              <div class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-white z-10">
+                  <div>
+                      <div class="text-2xl font-black text-primary-900 tracking-tight flex items-baseline gap-2">
+                          {{ selectedDay.dateLabel }}
+                          <span class="text-base font-bold text-gray-400">{{ selectedDay.fullDateLabel.split(' ')[1] }}</span>
+                      </div>
+                      <div class="text-xs font-bold text-gray-400 mt-0.5 flex gap-2">
+                          <span>最高 {{ selectedDay.summary.temp_max }}°</span>
+                          <span>最低 {{ selectedDay.summary.temp_min }}°</span>
+                      </div>
                   </div>
-                  <button @click="closeModal" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">
+                  <button @click="closeModal" class="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
                       <X class="w-5 h-5" />
                   </button>
               </div>
 
-              <!-- Body: Vertical List -->
-              <div class="overflow-y-auto p-4 space-y-2 flex-1 scroll-smooth">
-                 <div v-for="hour in selectedDay.hours" :key="hour.timestamp"
-                      class="flex items-center justify-between p-3 rounded-2xl transition-all"
-                      :class="hour.isValid ? 'bg-surface-50 border border-primary-50' : 'bg-gray-50 opacity-60 grayscale'"
-                 >
-                     <!-- Left: Time -->
-                     <div class="flex items-center gap-3">
-                        <div class="text-sm font-bold w-12 text-center" :class="hour.isValid ? 'text-primary-800' : 'text-gray-400'">
-                           {{ hour.time }}
-                        </div>
-                        <div v-if="hour.isValid" class="w-1.5 h-1.5 rounded-full bg-primary-500"></div>
-                     </div>
-                     
-                     <!-- Center: Details -->
-                     <div class="flex-1 flex flex-col items-center justify-center gap-0.5">
-                        <component :is="getWeatherIcon(hour.code)" class="w-8 h-8" :class="hour.isValid ? 'text-accent-orange' : 'text-gray-400'" />
-                        <!-- Rain Probability -->
-                        <div v-if="hour.pop > 0" class="flex items-center gap-1 text-[10px] font-bold text-blue-500">
-                           <CloudRain class="w-3 h-3" />
-                           <span>{{ hour.pop }}%</span>
-                        </div>
-                        <!-- Rain Amount -->
-                         <div v-if="hour.rain > 0" class="text-[9px] text-blue-400 font-mono">
-                           {{ hour.rain }}mm
-                        </div>
-                        <!-- Humidity -->
-                        <div class="flex items-center gap-1 text-[9px] text-gray-400">
-                           <span>💧</span>
-                           <span>{{ hour.humidity }}%</span>
-                        </div>
-                     </div>
-                     
-                     <!-- Right: Temp -->
-                     <div class="text-lg font-black w-12 text-right" :class="hour.isValid ? 'text-primary-900' : 'text-gray-500'">
-                        {{ Math.round(hour.temp) }}°
+              <!-- View Toggles -->
+              <div class="px-6 py-2 bg-white flex gap-2 border-b border-gray-50">
+                  <button 
+                    @click="viewMode = 'list'"
+                    class="flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                    :class="viewMode === 'list' ? 'bg-primary-50 text-primary-700' : 'bg-transparent text-gray-400 hover:bg-gray-50'"
+                  >
+                      <List class="w-3.5 h-3.5" /> 列表
+                  </button>
+                  <button 
+                    @click="viewMode = 'chart'"
+                    class="flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                    :class="viewMode === 'chart' ? 'bg-primary-50 text-primary-700' : 'bg-transparent text-gray-400 hover:bg-gray-50'"
+                  >
+                      <TrendingUp class="w-3.5 h-3.5" /> 趨勢圖
+                  </button>
+              </div>
+
+              <!-- Content: List View -->
+              <div v-if="viewMode === 'list'" class="flex flex-col flex-1 overflow-hidden">
+                <!-- Column Headers -->
+                <div class="grid grid-cols-[3.5rem_1fr_1fr_1fr_1fr] px-4 py-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center z-10">
+                    <div class="text-left pl-2">時間</div>
+                    <div>溫度</div>
+                    <div>降雨</div>
+                    <div>濕度</div>
+                    <div>風速</div>
+                </div>
+
+                <!-- Body: Vertical List -->
+                <div class="overflow-y-auto p-4 space-y-2 flex-1 scroll-smooth bg-gray-50/30">
+                   <div v-for="hour in selectedDay.hours" :key="hour.timestamp"
+                        class="grid grid-cols-[3.5rem_1fr_1fr_1fr_1fr] items-center p-3 rounded-2xl transition-all border group"
+                        :class="hour.isValid 
+                          ? 'bg-white border-gray-100 shadow-sm' 
+                          : 'bg-transparent border-transparent opacity-40 grayscale hover:bg-white hover:opacity-80 hover:shadow-sm'"
+                   >
+                       <!-- Time -->
+                       <div class="flex flex-col items-start gap-0.5 pl-1">
+                          <span class="text-sm font-black tracking-tight" :class="hour.isValid ? 'text-primary-900' : 'text-gray-400'">
+                             {{ hour.time.split(':')[0] }}<span class="text-[10px] opacity-60 font-bold">:00</span>
+                          </span>
+                           <!-- Icon -->
+                           <component :is="getWeatherIcon(hour.code, hour.pop)" class="w-5 h-5" :class="hour.isValid ? 'text-accent-orange' : 'text-gray-400'" />
+                       </div>
+                       
+                       <!-- Temp -->
+                       <div class="flex flex-col items-center justify-center">
+                          <span class="text-base font-black tracking-tighter" :class="hour.isValid ? 'text-primary-900' : 'text-gray-500'">
+                             {{ Math.round(hour.temp) }}°
+                          </span>
+                       </div>
+                       
+                       <!-- Rain -->
+                       <div class="flex flex-col items-center justify-center">
+                          <div v-if="hour.pop > 0" class="flex flex-col items-center leading-none">
+                              <div class="flex items-center gap-0.5 text-xs font-bold text-blue-500">
+                                  <CloudRain class="w-3 h-3" />
+                                  <span>{{ hour.pop }}%</span>
+                              </div>
+                              <span v-if="hour.rain > 0" class="text-[9px] text-blue-300 font-mono mt-0.5">{{ hour.rain }}mm</span>
+                          </div>
+                          <span v-else class="text-[10px] text-gray-300 font-bold">-</span>
+                       </div>
+
+                       <!-- Humidity -->
+                       <div class="flex flex-col items-center justify-center gap-0.5">
+                          <div class="flex items-center gap-1 text-sm font-bold text-gray-600">
+                               <span class="text-xs text-blue-400">💧</span>
+                               {{ hour.humidity }}
+                               <span class="text-[9px] text-gray-400">%</span>
+                          </div>
+                       </div>
+
+                       <!-- Wind -->
+                       <div class="flex flex-col items-center justify-center gap-0.5">
+                          <div class="flex items-center gap-1 text-sm font-bold text-gray-600">
+                               <Wind class="w-3.5 h-3.5 text-gray-400" />
+                               {{ Math.round(hour.windSpeed) }}
+                               <span class="text-[9px] text-gray-400">km</span>
+                          </div>
+                       </div>
+                   </div>
+                </div>
+              </div>
+
+              <!-- Content: Chart View -->
+              <div v-else class="flex flex-col flex-1 overflow-y-auto bg-gray-50/30 p-4 gap-6">
+                 
+                 <!-- Temps Chart -->
+                 <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
+                     <h4 class="text-xs font-bold text-orange-500 mb-3 flex items-center gap-1">
+                        <Sun class="w-3.5 h-3.5" /> 氣溫趨勢
+                     </h4>
+                     <div class="h-32 w-full">
+                         <Line :data="chartDataTemp" :options="chartOptions" />
                      </div>
                  </div>
+
+                 <!-- Humidity/Rain Chart -->
+                 <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
+                     <h4 class="text-xs font-bold text-blue-500 mb-3 flex items-center gap-1">
+                        <CloudRain class="w-3.5 h-3.5" /> 濕度與降雨
+                     </h4>
+                     <div class="h-32 w-full">
+                         <Line :data="chartDataHumRain" :options="chartOptions" />
+                     </div>
+                 </div>
+
+                 <!-- Wind Chart -->
+                 <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
+                     <h4 class="text-xs font-bold text-slate-500 mb-3 flex items-center gap-1">
+                        <Wind class="w-3.5 h-3.5" /> 風速預測
+                     </h4>
+                     <div class="h-32 w-full">
+                         <Line :data="chartDataWind" :options="chartOptions" />
+                     </div>
+                 </div>
+
               </div>
           </div>
       </div>

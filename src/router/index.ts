@@ -47,6 +47,11 @@ const routes = [
         component: SettingsView
     },
     {
+        path: '/builder',
+        name: 'builder',
+        component: () => import('../views/CampsiteBuilder.vue')
+    },
+    {
         path: '/auth',
         name: 'auth',
         component: LoginView

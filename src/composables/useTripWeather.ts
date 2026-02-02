@@ -10,6 +10,7 @@ export interface WeatherHour {
     pop: number // Probability of Precipitation %
     rain: number // Precipitation mm
     humidity: number // RH %
+    windSpeed: number // km/h
     isValid: boolean // In camping range?
 }
 
@@ -21,6 +22,7 @@ export interface WeatherDay {
         code: number
         temp_max: number
         temp_min: number
+        max_pop: number
     }
     hours: WeatherHour[]
 }
@@ -29,6 +31,7 @@ export interface TripWeatherSummary {
     code: number
     temp_max: number
     temp_min: number
+    max_pop: number
 }
 
 export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip | null>) {
@@ -164,6 +167,7 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
                 pop: data.hourly.precipitation_probability?.[index] ?? 0,
                 rain: data.hourly.precipitation?.[index] ?? 0,
                 humidity: data.hourly.relative_humidity_2m?.[index] ?? 0,
+                windSpeed: data.hourly.wind_speed_10m?.[index] ?? 0,
                 isValid
             }
 
@@ -187,10 +191,12 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
 
                 const temps = calcHours.map(h => h.temp)
                 const codes = calcHours.map(h => h.code)
+                const pops = calcHours.map(h => h.pop)
 
                 const max = temps.length ? Math.max(...temps) : 0
                 const min = temps.length ? Math.min(...temps) : 0
                 const code = codes.length ? getMostFrequentCode(codes) : 0
+                const max_pop = pops.length ? Math.max(...pops) : 0
 
                 finalDays.push({
                     date: dStr,
@@ -200,7 +206,8 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
                     summary: {
                         temp_max: Math.round(max),
                         temp_min: Math.round(min),
-                        code
+                        code,
+                        max_pop
                     }
                 })
             }
@@ -208,16 +215,18 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
 
         weatherDays.value = finalDays
 
-        // 4. Calculate Overall Trip Summary (Min of mins, Max of maxs, Most Frequent Code)
+        // 4. Calculate Overall Trip Summary
         if (finalDays.length > 0) {
             const allMax = finalDays.map(d => d.summary.temp_max)
             const allMin = finalDays.map(d => d.summary.temp_min)
             const allCodes = finalDays.map(d => d.summary.code)
+            const allPops = finalDays.map(d => (d.summary as any).max_pop ?? 0)
 
             tripSummary.value = {
                 temp_max: Math.max(...allMax),
                 temp_min: Math.min(...allMin),
-                code: getMostFrequentCode(allCodes)
+                code: getMostFrequentCode(allCodes),
+                max_pop: Math.max(...allPops)
             }
         } else {
             tripSummary.value = null
@@ -269,12 +278,12 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
                 } catch (e) { }
             }
 
-            let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=weather_code,temperature_2m,precipitation_probability,precipitation,relative_humidity_2m&forecast_days=16&past_days=1&models=best_match&timezone=auto`
+            let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=weather_code,temperature_2m,precipitation_probability,precipitation,relative_humidity_2m,wind_speed_10m&forecast_days=16&past_days=1&models=best_match&timezone=auto`
             // Remove elevation correction per user request
             // if (elevation) apiUrl += `&elevation=${elevation}`
 
             // Check Cache
-            const cacheKey = `weather_v4_${tr.id}_${tr.trip_date}`
+            const cacheKey = `weather_v5_${tr.id}_${tr.trip_date}`
             const cached = localStorage.getItem(cacheKey)
             if (cached) {
                 const { timestamp, data } = JSON.parse(cached)

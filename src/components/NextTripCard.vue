@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, toRef, watch } from 'vue'
-import { CloudSun, CloudRain, Sun, Cloud, Moon, Tent, MapPin, Calendar, ChevronLeft, ChevronRight, Snowflake, IceCream, Droplets, Navigation, Users, RotateCcw } from 'lucide-vue-next'
+import { Moon, Tent, MapPin, Calendar, ChevronLeft, ChevronRight, Snowflake, IceCream, Droplets, Navigation, Users, RotateCcw } from 'lucide-vue-next'
 import type { CampingTripWithCampsite } from '../types/database'
 import { useTripWeather } from '../composables/useTripWeather'
 import { useTravelTime } from '../composables/useTravelTime'
@@ -56,8 +56,7 @@ const weatherSummary = computed(() => {
 })
 
 const isPastTrip = computed(() => {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const now = new Date()
   
   const tripDate = new Date(props.trip.trip_date)
   tripDate.setHours(0, 0, 0, 0)
@@ -66,7 +65,10 @@ const isPastTrip = computed(() => {
   const endDate = new Date(tripDate)
   endDate.setDate(endDate.getDate() + duration - 1)
   
-  return today.getTime() > endDate.getTime()
+  // Set end time to 12:00 PM on the last day
+  endDate.setHours(12, 0, 0, 0)
+  
+  return now.getTime() > endDate.getTime()
 })
 
 
@@ -100,13 +102,12 @@ const countdown = computed(() => {
 })
 
 // Weather Code mapping simple
+import { getSmartWeatherIcon } from '../utils/weatherHelpers'
+
 const getWeatherIcon = (code: number) => {
-  if (code <= 3) return Sun 
-  if (code <= 48) return Cloud 
-  if (code <= 67) return CloudRain 
-  if (code <= 77) return CloudSun 
-  if (code > 80) return CloudRain 
-  return CloudSun
+  // Use max_pop from summary if available
+  const pop = weatherSummary.value?.summary.max_pop ?? 0
+  return getSmartWeatherIcon(code, pop)
 }
 
 const dateRange = computed(() => {

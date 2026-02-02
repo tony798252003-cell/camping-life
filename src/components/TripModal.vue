@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { 
   MapPin, Mountain, CloudRain, Moon, Tent, Wind, Save, RotateCcw, 
-  Globe, ChevronLeft, ChevronRight, Users, Home, Trash2, Snowflake, IceCream, Droplets, Pencil
+  Globe, ChevronLeft, ChevronRight, Users, Home, Trash2, Snowflake, IceCream, Droplets, Pencil, Star
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
@@ -17,6 +17,8 @@ interface Props {
   trip?: CampingTrip | null | any
   isAdmin?: boolean
   userProfile?: any
+  hasPrev?: boolean
+  hasNext?: boolean
 }
 
 const props = defineProps<Props>()
@@ -25,6 +27,8 @@ const emit = defineEmits<{
   (e: 'submit', data: NewCampingTrip): void
   (e: 'edit-campsite', campsite: any): void
   (e: 'delete', id: number): void
+  (e: 'prev'): void
+  (e: 'next'): void
 }>()
 
 // --- State ---
@@ -36,6 +40,13 @@ const originalTripData = ref<any>(null)
 // Location selection
 const selectedCity = ref('')
 const selectedDistrict = ref('')
+
+const selectedCityName = computed(() => TAIWAN_LOCATIONS.find(c => c.id === selectedCity.value)?.name || '')
+const selectedDistrictName = computed(() => {
+   if (!selectedCity.value) return ''
+   const city = TAIWAN_LOCATIONS.find(c => c.id === selectedCity.value)
+   return city?.districts.find(d => d.id === selectedDistrict.value)?.name || ''
+})
 
 const availableDistricts = computed(() => {
   if (!selectedCity.value) return []
@@ -141,12 +152,25 @@ const useGoogleSearch = ref(false)
 // --- UI State ---
 const isStartLocationExpanded = ref(false)
 const isEditingStartLocation = ref(false)
+const lockedCampsite = ref(false) // If true, Name/Location are locked
+const selectedTentNameLength = computed(() => {
+  if (!formData.value.tent_id) return 0
+  const t = tents.value.find(t => t.id === formData.value.tent_id)
+  return t ? t.name.length : 0
+})
 
 // --- Initialization ---
 const initFormData = (newTrip: any) => {
   if (newTrip) {
     const linkedCampsite = (newTrip as any).campsites
     
+    // Check if linked campsite is verified
+    if (linkedCampsite && linkedCampsite.is_verified) {
+       lockedCampsite.value = true
+    } else {
+       lockedCampsite.value = false
+    }
+
     // Construct the initial state
     const data = {
       trip_date: newTrip.trip_date,
@@ -239,6 +263,7 @@ function resetForm() {
   selectedCity.value = ''
   selectedDistrict.value = ''
   originalTripData.value = JSON.parse(JSON.stringify(emptyForm))
+  lockedCampsite.value = false
 }
 
 const refreshViewData = () => {
@@ -433,6 +458,25 @@ onMounted(async () => {
            
            <!-- Actions (Trash) -->
            <div class="flex items-center gap-2">
+               <!-- Navigation -->
+               <div class="flex items-center bg-gray-100 rounded-full p-0.5" v-if="hasPrev || hasNext">
+                  <button 
+                    @click="emit('prev')" 
+                    :disabled="!hasPrev"
+                    class="p-1.5 rounded-full hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                  >
+                     <ChevronLeft class="w-4 h-4 text-gray-600" />
+                  </button>
+                  <div class="w-px h-3 bg-gray-300 mx-0.5"></div>
+                  <button 
+                    @click="emit('next')" 
+                    :disabled="!hasNext"
+                    class="p-1.5 rounded-full hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                  >
+                     <ChevronRight class="w-4 h-4 text-gray-600" />
+                  </button>
+               </div>
+
                <button 
                   v-if="trip?.id"
                   @click="handleDelete" 
@@ -516,10 +560,16 @@ onMounted(async () => {
                                  />
                                </div>
                                <div v-else>
-                                   <input 
+                                    <div v-if="lockedCampsite">
+                                        <div class="text-3xl md:text-5xl font-black text-primary-900 drop-shadow-sm flex items-center justify-center gap-2">
+                                            {{ formData.campsite_name }}
+                                        </div>
+                                    </div>
+                                    <input 
+                                      v-else
                                       v-model="formData.campsite_name"
                                       type="text"
-                                      class="w-full text-center bg-transparent border-none p-0 text-3xl md:text-5xl font-black text-primary-900 placeholder-primary-900/40 focus:ring-0"
+                                      class="w-full text-center bg-transparent border-none p-0 text-3xl md:text-5xl font-black text-primary-900 placeholder-primary-900/40 focus:ring-0 disabled:opacity-80 disabled:cursor-not-allowed"
                                       placeholder="輸入營地名稱..."
                                       @input="searchCampsites(($event.target as HTMLInputElement).value)"
                                       @focus="searchCampsites(formData.campsite_name)"
@@ -539,27 +589,33 @@ onMounted(async () => {
                       </div>
 
                       <!-- Subtitle Location -->
+                       <!-- Subtitle Location -->
                       <div class="flex items-center justify-center gap-1.5 text-primary-700 font-bold bg-white/40 backdrop-blur-sm px-2 py-1 rounded-full">
                           <MapPin class="w-4 h-4" />
-                          <select
-                            v-model="selectedCity"
-                            class="bg-transparent border-none text-xs font-bold text-primary-800 p-0 pr-4 focus:ring-0 cursor-pointer"
-                          >
-                            <option value="">選縣市</option>
-                            <option v-for="city in TAIWAN_LOCATIONS" :key="city.id" :value="city.id">
-                              {{ city.name }}
-                            </option>
-                          </select>
-                          <select
-                            v-model="selectedDistrict"
-                            :disabled="!selectedCity"
-                            class="bg-transparent border-none text-xs font-bold text-primary-800 p-0 pr-4 focus:ring-0 cursor-pointer disabled:opacity-50"
-                          >
-                            <option value="">選區域</option>
-                            <option v-for="district in availableDistricts" :key="district.id" :value="district.id">
-                              {{ district.name }}
-                            </option>
-                          </select>
+                          <template v-if="lockedCampsite">
+                             <span class="text-xs font-bold text-primary-900">{{ selectedCityName }} {{ selectedDistrictName }}</span>
+                          </template>
+                          <template v-else>
+                              <select
+                                v-model="selectedCity"
+                                class="bg-transparent border-none text-xs font-bold text-primary-800 p-0 pr-4 focus:ring-0 cursor-pointer"
+                              >
+                                <option value="">選縣市</option>
+                                <option v-for="city in TAIWAN_LOCATIONS" :key="city.id" :value="city.id">
+                                  {{ city.name }}
+                                </option>
+                              </select>
+                              <select
+                                v-model="selectedDistrict"
+                                :disabled="!selectedCity"
+                                class="bg-transparent border-none text-xs font-bold text-primary-800 p-0 pr-4 focus:ring-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <option value="">選區域</option>
+                                <option v-for="district in availableDistricts" :key="district.id" :value="district.id">
+                                  {{ district.name }}
+                                </option>
+                              </select>
+                          </template>
                       </div>
                   </div>
               </div>
@@ -745,8 +801,13 @@ onMounted(async () => {
                                 <div class="relative w-full">
                                   <select 
                                     v-model="formData.tent_id" 
-                                    class="w-full bg-transparent border-none p-0 text-base font-black text-gray-800 focus:ring-0 cursor-pointer appearance-none pr-6 truncate"
-                                    :class="{'text-gray-400': !formData.tent_id}"
+                                    class="w-full bg-transparent border-none p-0 font-black text-gray-800 focus:ring-0 cursor-pointer appearance-none pr-6 truncate"
+                                    :class="{
+                                       'text-gray-400': !formData.tent_id,
+                                       'text-base': selectedTentNameLength < 8,
+                                       'text-sm': selectedTentNameLength >= 8 && selectedTentNameLength < 14,
+                                       'text-xs': selectedTentNameLength >= 14
+                                    }"
                                   >
                                        <option :value="undefined">未選擇</option>
                                        <option v-for="tent in tents" :key="tent.id" :value="tent.id">{{ tent.name }}</option>
@@ -760,6 +821,68 @@ onMounted(async () => {
                   </div>
 
                   <!-- Section Header: Conditions & Notes -->
+                  <!-- Section Header: Ratings -->
+                  <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">評分</h3>
+
+                  <div class="card-organic bg-white p-5 flex flex-col gap-4">
+                      <!-- Scenery -->
+                      <div class="flex items-center justify-between">
+                          <span class="text-sm font-bold text-gray-600">風景</span>
+                          <div class="flex items-center gap-1">
+                              <button 
+                                v-for="i in 5" 
+                                :key="`scenery-${i}`"
+                                type="button"
+                                @click="formData.scenery = i"
+                                class="focus:outline-none transition-transform active:scale-90"
+                              >
+                                  <Star 
+                                    class="w-6 h-6 transition-colors" 
+                                    :class="i <= (formData.scenery || 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'" 
+                                  />
+                              </button>
+                          </div>
+                      </div>
+
+                      <!-- Cleanliness -->
+                      <div class="flex items-center justify-between">
+                          <span class="text-sm font-bold text-gray-600">整潔</span>
+                          <div class="flex items-center gap-1">
+                              <button 
+                                v-for="i in 5" 
+                                :key="`cleanliness-${i}`"
+                                type="button"
+                                @click="formData.cleanliness = i"
+                                class="focus:outline-none transition-transform active:scale-90"
+                              >
+                                  <Star 
+                                    class="w-6 h-6 transition-colors" 
+                                    :class="i <= (formData.cleanliness || 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'" 
+                                  />
+                              </button>
+                          </div>
+                      </div>
+
+                      <!-- Road Condition -->
+                      <div class="flex items-center justify-between">
+                          <span class="text-sm font-bold text-gray-600">路況</span>
+                          <div class="flex items-center gap-1">
+                              <button 
+                                v-for="i in 5" 
+                                :key="`road-${i}`"
+                                type="button"
+                                @click="formData.road_condition = i"
+                                class="focus:outline-none transition-transform active:scale-90"
+                              >
+                                  <Star 
+                                    class="w-6 h-6 transition-colors" 
+                                    :class="i <= (formData.road_condition || 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'" 
+                                  />
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+
                   <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">CONDITIONS & NOTES</h3>
 
                   <!-- Tags (Toggleable Buttons) -->

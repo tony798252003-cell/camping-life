@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Search, MapPin, Plus, CheckCircle, Upload, Phone, Tent, AlertTriangle } from 'lucide-vue-next'
+import { Search, MapPin, Plus, CheckCircle, Upload, Phone, Tent, AlertTriangle, XCircle, Trash2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { Campsite } from '../types/database'
 import ImportCampsites from './ImportCampsites.vue'
@@ -11,6 +11,7 @@ const props = defineProps<{
 }>()
 
 const campsites = ref<Campsite[]>([])
+const usageCounts = ref<Record<number, number>>({}) // campsite_id -> count
 const loading = ref(false)
 const searchQuery = ref('')
 const activeTab = ref<'verified' | 'pending'>('verified')
@@ -51,6 +52,21 @@ const fetchCampsites = async () => {
     const { data, error } = await query
     if (error) throw error
     campsites.value = data || []
+
+    // Fetch usage counts
+    const { data: tripData, error: tripError } = await supabase
+      .from('camping_trips')
+      .select('campsite_id')
+    
+    if (!tripError && tripData) {
+      const counts: Record<number, number> = {}
+      ;(tripData as any[]).forEach(t => {
+        if (t.campsite_id) {
+          counts[t.campsite_id] = (counts[t.campsite_id] || 0) + 1
+        }
+      })
+      usageCounts.value = counts
+    }
   } catch (e) {
     console.error('Error fetching campsites:', e)
   } finally {
@@ -95,6 +111,47 @@ const verifyCampsite = async (id: number) => {
   } catch (e) {
     console.error('Verify error:', e)
     alert('操作失敗')
+  }
+}
+
+const deleteCampsite = async (id: number, isReject = false) => {
+  const count = usageCounts.value[id] || 0
+  
+  if (count > 0) {
+    alert(`此營地已被使用 ${count} 次，無法刪除！\n請先移除相關露營行程。`)
+    return
+  }
+  
+  const { useConfirm } = await import('../composables/useConfirm')
+  const { confirm: showConfirm } = useConfirm()
+  
+  const actionText = isReject ? '駁回' : '刪除'
+  
+  const confirmed = await showConfirm({
+    title: `確定要${actionText}此營地嗎？`,
+    message: isReject 
+      ? '駁回並刪除此營地資料，此動作無法復原。'
+      : '刪除後將無法復原。',
+    confirmText: `確定${actionText}`,
+    cancelText: '取消',
+    type: 'danger'
+  })
+  
+  if (!confirmed) return
+  
+  try {
+    const { error } = await supabase
+      .from('campsites')
+      .delete()
+      .eq('id', id)
+      
+    if (error) throw error
+    
+    campsites.value = campsites.value.filter(c => c.id !== id)
+    alert(`${actionText}成功`)
+  } catch (e) {
+    console.error('Delete error:', e)
+    alert(`${actionText}失敗`)
   }
 }
 
@@ -204,10 +261,29 @@ onMounted(() => {
 
           <!-- Pending Actions (Admin Only) -->
           <div v-if="isAdmin && !site.is_verified" class="mt-4 pt-4 border-t border-gray-100 flex justify-end gap-2">
-             <button @click="verifyCampsite(site.id)" class="bg-green-50 text-green-600 hover:bg-green-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
-                <CheckCircle class="w-3.5 h-3.5" />
-                通過審核
+             <button @click.stop="deleteCampsite(site.id, true)" class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
+                <XCircle class="w-3.5 h-3.5" />
+                駁回
              </button>
+             <button @click.stop="verifyCampsite(site.id)" class="bg-green-50 text-green-600 hover:bg-green-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
+                <CheckCircle class="w-3.5 h-3.5" />
+                通過
+             </button>
+          </div>
+          
+          <!-- Usage Count (Admin Only or Verified) -->
+          <div v-if="isAdmin && site.is_verified" class="mt-3 pt-3 border-t border-gray-50 flex justify-between items-center">
+              <span class="text-[10px] text-gray-400 font-bold">
+                  已使用: {{ usageCounts[site.id] || 0 }} 次
+              </span>
+              <button 
+                v-if="usageCounts[site.id] === 0 || !usageCounts[site.id]" 
+                @click.stop="deleteCampsite(site.id)"
+                class="text-gray-300 hover:text-red-500 transition-colors p-1"
+                title="刪除無使用紀錄的營地"
+              >
+                  <Trash2 class="w-4 h-4" />
+              </button>
           </div>
        </div>
     </div>

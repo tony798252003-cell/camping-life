@@ -71,19 +71,19 @@ export const analyzePackUpWeather = (hourlyData: any, lastDayDateStr: string): P
 
     // --- Decision Tree (Enhanced) ---
 
-    // A. WET: High Probability & Real Rain
-    // Condition: Rain Code + (POP >= 60% OR Rain >= 0.5mm)
-    if (hasRainCode && (maxPop >= 60 || maxRainMap >= 0.5)) {
+    // A. WET: High Probability (>= 60%) OR (Real Rain Code AND significant rain)
+    if (maxPop >= 60 || (hasRainCode && maxRainMap >= 0.5)) {
         return {
             status: 'wet',
             label: '濕帳撤收',
-            advice: `降雨機率高 (${maxPop}%) 且雨勢明顯，建議做好濕收準備。`,
+            advice: `降雨機率高 (${maxPop}%)，建議做好濕收準備。`,
             color: 'red'
         }
     }
 
-    // B. RISK: Medium Probability (30-60%)
-    if (hasRainCode && maxPop >= 30) {
+    // B. RISK: Medium Probability (40-60%) OR Rain Code present
+    // Strict threshold: Even if code says "Cloudy", if POP is 45%, call it Risk.
+    if (maxPop >= 40 || (hasRainCode && maxPop >= 30)) {
         return {
             status: 'risk',
             label: '降雨風險',
@@ -92,21 +92,16 @@ export const analyzePackUpWeather = (hourlyData: any, lastDayDateStr: string): P
         }
     }
 
-    // C. CHANCE: Low Probability (10-30%) with Rain Code
-    // User requested warning for 10-30%
-    if (hasRainCode && maxPop >= 10) {
+    // C. CHANCE: Low Probability (20-40%)
+    // Lowered threshold for warning
+    if (maxPop >= 20) {
         return {
             status: 'chance',
             label: '留意降雨',
-            advice: '降雨機率低 (10-30%)，但仍建議把雨具備好以防萬一。',
-            color: 'yellow' // or a distinct gray/yellow mix
+            advice: `雖然預報偏乾，但有 ${maxPop}% 機率降雨，仍建議把雨具備好。`,
+            color: 'yellow'
         }
     }
-
-    // D. DAMP/DRIZZLE: High POP but Tiny Rain (< 0.2mm)
-    // Likely handled above by Wet, but if rain amount is tiny, maybe downgrade?
-    // Let's refine logical order. If maxRain < 0.2 but POP > 60, it might be just drizzle.
-    // (Skipped for simplicity, sticking to user buckets)
 
     // E. LATE STOP (Legacy Logic adapted)
     if (lastRainHour >= 9) {
@@ -118,7 +113,7 @@ export const analyzePackUpWeather = (hourlyData: any, lastDayDateStr: string): P
                 color: 'yellow'
             }
         }
-        // If rain stopped but no sun, and it wasn't "Wet" (low intensity), maybe just Damp
+        // If rain stopped but no sun
         return {
             status: 'damp',
             label: '難以曬乾',
@@ -127,20 +122,10 @@ export const analyzePackUpWeather = (hourlyData: any, lastDayDateStr: string): P
         }
     }
 
-    // F. DRY: Default or Low Probability (< 10%)
-    if (maxPop > 0 && maxPop < 10) {
-        return {
-            status: 'perfect',
-            label: '乾燥撤收',
-            advice: '降雨機率極低，可安心撤收。',
-            color: 'green'
-        }
-    }
-
-    // Default Perfect
+    // F. DRY: Default or Very Low Probability (< 20%)
     return {
         status: 'perfect',
-        label: '完美撤收',
+        label: '乾燥撤收',
         advice: '天氣良好，乾燥撤收！',
         color: 'teal'
     }

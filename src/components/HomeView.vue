@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, ref } from 'vue'
-import { ArrowRight } from 'lucide-vue-next'
+import { ArrowRight, Tent } from 'lucide-vue-next'
 import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 import StatsHeader from './StatsHeader.vue'
 import NextTripCard from './NextTripCard.vue'
@@ -112,6 +112,8 @@ const resetSlide = () => {
           </button>
        </div>
        <StatsHeader :trips="trips" />
+       
+
      </div>
 
     <!-- 下次露營 (如果有的話) -->
@@ -154,6 +156,29 @@ const resetSlide = () => {
       <div class="text-6xl mb-6 animate-bounce">🏕️</div>
       <h3 class="text-xl font-bold text-primary-900 mb-2">準備好出發了嗎？</h3>
       <p class="text-primary-600 mb-6 font-medium">目前沒有即將到來的行程，開始規劃下一次冒險吧！</p>
+    </div>
+
+    <!-- Game Entry (Moved to Bottom) -->
+    <div class="px-4 mt-6">
+       <button 
+         @click="$router.push('/builder')"
+         class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-4 shadow-lg shadow-emerald-200/50 flex items-center justify-between text-white hover:scale-[1.02] active:scale-95 transition-all group relative overflow-hidden"
+       >
+          <!-- Decorative bg -->
+          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-white/20 rounded-full blur-xl"></div>
+          
+          <div class="flex items-center gap-3 relative z-10">
+              <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                 <Tent class="w-6 h-6 text-white group-hover:rotate-12 transition-transform" />
+              </div>
+              <div class="text-left">
+                 <div class="font-bold text-base leading-tight">營地佈置小遊戲</div>
+                 <div class="text-xs text-white/80">打造專屬的夢幻露營場景</div>
+              </div>
+          </div>
+          
+          <ArrowRight class="w-5 h-5 opacity-80 group-hover:translate-x-1 transition-transform relative z-10" />
+       </button>
     </div>
 
   </div>
