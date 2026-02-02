@@ -70,10 +70,16 @@ void getCityColor
       class="w-full max-w-md h-[400px]"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <!-- SVG paths will be added here -->
-      <text x="200" y="250" text-anchor="middle" fill="#94a3b8" font-size="14">
-        地圖載入中...
-      </text>
+      <!-- 渲染每個縣市 -->
+      <path
+        v-for="city in TAIWAN_MAP_PATHS"
+        :key="city.id"
+        :d="city.path"
+        :fill="getCityColor(city.id)"
+        stroke="#1e293b"
+        stroke-width="0.5"
+        class="transition-colors duration-200 cursor-pointer"
+      />
     </svg>
   </div>
 </template>
