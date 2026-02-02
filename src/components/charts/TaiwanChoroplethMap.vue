@@ -38,10 +38,29 @@ const getCityName = (cityId: string): string => {
   return city?.name || cityId
 }
 
+// 計算縣市顏色（基於露營次數）
+const getCityColor = (cityId: string): string => {
+  const count = getCityCount(cityId)
+
+  if (count === 0) {
+    // 未去過：深灰色
+    return '#334155'
+  }
+
+  // 有資料：藍綠色漸層
+  // 使用 HSL: hsl(199, 89%, L%)
+  // 亮度從 70% (淺色，少次) 到 40% (深色，多次)
+  const intensity = count / maxCount.value
+  const lightness = 70 - intensity * 30 // 70% -> 40%
+
+  return `hsl(199, 89%, ${lightness}%)`
+}
+
 // Temporary: 避免未使用變數錯誤，這些函式將在後續 Task 中使用
 void maxCount
 void getCityCount
 void getCityName
+void getCityColor
 </script>
 
 <template>
