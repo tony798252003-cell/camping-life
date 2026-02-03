@@ -395,14 +395,15 @@ const handleEventListClick = (event: ViewEvent) => {
              v-for="day in currentMonthDays" 
              :key="day.date.toISOString()" 
              class="relative aspect-square rounded-xl flex flex-col items-center justify-start gap-0.5 pt-1 pb-0.5 transition-all cursor-pointer group/day overflow-hidden border"
-             :class="[
-               day.isCurrentMonth ? ((day.holiday || day.date.getDay() === 0 || day.date.getDay() === 6) ? 'text-red-500' : 'text-primary-700') : 'text-gray-300 opacity-50',
-               // Background priority: Today > Holiday > Event > Default
-               day.isToday ? 'bg-primary-100 ring-2 ring-accent-sky z-10' : 
-               (day.holiday ? 'bg-red-50 border-red-100' : 
-                 (day.events.length > 0 ? 'bg-primary-50 border-primary-200' : 'border-transparent hover:bg-surface-50')
-               )
-             ]"
+                  :class="[
+                    day.isCurrentMonth ? ((day.holiday || day.date.getDay() === 0 || day.date.getDay() === 6) ? 'text-red-500' : 'text-primary-700') : 'text-gray-300 opacity-50',
+                    day.isToday ? 'bg-primary-100 ring-2 ring-accent-sky z-10' : [
+                      // Background: Holiday takes precedence
+                      day.holiday ? 'bg-red-50' : (day.events.length > 0 ? 'bg-primary-50' : 'hover:bg-surface-50'),
+                      // Border: Event takes precedence
+                      day.events.length > 0 ? 'border-primary-200' : (day.holiday ? 'border-red-100' : 'border-transparent')
+                    ]
+                  ]"
              @click="handleDayClick(day)"
            >
               <!-- Top: Date & Holiday -->
@@ -520,8 +521,12 @@ const handleEventListClick = (event: ViewEvent) => {
                   class="relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer group/day"
                   :class="[
                     day.isCurrentMonth ? ((day.holiday || day.date.getDay() === 0 || day.date.getDay() === 6) ? 'text-red-500' : 'text-primary-700') : 'text-gray-300',
-                    day.isToday ? 'bg-primary-50 font-bold text-accent-sky' : (day.holiday ? 'bg-red-50/30' : 'hover:bg-primary-50'),
-                    day.events.length > 0 ? 'bg-white ring-1 ring-accent-sky/30 shadow-sm' : ''
+                    day.isToday ? 'bg-primary-50 font-bold text-accent-sky' : [
+                       // Background: Holiday takes precedence
+                       day.holiday ? 'bg-red-50' : (day.events.length > 0 ? 'bg-white' : 'hover:bg-primary-50'),
+                       // Ring/Shadow: Event always gets ring
+                       day.events.length > 0 ? 'ring-1 ring-accent-sky/30 shadow-sm' : ''
+                    ]
                   ]"
                   @click="handleDayClick(day)"
                 >
