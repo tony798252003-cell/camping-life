@@ -7,6 +7,37 @@ const props = defineProps<{
   trips: CampingTripWithCampsite[]
 }>()
 
+// 發光等級介面
+interface GlowLevel {
+  color: string
+  filter: string
+  opacity: number
+}
+
+// 發光等級配置
+const GLOW_LEVELS = {
+  none: {
+    color: 'rgb(51, 65, 85)',
+    filter: 'none',
+    opacity: 0.6
+  },
+  weak: {
+    color: 'rgb(56, 189, 248)',
+    filter: 'url(#glow-weak)',
+    opacity: 0.3
+  },
+  medium: {
+    color: 'rgb(34, 211, 238)',
+    filter: 'url(#glow-medium)',
+    opacity: 0.4
+  },
+  strong: {
+    color: 'rgb(6, 182, 212)',
+    filter: 'url(#glow-strong)',
+    opacity: 0.5
+  }
+} as const
+
 // 統計各縣市露營次數
 const cityStats = computed(() => {
   const counts: Record<string, number> = {}
@@ -22,6 +53,7 @@ const cityStats = computed(() => {
 })
 
 // 找出最大次數（用於顏色計算）
+// @ts-expect-error - 保留供未來使用
 const maxCount = computed(() => {
   const values = Object.values(cityStats.value)
   return values.length > 0 ? Math.max(...values) : 1
@@ -38,22 +70,29 @@ const getCityName = (cityId: string): string => {
   return city?.name || cityId
 }
 
-// 計算縣市顏色（基於露營次數）
-const getCityColor = (cityId: string): string => {
+// 取得縣市發光等級
+const getCityLevel = (cityId: string): GlowLevel => {
   const count = getCityCount(cityId)
 
-  if (count === 0) {
-    // 未去過：深灰色
-    return '#334155'
-  }
+  if (count === 0) return GLOW_LEVELS.none
+  if (count <= 2) return GLOW_LEVELS.weak
+  if (count <= 5) return GLOW_LEVELS.medium
+  return GLOW_LEVELS.strong
+}
 
-  // 有資料：藍綠色漸層
-  // 使用 HSL: hsl(199, 89%, L%)
-  // 亮度從 70% (淺色，少次) 到 40% (深色，多次)
-  const intensity = count / maxCount.value
-  const lightness = 70 - intensity * 30 // 70% -> 40%
+// 計算縣市顏色（基於露營次數）
+const getCityColor = (cityId: string): string => {
+  const level = getCityLevel(cityId)
+  const { color, opacity } = level
 
-  return `hsl(199, 89%, ${lightness}%)`
+  // 將 rgb 轉換為 rgba
+  return color.replace('rgb', 'rgba').replace(')', `, ${opacity})`)
+}
+
+// 取得縣市濾鏡
+// @ts-expect-error - Task 4 將使用此函數
+const getCityFilter = (cityId: string): string => {
+  return getCityLevel(cityId).filter
 }
 
 // Hover 狀態
