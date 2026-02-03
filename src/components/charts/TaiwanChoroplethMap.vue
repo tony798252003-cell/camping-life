@@ -101,6 +101,83 @@ const updateTooltipPosition = (event: MouseEvent) => {
       xmlns="http://www.w3.org/2000/svg"
       @mouseleave="hoveredCity = null"
     >
+      <!-- SVG 濾鏡定義 -->
+      <defs>
+        <!-- 弱發光濾鏡 (1-2次露營) -->
+        <filter id="glow-weak" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur" />
+          <feColorMatrix
+            in="blur"
+            type="matrix"
+            values="0 0 0 0 0.22
+                    0 0 0 0 0.74
+                    0 0 0 0 0.97
+                    0 0 0 0.6 0"
+            result="glow"
+          />
+          <feMerge>
+            <feMergeNode in="glow" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        <!-- 中等發光濾鏡 (3-5次露營) -->
+        <filter id="glow-medium" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur" />
+          <feColorMatrix
+            in="blur"
+            type="matrix"
+            values="0 0 0 0 0.13
+                    0 0 0 0 0.79
+                    0 0 0 0 0.93
+                    0 0 0 0.8 0"
+            result="glow"
+          />
+          <feMerge>
+            <feMergeNode in="glow" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        <!-- 強發光濾鏡 (6+次露營) -->
+        <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
+          <!-- 外層青色發光 -->
+          <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blur1" />
+          <feColorMatrix
+            in="blur1"
+            type="matrix"
+            values="0 0 0 0 0.06
+                    0 0 0 0 0.83
+                    0 0 0 0 0.98
+                    0 0 0 1 0"
+            result="glow1"
+          />
+          <!-- 內層白色發光 -->
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur2" />
+          <feColorMatrix
+            in="blur2"
+            type="matrix"
+            values="0 0 0 0 1
+                    0 0 0 0 1
+                    0 0 0 0 1
+                    0 0 0 0.5 0"
+            result="glow2"
+          />
+          <feMerge>
+            <feMergeNode in="glow1" />
+            <feMergeNode in="glow2" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        <!-- 玻璃高光漸層 -->
+        <linearGradient id="glass-highlight" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4" />
+          <stop offset="50%" stop-color="#ffffff" stop-opacity="0.1" />
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+
       <!-- 渲染每個縣市 -->
       <path
         v-for="city in TAIWAN_MAP_PATHS"
