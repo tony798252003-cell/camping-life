@@ -26,7 +26,7 @@ const handleMapUpload = async (event: Event) => {
    const input = event.target as HTMLInputElement
    if (!input.files || input.files.length === 0) return
 
-   const file = input.files[0]
+   const file = input.files ? input.files[0] : null
    if (!file) return
    
    // Basic validation
@@ -124,9 +124,10 @@ watch(() => props.campsite, (newVal) => {
     tagsString.value = newVal.tags ? newVal.tags.join(', ') : ''
 
     // Parse Night Rush
-    if (newVal.night_rush_time && newVal.night_rush_time.includes('-')) {
+    const rushTime = newVal.night_rush_time
+    if (rushTime && rushTime.includes('-')) {
        // Handle "18:00-22:00" or "18:00 - 22:00"
-       const parts = newVal.night_rush_time.split('-')
+       const parts = rushTime.split('-')
        const start = parts[0]
        const end = parts[1]
        if (parts.length === 2 && start && end) {
@@ -145,7 +146,8 @@ watch(() => props.campsite, (newVal) => {
        showerEnd.value = ''
     } else if (newVal.shower_restrictions && newVal.shower_restrictions.includes('-')) {
        isShower24H.value = false
-       const parts = newVal.shower_restrictions.split('-')
+       const showerTime = newVal.shower_restrictions
+       const parts = showerTime.split('-')
        const start = parts[0]
        const end = parts[1]
        if (parts.length === 2 && start && end) {
