@@ -7,6 +7,13 @@ const props = defineProps<{
   trips: CampingTripWithCampsite[]
 }>()
 
+// 過濾掉離島以優化置中顯示
+const mapPaths = computed(() => {
+  return TAIWAN_MAP_PATHS.filter(city => 
+    !['金門縣', '連江縣', '澎湖縣'].includes(city.id)
+  )
+})
+
 // 發光等級介面
 interface GlowLevel {
   color: string
@@ -14,27 +21,27 @@ interface GlowLevel {
   opacity: number
 }
 
-// 發光等級配置
+// 發光等級配置 (Light Theme)
 const GLOW_LEVELS = {
   none: {
-    color: 'rgb(51, 65, 85)',
+    color: 'rgb(241, 245, 249)', // slate-100
     filter: 'none',
-    opacity: 0.6
+    opacity: 1
   },
   weak: {
-    color: 'rgb(56, 189, 248)',
+    color: 'rgb(186, 230, 253)', // sky-200
     filter: 'url(#glow-weak)',
-    opacity: 0.3
+    opacity: 0.8
   },
   medium: {
-    color: 'rgb(34, 211, 238)',
+    color: 'rgb(56, 189, 248)', // sky-400
     filter: 'url(#glow-medium)',
-    opacity: 0.4
+    opacity: 0.9
   },
   strong: {
-    color: 'rgb(6, 182, 212)',
+    color: 'rgb(2, 132, 199)', // sky-600
     filter: 'url(#glow-strong)',
-    opacity: 0.5
+    opacity: 1
   }
 } as const
 
@@ -133,10 +140,9 @@ const updateTooltipPosition = (event: MouseEvent) => {
 
 <template>
   <div class="relative w-full h-full flex items-center justify-center py-4
-            bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900
-            rounded-2xl shadow-2xl">
+            bg-transparent">
     <svg
-      viewBox="0 0 420 520"
+      viewBox="160 110 260 400"
       class="w-full max-w-md h-[400px]"
       xmlns="http://www.w3.org/2000/svg"
       @mouseleave="hoveredCity = null"
@@ -220,13 +226,13 @@ const updateTooltipPosition = (event: MouseEvent) => {
 
       <!-- 渲染每個縣市 -->
       <path
-        v-for="city in TAIWAN_MAP_PATHS"
+        v-for="city in mapPaths"
         :key="city.id"
         :d="city.path"
         :fill="getCityColor(city.id)"
         :filter="getCityFilter(city.id)"
-        :stroke="hoveredCity === city.id ? '#fbbf24' : '#1e293b'"
-        :stroke-width="hoveredCity === city.id ? 2 : 0.5"
+        :stroke="hoveredCity === city.id ? '#fbbf24' : '#64748b'"
+        :stroke-width="hoveredCity === city.id ? 2 : 1"
         class="transition-all duration-200 ease-out cursor-pointer hover:brightness-125"
         :class="{ 'scale-[1.02] origin-center': hoveredCity === city.id }"
         @mouseenter="onCityHover(city.id, $event)"
@@ -235,7 +241,7 @@ const updateTooltipPosition = (event: MouseEvent) => {
 
       <!-- 玻璃高光覆蓋層 -->
       <path
-        v-for="city in TAIWAN_MAP_PATHS"
+        v-for="city in mapPaths"
         :key="`highlight-${city.id}`"
         :d="city.path"
         fill="url(#glass-highlight)"

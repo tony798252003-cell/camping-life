@@ -130,21 +130,18 @@ const nextYear = () => {
        </div>
 
        <!-- TAIWAN CHOROPLETH MAP -->
-       <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 shadow-xl border border-slate-700 card-organic text-white overflow-hidden relative">
-           <!-- Decorative bg elements -->
-           <div class="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-
-           <div class="flex items-center justify-between mb-4 relative z-10">
-              <h2 class="text-lg font-bold flex items-center gap-2 text-sky-200">
-                 <MapIcon class="w-5 h-5" />
+       <div class="bg-white rounded-3xl p-6 shadow-sm border border-primary-50 card-organic overflow-hidden relative">
+           <div class="flex items-center justify-between mb-4 relative z-10 w-full">
+              <h2 class="text-lg font-bold flex items-center gap-2 text-primary-900">
+                 <MapIcon class="w-5 h-5 text-sky-500" />
                  露營足跡地圖
               </h2>
            </div>
            <div class="w-full relative z-10">
               <TaiwanChoroplethMap :trips="validTrips" />
            </div>
-           <div class="text-center text-xs text-slate-400 font-medium relative z-10">
-              各縣市露營次數 • 顏色越深去越多次
+           <div class="text-center text-xs text-gray-400 font-medium relative z-10 mt-2">
+              各縣市露營次數 • 顏色越亮次數越多
            </div>
        </div>
 
