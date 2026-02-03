@@ -96,7 +96,7 @@ const updateTooltipPosition = (event: MouseEvent) => {
 <template>
   <div class="relative w-full h-full flex items-center justify-center py-4">
     <svg
-      viewBox="0 0 400 500"
+      viewBox="0 0 420 520"
       class="w-full max-w-md h-[400px]"
       xmlns="http://www.w3.org/2000/svg"
       @mouseleave="hoveredCity = null"
