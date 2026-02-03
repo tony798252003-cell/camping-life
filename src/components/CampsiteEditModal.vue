@@ -127,9 +127,11 @@ watch(() => props.campsite, (newVal) => {
     if (newVal.night_rush_time && newVal.night_rush_time.includes('-')) {
        // Handle "18:00-22:00" or "18:00 - 22:00"
        const parts = newVal.night_rush_time.split('-')
-       if (parts.length === 2 && parts[0] && parts[1]) {
-          nightRushStart.value = parts[0].trim()
-          nightRushEnd.value = parts[1].trim()
+       const start = parts[0]
+       const end = parts[1]
+       if (parts.length === 2 && start && end) {
+          nightRushStart.value = start.trim()
+          nightRushEnd.value = end.trim()
        }
     } else {
        nightRushStart.value = ''
@@ -144,9 +146,11 @@ watch(() => props.campsite, (newVal) => {
     } else if (newVal.shower_restrictions && newVal.shower_restrictions.includes('-')) {
        isShower24H.value = false
        const parts = newVal.shower_restrictions.split('-')
-       if (parts.length === 2 && parts[0] && parts[1]) {
-          showerStart.value = parts[0].trim()
-          showerEnd.value = parts[1].trim()
+       const start = parts[0]
+       const end = parts[1]
+       if (parts.length === 2 && start && end) {
+          showerStart.value = start.trim()
+          showerEnd.value = end.trim()
        }
     } else {
        isShower24H.value = false
