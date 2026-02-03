@@ -132,7 +132,9 @@ const updateTooltipPosition = (event: MouseEvent) => {
 </script>
 
 <template>
-  <div class="relative w-full h-full flex items-center justify-center py-4">
+  <div class="relative w-full h-full flex items-center justify-center py-4
+            bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900
+            rounded-2xl shadow-2xl">
     <svg
       viewBox="0 0 420 520"
       class="w-full max-w-md h-[400px]"
