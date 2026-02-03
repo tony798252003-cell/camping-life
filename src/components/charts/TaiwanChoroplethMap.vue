@@ -246,14 +246,20 @@ const updateTooltipPosition = (event: MouseEvent) => {
     <div
       v-if="hoveredCity"
       :style="tooltipStyle"
-      class="absolute pointer-events-none bg-slate-900/95 border border-sky-400/30
-             rounded-lg px-3 py-2 text-sm backdrop-blur-sm shadow-xl z-50"
+      class="absolute pointer-events-none z-50
+             bg-slate-900/80 backdrop-blur-md
+             border border-cyan-400/40 shadow-[0_0_20px_rgba(6,182,212,0.3)]
+             rounded-xl px-4 py-2.5"
     >
-      <div class="font-bold text-sky-200">{{ getCityName(hoveredCity) }}</div>
-      <div v-if="getCityCount(hoveredCity) > 0" class="text-white text-xs">
-        {{ getCityCount(hoveredCity) }} 次
+      <div class="font-bold text-cyan-100 text-sm">
+        {{ getCityName(hoveredCity) }}
       </div>
-      <div v-else class="text-slate-400 text-xs">尚無記錄</div>
+      <div v-if="getCityCount(hoveredCity) > 0" class="text-white text-xs mt-0.5">
+        露營 {{ getCityCount(hoveredCity) }} 次
+      </div>
+      <div v-else class="text-slate-400 text-xs mt-0.5">
+        尚無記錄
+      </div>
     </div>
   </div>
 </template>
