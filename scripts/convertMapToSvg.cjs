@@ -1,10 +1,29 @@
 const fs = require('fs')
+const path = require('path')
 const topojson = require('topojson-client')
 const d3 = require('d3-geo')
 const d3Projection = require('d3-geo-projection')
 
-// 讀取 TopoJSON 檔案
-const topoData = JSON.parse(fs.readFileSync('/tmp/taiwan_counties.topojson', 'utf8'))
+// 使用相對路徑或命令列參數
+const INPUT_FILE = process.argv[2] || path.join(__dirname, '../data/taiwan_counties.topojson')
+const OUTPUT_FILE = process.argv[3] || path.join(__dirname, '../src/constants/taiwanMapSvg.ts')
+
+// 檢查檔案存在
+if (!fs.existsSync(INPUT_FILE)) {
+  console.error(`❌ Error: Input file not found: ${INPUT_FILE}`)
+  console.error('Please download TopoJSON data from https://github.com/g0v/twgeojson')
+  process.exit(1)
+}
+
+// 讀取並解析 TopoJSON 檔案
+let topoData
+try {
+  const fileContent = fs.readFileSync(INPUT_FILE, 'utf8')
+  topoData = JSON.parse(fileContent)
+} catch (error) {
+  console.error('❌ Error reading or parsing TopoJSON:', error.message)
+  process.exit(1)
+}
 
 // 轉換為 GeoJSON
 const geojson = topojson.feature(topoData, topoData.objects.layer1)
@@ -77,7 +96,10 @@ const cityPaths = Object.entries(countyGroups).map(([displayName, features]) => 
     // 合併多個幾何形狀
     const coordinates = []
     features.forEach(f => {
-      if (!f.geometry) return // 跳過 null geometry
+      if (!f.geometry) {
+        console.warn(`⚠️  Warning: Null geometry for feature ${f.properties?.COUNTYNAME}`)
+        return
+      }
 
       if (f.geometry.type === 'Polygon') {
         coordinates.push(f.geometry.coordinates)
@@ -110,12 +132,12 @@ const output = `export interface CityPath {
 export const TAIWAN_MAP_PATHS: CityPath[] = ${JSON.stringify(cityPaths, null, 2)}
 `
 
-// 寫入檔案
-fs.writeFileSync(
-  '/Users/tonywang/Documents/Camp/camping-life/.worktrees/glassmorphism-map/src/constants/taiwanMapSvg.ts',
-  output,
-  'utf8'
-)
-
-console.log('✅ Successfully converted and saved to taiwanMapSvg.ts')
-console.log(`Generated ${cityPaths.length} county paths`)
+// 寫入檔案（加入錯誤處理）
+try {
+  fs.writeFileSync(OUTPUT_FILE, output, 'utf8')
+  console.log(`✅ Successfully converted and saved to ${path.relative(process.cwd(), OUTPUT_FILE)}`)
+  console.log(`Generated ${cityPaths.length} county paths`)
+} catch (error) {
+  console.error('❌ Error writing output file:', error.message)
+  process.exit(1)
+}
