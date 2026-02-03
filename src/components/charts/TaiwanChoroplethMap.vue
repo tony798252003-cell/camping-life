@@ -90,7 +90,6 @@ const getCityColor = (cityId: string): string => {
 }
 
 // 取得縣市濾鏡
-// @ts-expect-error - Task 4 將使用此函數
 const getCityFilter = (cityId: string): string => {
   return getCityLevel(cityId).filter
 }
@@ -223,11 +222,22 @@ const updateTooltipPosition = (event: MouseEvent) => {
         :key="city.id"
         :d="city.path"
         :fill="getCityColor(city.id)"
+        :filter="getCityFilter(city.id)"
         :stroke="hoveredCity === city.id ? '#fbbf24' : '#1e293b'"
         :stroke-width="hoveredCity === city.id ? 2 : 0.5"
         class="transition-all duration-200 cursor-pointer"
         @mouseenter="onCityHover(city.id, $event)"
         @mousemove="onCityMove($event)"
+      />
+
+      <!-- 玻璃高光覆蓋層 -->
+      <path
+        v-for="city in TAIWAN_MAP_PATHS"
+        :key="`highlight-${city.id}`"
+        :d="city.path"
+        fill="url(#glass-highlight)"
+        :opacity="getCityCount(city.id) > 0 ? 0.6 : 0"
+        class="pointer-events-none"
       />
     </svg>
 
