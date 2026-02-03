@@ -225,7 +225,8 @@ const updateTooltipPosition = (event: MouseEvent) => {
         :filter="getCityFilter(city.id)"
         :stroke="hoveredCity === city.id ? '#fbbf24' : '#1e293b'"
         :stroke-width="hoveredCity === city.id ? 2 : 0.5"
-        class="transition-all duration-200 cursor-pointer"
+        class="transition-all duration-200 ease-out cursor-pointer hover:brightness-125"
+        :class="{ 'scale-[1.02] origin-center': hoveredCity === city.id }"
         @mouseenter="onCityHover(city.id, $event)"
         @mousemove="onCityMove($event)"
       />
