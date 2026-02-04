@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ChevronLeft, ChevronRight, Plus, Users } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-vue-next'
 import type { CampingTrip, CampingTripWithCampsite, CalendarEvent, NewCalendarEvent } from '../types/database'
 import { useCalendarEvents } from '../composables/useCalendarEvents'
 import { isHoliday } from '../utils/holidays'
 import EventModal from './EventModal.vue'
+import CalendarSelectionModal from './CalendarSelectionModal.vue'
+import CalendarEventList from './CalendarEventList.vue'
+import type { ViewEvent } from '../types/calendarView'
 
 const props = withDefaults(defineProps<{
   trips?: CampingTripWithCampsite[]
@@ -22,21 +25,15 @@ const currentDate = ref(new Date())
 const isModalOpen = ref(false)
 const selectedDate = ref<Date | null>(null)
 const editingEvent = ref<CalendarEvent | null>(null)
+const isSelectionModalOpen = ref(false)
+const selectedDayEvents = ref<ViewEvent[]>([])
 
 onMounted(() => {
     fetchEvents()
 })
 
-// Unified Event Type for View
-type ViewEvent = {
-    type: 'trip' | 'custom'
-    id: string | number
-    title: string
-    date: Date
-    color: string
-    data: any // Original object
-    isAllDay: boolean
-}
+// ViewEvent type imported from types/calendarView
+
 
 // 切換月份 (Mobile)
 const prevMonth = () => {
@@ -185,25 +182,27 @@ const fullYearMonths = computed(() => {
 
 const handleDayClick = (day: { date: Date, events: ViewEvent[] }) => {
   selectedDate.value = day.date
-  // If clicked on a day with events, maybe show a list? 
-  // For now, if clicked and has trip, open trip. 
-  // If clicked and has custom event, open edit.
-  // Logic: Priority to Trip detail if exists, else first custom event, else open Create Modal
   
-  const trip = day.events.find(e => e.type === 'trip')
-  if (trip) {
-      emit('view-detail', trip.data as CampingTrip)
+  // 1. If multiple events, show selection modal
+  if (day.events.length > 1) {
+      selectedDayEvents.value = day.events
+      isSelectionModalOpen.value = true
       return
   }
 
-  const custom = day.events.find(e => e.type === 'custom')
-  if (custom) {
-      openEditModal(custom.data as CalendarEvent)
+  // 2. If single event, handle directly
+  if (day.events.length === 1) {
+      handleEventListClick(day.events[0]!)
       return
   }
 
-  // No events? Open create modal
+  // 3. No events? Open create modal
   openCreateModal(day.date)
+}
+
+const handleSelection = (event: ViewEvent) => {
+    isSelectionModalOpen.value = false
+    handleEventListClick(event)
 }
 
 const openCreateModal = (date?: Date) => {
@@ -287,10 +286,8 @@ const handleDeleteEvent = async (id: string) => {
 }
 
 // Filter State
-const currentFilter = ref<'all' | 'trip' | 'custom'>('all')
-
-// Global Event List Logic
-const sortedAllEvents = computed(() => {
+// Provide All Events to Child (No Filter here)
+const allEvents = computed(() => {
     // 1. Map trips
     const tripsAsEvents = props.trips.map(t => ({
         type: 'trip' as const,
@@ -316,18 +313,9 @@ const sortedAllEvents = computed(() => {
     }))
 
     // 3. Combine
-    let combined = [...tripsAsEvents, ...customAsEvents]
-
-    // 4. Filter
-    if (currentFilter.value === 'trip') {
-        combined = combined.filter(e => e.type === 'trip')
-    } else if (currentFilter.value === 'custom') {
-        combined = combined.filter(e => e.type === 'custom')
-    }
-
-    // 5. Sort (Ascending)
-    return combined.sort((a, b) => a.date.getTime() - b.date.getTime())
+    return [...tripsAsEvents, ...customAsEvents]
 })
+
 
 
 
@@ -442,118 +430,76 @@ const handleEventListClick = (event: ViewEvent) => {
               </div>
            </div>
         </div>
-         <!-- Unified Event List -->
-         <div class="mt-8 px-2">
-            <div class="flex items-center justify-between mb-4">
-               <h3 class="text-lg font-black text-primary-800 flex items-center gap-2">
-                  <Users class="w-5 h-5 text-primary-500" />
-                  所有行程
-               </h3>
-               
-               <!-- Filter Controls -->
-               <div class="flex items-center bg-gray-100 rounded-lg p-1">
-                   <button 
-                     v-for="filter in ['all', 'trip', 'custom']" 
-                     :key="filter"
-                     @click="currentFilter = filter as any"
-                     class="px-3 py-1 text-xs font-bold rounded-md transition-all"
-                     :class="currentFilter === filter ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'"
-                   >
-                     {{ filter === 'all' ? '全部' : (filter === 'trip' ? '露營' : '其他') }}
-                   </button>
-               </div>
-            </div>
-            <div class="flex flex-col gap-3">
-               <div 
-                 v-for="event in sortedAllEvents" 
-                 :key="event.id"
-                 class="bg-white rounded-xl p-4 shadow-sm border border-primary-100 flex items-center gap-4 active:scale-98 transition-transform cursor-pointer hover:shadow-md"
-                 @click="handleEventListClick(event)"
-               >
-                   <!-- Date Box -->
-                   <div class="flex flex-col items-center justify-center bg-primary-50 rounded-lg w-14 h-14 border border-primary-100 shrink-0">
-                      <span class="text-xs font-bold text-primary-400 inset-0 leading-none">{{ event.date.getMonth() + 1 }}月</span>
-                      <span class="text-xl font-black text-primary-700 leading-tight">{{ event.date.getDate() }}</span>
-                   </div>
-                   
-                   <!-- Content -->
-                   <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2 mb-1">
-                         <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: event.color }"></span>
-                         <span class="text-xs font-bold text-primary-400 uppercase tracking-wider">
-                           {{ event.type === 'trip' ? '露營' : '行程' }}
-                         </span>
-                      </div>
-                      <h4 class="font-bold text-primary-900 truncate">{{ event.title }}</h4>
-                      <p v-if="event.subtitle" class="text-xs text-gray-500 truncate mt-0.5">
-                        {{ event.subtitle }}
-                      </p>
-                   </div>
-                   
-                   <ChevronRight class="w-5 h-5 text-gray-300" />
-               </div>
-
-               <div v-if="sortedAllEvents.length === 0" class="text-center py-10 text-gray-400 text-sm">
-                  目前還沒有任何行程喔！
-               </div>
-               
-
-               <!-- Spacer for FAB and Bottom Tab -->
-               <div class="h-52 w-full"></div>
-            </div>
+         <!-- Unified Event List Component -->
+         <div class="mt-8 flex-1 min-h-0 overflow-hidden">
+            <CalendarEventList 
+                :events="allEvents" 
+                @click-event="handleEventListClick" 
+            />
          </div>
      </div>
 
-     <!-- Desktop View: Full Year Grid -->
-     <div class="hidden md:block flex-1 p-8 pb-32 overflow-y-auto">
-        <div class="grid grid-cols-3 xl:grid-cols-4 gap-8">
-           <div v-for="(month, mIdx) in fullYearMonths" :key="mIdx" class="bg-white rounded-3xl p-5 border border-primary-100 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] group card-organic">
-              <h3 class="text-lg font-bold text-primary-800 mb-3 pl-1 border-l-4 border-primary-400 group-hover:text-primary-600 transition-colors">&nbsp;{{ month.name }}</h3>
-              
-              <div class="grid grid-cols-7 mb-2 text-center text-[10px] font-medium text-primary-300">
-                <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="text-primary-500">六</div><div class="text-accent-orange/60">日</div>
-              </div>
+     <!-- Desktop View: Grid + Sidebar -->
+     <div class="hidden md:flex flex-1 overflow-hidden">
+        <!-- Main Grid (Scrollable) -->
+        <div class="flex-1 p-8 pb-32 overflow-y-auto">
+            <div class="grid grid-cols-3 xl:grid-cols-4 gap-8">
+               <div v-for="(month, mIdx) in fullYearMonths" :key="mIdx" class="bg-white rounded-3xl p-5 border border-primary-100 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] group card-organic">
+                  <h3 class="text-lg font-bold text-primary-800 mb-3 pl-1 border-l-4 border-primary-400 group-hover:text-primary-600 transition-colors">&nbsp;{{ month.name }}</h3>
+                  
+                  <div class="grid grid-cols-7 mb-2 text-center text-[10px] font-medium text-primary-300">
+                    <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="text-primary-500">六</div><div class="text-accent-orange/60">日</div>
+                  </div>
 
-              <div class="grid grid-cols-7 gap-1">
-                 <div 
-                   v-for="(day, dIdx) in month.days" 
-                   :key="dIdx" 
-                  class="relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer group/day"
-                  :class="[
-                    day.isCurrentMonth ? ((day.holiday || day.date.getDay() === 0 || day.date.getDay() === 6) ? 'text-red-500' : 'text-primary-700') : 'text-gray-300',
-                    day.isToday ? 'bg-primary-50 font-bold text-accent-sky' : [
-                       // Background: Holiday takes precedence
-                       day.holiday ? 'bg-red-50' : (day.events.length > 0 ? 'bg-white' : 'hover:bg-primary-50'),
-                       // Ring/Shadow: Event always gets ring
-                       day.events.length > 0 ? 'ring-1 ring-accent-sky/30 shadow-sm' : ''
-                    ]
-                  ]"
-                  @click="handleDayClick(day)"
-                >
-                   <span class="text-xs">{{ day.date.getDate() }}</span>
-                   <span v-if="day.holiday" class="text-[8px] text-red-500 font-bold -mt-0.5 mb-1 truncate w-full text-center px-0.5">
-                     {{ day.holiday.name }}
-                   </span>
-                    
-                    <div class="absolute bottom-1 flex gap-0.5">
-                       <div 
-                           v-for="event in day.events.slice(0,3)" 
-                           :key="event.id" 
-                           class="w-1.5 h-1.5 rounded-full" 
-                           :style="{ backgroundColor: event.color }"
-                        ></div>
-                    </div>
-                    
-                    <!-- Tooltip -->
-                    <div v-if="day.events.length > 0" class="absolute bottom-full mb-2 hidden group-hover/day:block z-50 whitespace-nowrap">
-                      <div class="bg-primary-900 text-white text-[10px] px-2 py-1 rounded shadow-lg relative max-w-[150px] truncate">
-                        {{ day.events[0]?.title }} <span v-if="day.events.length > 1">+{{ day.events.length - 1 }}</span>
-                        <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-primary-900"></div>
-                      </div>
-                    </div>
-                 </div>
-              </div>
-           </div>
+                  <div class="grid grid-cols-7 gap-1">
+                     <div 
+                       v-for="(day, dIdx) in month.days" 
+                       :key="dIdx" 
+                      class="relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer group/day"
+                      :class="[
+                        day.isCurrentMonth ? ((day.holiday || day.date.getDay() === 0 || day.date.getDay() === 6) ? 'text-red-500' : 'text-primary-700') : 'text-gray-300',
+                        day.isToday ? 'bg-primary-50 font-bold text-accent-sky' : [
+                           // Background: Holiday takes precedence
+                           day.holiday ? 'bg-red-50' : (day.events.length > 0 ? 'bg-white' : 'hover:bg-primary-50'),
+                           // Ring/Shadow: Event always gets ring
+                           day.events.length > 0 ? 'ring-1 ring-accent-sky/30 shadow-sm' : ''
+                        ]
+                      ]"
+                      @click="handleDayClick(day)"
+                    >
+                       <span class="text-xs">{{ day.date.getDate() }}</span>
+                       <span v-if="day.holiday" class="text-[8px] text-red-500 font-bold -mt-0.5 mb-1 truncate w-full text-center px-0.5">
+                         {{ day.holiday.name }}
+                       </span>
+                        
+                        <div class="absolute bottom-1 flex gap-0.5">
+                           <div 
+                               v-for="event in day.events.slice(0,3)" 
+                               :key="event.id" 
+                               class="w-1.5 h-1.5 rounded-full" 
+                               :style="{ backgroundColor: event.color }"
+                            ></div>
+                        </div>
+                        
+                        <!-- Tooltip -->
+                        <div v-if="day.events.length > 0" class="absolute bottom-full mb-2 hidden group-hover/day:block z-50 whitespace-nowrap">
+                          <div class="bg-primary-900 text-white text-[10px] px-2 py-1 rounded shadow-lg relative max-w-[150px] truncate">
+                            {{ day.events[0]?.title }} <span v-if="day.events.length > 1">+{{ day.events.length - 1 }}</span>
+                            <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-primary-900"></div>
+                          </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+        </div>
+
+        <!-- Sidebar (Desktop Event List) -->
+        <div class="w-80 border-l border-primary-100 bg-surface-50 p-4 sticky top-0 md:block hidden overflow-hidden h-full">
+            <CalendarEventList 
+                :events="allEvents" 
+                @click-event="handleEventListClick" 
+            />
         </div>
      </div>
 
@@ -574,5 +520,27 @@ const handleEventListClick = (event: ViewEvent) => {
        @save="handleSaveEvent"
        @delete="handleDeleteEvent"
      />
+
+     <!-- Selection Modal -->
+     <CalendarSelectionModal
+       :is-open="isSelectionModalOpen"
+       :date="selectedDate"
+       :events="selectedDayEvents"
+       @close="isSelectionModalOpen = false"
+       @select="handleSelection"
+     />
    </div>
 </template>
+
+<style scoped>
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+.card-organic {
+  transform-origin: center center;
+}
+</style>

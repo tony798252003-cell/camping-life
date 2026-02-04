@@ -14,37 +14,6 @@ const mapPaths = computed(() => {
   )
 })
 
-// 發光等級介面
-interface GlowLevel {
-  color: string
-  filter: string
-  opacity: number
-}
-
-// 發光等級配置 (Light Theme)
-const GLOW_LEVELS = {
-  none: {
-    color: 'rgb(241, 245, 249)', // slate-100
-    filter: 'none',
-    opacity: 1
-  },
-  weak: {
-    color: 'rgb(186, 230, 253)', // sky-200
-    filter: 'url(#glow-weak)',
-    opacity: 0.8
-  },
-  medium: {
-    color: 'rgb(56, 189, 248)', // sky-400
-    filter: 'url(#glow-medium)',
-    opacity: 0.9
-  },
-  strong: {
-    color: 'rgb(2, 132, 199)', // sky-600
-    filter: 'url(#glow-strong)',
-    opacity: 1
-  }
-} as const
-
 // 統計各縣市露營次數
 const cityStats = computed(() => {
   const counts: Record<string, number> = {}
@@ -60,7 +29,6 @@ const cityStats = computed(() => {
 })
 
 // 找出最大次數（用於顏色計算）
-// @ts-expect-error - 保留供未來使用
 const maxCount = computed(() => {
   const values = Object.values(cityStats.value)
   return values.length > 0 ? Math.max(...values) : 1
@@ -77,28 +45,43 @@ const getCityName = (cityId: string): string => {
   return city?.name || cityId
 }
 
-// 取得縣市發光等級
-const getCityLevel = (cityId: string): GlowLevel => {
+// 顏色插值函數
+const interpolateColor = (color1: number[], color2: number[], factor: number): string => {
+  const f = Math.max(0, Math.min(1, factor))
+  const c1 = color1
+  const c2 = color2
+  
+  const r = Math.round((c1[0] || 0) + f * ((c2[0] || 0) - (c1[0] || 0)))
+  const g = Math.round((c1[1] || 0) + f * ((c2[1] || 0) - (c1[1] || 0)))
+  const b = Math.round((c1[2] || 0) + f * ((c2[2] || 0) - (c1[2] || 0)))
+  
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+// 計算縣市顏色（基於露營次數的連續漸層）
+const getCityColor = (cityId: string): string => {
   const count = getCityCount(cityId)
 
-  if (count === 0) return GLOW_LEVELS.none
-  if (count <= 2) return GLOW_LEVELS.weak
-  if (count <= 5) return GLOW_LEVELS.medium
-  return GLOW_LEVELS.strong
-}
+  // 0 次露營：顯示淺灰背景 (Slate-100)
+  if (count === 0) return 'rgb(241, 245, 249)'
 
-// 計算縣市顏色（基於露營次數）
-const getCityColor = (cityId: string): string => {
-  const level = getCityLevel(cityId)
-  const { color, opacity } = level
+  const max = maxCount.value
+  
+  // 定義漸層的起始與結束顏色
+  // Start (1次): Sky-200 [186, 230, 253]
+  // End (最高次): Sky-700 [3, 105, 161]
+  const startColor = [186, 230, 253]
+  const endColor = [3, 105, 161]
 
-  // 將 rgb 轉換為 rgba
-  return color.replace('rgb', 'rgba').replace(')', `, ${opacity})`)
-}
-
-// 取得縣市濾鏡
-const getCityFilter = (cityId: string): string => {
-  return getCityLevel(cityId).filter
+  // 計算漸層比例
+  // 如果最大次數是 1，直接用起始色
+  if (max <= 1) return `rgb(${startColor[0]}, ${startColor[1]}, ${startColor[2]})`
+  
+  // 線性插值： (count - 1) / (max - 1)
+  // 這樣 1 次的時候是 startColor，max 次的時候是 endColor
+  const factor = (count - 1) / (max - 1)
+  
+  return interpolateColor(startColor, endColor, factor)
 }
 
 // Hover 狀態
@@ -147,82 +130,7 @@ const updateTooltipPosition = (event: MouseEvent) => {
       xmlns="http://www.w3.org/2000/svg"
       @mouseleave="hoveredCity = null"
     >
-      <!-- SVG 濾鏡定義 -->
-      <defs>
-        <!-- 弱發光濾鏡 (1-2次露營) -->
-        <filter id="glow-weak" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur" />
-          <feColorMatrix
-            in="blur"
-            type="matrix"
-            values="0 0 0 0 0.22
-                    0 0 0 0 0.74
-                    0 0 0 0 0.97
-                    0 0 0 0.6 0"
-            result="glow"
-          />
-          <feMerge>
-            <feMergeNode in="glow" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
 
-        <!-- 中等發光濾鏡 (3-5次露營) -->
-        <filter id="glow-medium" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur" />
-          <feColorMatrix
-            in="blur"
-            type="matrix"
-            values="0 0 0 0 0.13
-                    0 0 0 0 0.79
-                    0 0 0 0 0.93
-                    0 0 0 0.8 0"
-            result="glow"
-          />
-          <feMerge>
-            <feMergeNode in="glow" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-
-        <!-- 強發光濾鏡 (6+次露營) -->
-        <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
-          <!-- 外層青色發光 -->
-          <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blur1" />
-          <feColorMatrix
-            in="blur1"
-            type="matrix"
-            values="0 0 0 0 0.06
-                    0 0 0 0 0.83
-                    0 0 0 0 0.98
-                    0 0 0 1 0"
-            result="glow1"
-          />
-          <!-- 內層白色發光 -->
-          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur2" />
-          <feColorMatrix
-            in="blur2"
-            type="matrix"
-            values="0 0 0 0 1
-                    0 0 0 0 1
-                    0 0 0 0 1
-                    0 0 0 0.5 0"
-            result="glow2"
-          />
-          <feMerge>
-            <feMergeNode in="glow1" />
-            <feMergeNode in="glow2" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-
-        <!-- 玻璃高光漸層 -->
-        <linearGradient id="glass-highlight" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4" />
-          <stop offset="50%" stop-color="#ffffff" stop-opacity="0.1" />
-          <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
-        </linearGradient>
-      </defs>
 
       <!-- 渲染每個縣市 -->
       <path
@@ -230,7 +138,6 @@ const updateTooltipPosition = (event: MouseEvent) => {
         :key="city.id"
         :d="city.path"
         :fill="getCityColor(city.id)"
-        :filter="getCityFilter(city.id)"
         :stroke="hoveredCity === city.id ? '#fbbf24' : '#64748b'"
         :stroke-width="hoveredCity === city.id ? 2 : 1"
         class="transition-all duration-200 ease-out cursor-pointer hover:brightness-125"
@@ -239,15 +146,7 @@ const updateTooltipPosition = (event: MouseEvent) => {
         @mousemove="onCityMove($event)"
       />
 
-      <!-- 玻璃高光覆蓋層 -->
-      <path
-        v-for="city in mapPaths"
-        :key="`highlight-${city.id}`"
-        :d="city.path"
-        fill="url(#glass-highlight)"
-        :opacity="getCityCount(city.id) > 0 ? 0.6 : 0"
-        class="pointer-events-none"
-      />
+
     </svg>
 
     <!-- Tooltip -->

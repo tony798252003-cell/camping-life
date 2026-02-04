@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, toRef, watch } from 'vue'
-import { Moon, Tent, MapPin, Calendar, ChevronLeft, ChevronRight, Snowflake, IceCream, Droplets, Navigation, Users, RotateCcw } from 'lucide-vue-next'
+import { Moon, Tent, MapPin, Calendar, ChevronLeft, ChevronRight, Snowflake, IceCream, Droplets, Navigation, Users, RotateCcw, LogIn, LogOut } from 'lucide-vue-next'
 import type { CampingTripWithCampsite } from '../types/database'
 import { useTripWeather } from '../composables/useTripWeather'
 import { useTravelTime } from '../composables/useTravelTime'
@@ -181,9 +181,114 @@ const formattedLocation = computed(() => {
   } else {
     loc = trip.location || '未設定地點'
   }
-  // Remove administrative suffixes for cleaner display
-  return loc.replace(/[縣市區鄉鎮]/g, '')
+  return loc
 })
+
+// Dynamic Time Info Logic
+const dynamicTimeInfo = computed(() => {
+  if (!props.trip || !props.trip.campsites) return null
+
+  const now = new Date()
+  const tripDate = new Date(props.trip.trip_date)
+  tripDate.setHours(0,0,0,0) // Start of trip day
+
+  const duration = props.trip.duration_days || 1
+  const endDate = new Date(tripDate)
+  endDate.setDate(endDate.getDate() + duration - 1) // Last day
+
+  // Helper to parse time string "HH:mm" to Date object on a specific day
+  const getTimeDate = (baseDate: Date, timeStr?: string) => {
+    const d = new Date(baseDate)
+    const [h, m] = (timeStr || '12:00').split(':').map(Number)
+    d.setHours(h || 0, m || 0, 0, 0)
+    return d
+  }
+
+  // 1. Determine Arrival Target
+  let arrivalTarget: Date
+  let isNightRushTarget = false
+
+  if (props.trip.night_rush) {
+    // Night rush is usually the evening BEFORE the trip date
+    const nightRushDate = new Date(tripDate)
+    nightRushDate.setDate(nightRushDate.getDate() - 1)
+    arrivalTarget = getTimeDate(nightRushDate, props.trip.campsites.night_rush_time || '18:00')
+    isNightRushTarget = true
+  } else {
+    arrivalTarget = getTimeDate(tripDate, props.trip.campsites.check_in_time || '14:00')
+  }
+
+  // 2. Determine Checkout Target
+  const checkoutTarget = getTimeDate(endDate, props.trip.campsites.check_out_time || '11:00')
+
+  // Logic Branching
+  
+  // Case A: Before Arrival (Show Arrival Info)
+  // Give a buffer? Or strict? Strict is fine.
+  if (now < arrivalTarget) {
+     if (isNightRushTarget) {
+         if (!props.trip.campsites.night_rush_time) return null
+         return {
+             label: '夜衝',
+             time: props.trip.campsites.night_rush_time,
+             icon: Moon,
+             iconColor: 'text-indigo-600'
+         }
+     } else {
+         if (!props.trip.campsites.check_in_time) return null
+         return {
+             label: '進場',
+             time: props.trip.campsites.check_in_time,
+             icon: LogIn,
+             iconColor: 'text-emerald-600'
+         }
+     }
+  }
+
+  // Case B: During Stay
+  if (now < checkoutTarget) {
+      // If today is the checkout day (endDate), show Checkout Info
+      const isCheckoutDay = now.getDate() === endDate.getDate() && 
+                            now.getMonth() === endDate.getMonth() && 
+                            now.getFullYear() === endDate.getFullYear()
+      
+      if (isCheckoutDay) {
+          if (!props.trip.campsites.check_out_time) return null
+          return {
+              label: '離場',
+              time: props.trip.campsites.check_out_time,
+              icon: LogOut,
+              iconColor: 'text-orange-600'
+          }
+      } else {
+          // Otherwise (e.g. Day 1 evening, Day 2 of 3), show Hot Water
+          if (!props.trip.campsites.shower_restrictions) return null
+          return {
+              label: '熱水',
+              time: props.trip.campsites.shower_restrictions,
+              icon: Droplets,
+              iconColor: 'text-rose-600'
+          }
+      }
+  }
+
+  // Case C: Post Trip (or late Checkout day)
+  // Maybe keep showing checkout time for a bit? Or nothing?
+  // Let's just show Checkout time if it's still same day, else nothing
+  const isSameDay = now.getDate() === endDate.getDate()
+  if (isSameDay) {
+       if (!props.trip.campsites.check_out_time) return null
+       return {
+          label: '離場',
+          time: props.trip.campsites.check_out_time,
+          icon: LogOut,
+          iconColor: 'text-orange-600'
+      }
+  }
+
+  return null
+})
+
 
 </script>
 
@@ -212,26 +317,26 @@ const formattedLocation = computed(() => {
 
 
 
-            <!-- Night Rush Toggle (Top Right) -->
-            <div class="absolute top-5 right-5 z-40">
-                <button 
-                  :disabled="isPastTrip"
-                  @click.stop="toggleNightRush"
-                  class="w-10 h-10 rounded-full flex items-center justify-center transition-all bg-white/80 backdrop-blur-md shadow-md border-2 border-white/50 text-primary-300 hover:text-primary-600 hover:scale-105 active:scale-95"
-                  :class="{ 'bg-indigo-400/30 border-indigo-300 text-indigo-600': trip.night_rush }"
-                >
-                  <Moon class="w-5 h-5" :class="{ '-rotate-12 fill-current': trip.night_rush }" />
-                </button>
+            <!-- Dynamic Time Info (Top Right) -->
+            <div class="absolute top-3 right-4 z-40" v-if="dynamicTimeInfo">
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-white/70 text-primary-800 rounded-full backdrop-blur-md border border-white/60 text-xs font-bold shadow-sm animate-in fade-in zoom-in duration-300">
+                    <component :is="dynamicTimeInfo.icon" class="w-3.5 h-3.5" :class="dynamicTimeInfo.iconColor || 'text-primary-600'" />
+                    <span>{{ dynamicTimeInfo.label }}</span>
+                    <span class="font-mono tracking-tight">{{ dynamicTimeInfo.time }}</span>
+                </div>
             </div>
 
             <!-- Location + Title Section -->
             <div class="w-full px-2 mt-0">
-                <!-- Location Pill (Left-aligned, above title) -->
-                <div class="flex justify-start mb-2">
+                <!-- Location & Time Tags Row -->
+                <div class="flex justify-start items-center gap-2 mb-2">
+                    <!-- Location Tag -->
                     <div class="inline-flex items-center gap-1 px-3 py-1 bg-white/70 text-primary-800 rounded-full backdrop-blur-md border border-white/60 text-xs font-bold shadow-sm">
                         <MapPin class="w-3 h-3 text-emerald-600" />
                         <span>{{ formattedLocation }}</span>
                     </div>
+
+
                 </div>
                 
                 <!-- Title (Centered) - Fixed Height Container -->
@@ -287,14 +392,26 @@ const formattedLocation = computed(() => {
                  </div>
             </div>
             
-            <!-- Reset Button (Below Night Rush Button) -->
-            <div v-if="showResetButton" class="absolute top-[4rem] right-5 z-40 animate-fade-in">
-                <button 
+            <!-- Bottom Right Controls (Night Rush & Reset) -->
+            <div class="absolute bottom-5 right-5 z-40 flex flex-col items-center gap-3 animate-fade-in-up">
+                 <!-- Reset Button -->
+                 <button 
+                  v-if="showResetButton"
                   @click.stop="$emit('reset')"
                   class="group flex items-center justify-center w-10 h-10 rounded-full transition-all bg-white/80 backdrop-blur-md shadow-md border-2 border-white/50 text-primary-300 hover:text-primary-600 hover:scale-105 active:scale-95"
                   title="回本次行程"
                 >
                   <RotateCcw class="w-5 h-5 transition-transform duration-500 group-hover:-rotate-180" />
+                </button>
+
+                 <!-- Night Rush Button -->
+                 <button 
+                  :disabled="isPastTrip"
+                  @click.stop="toggleNightRush"
+                  class="w-10 h-10 rounded-full flex items-center justify-center transition-all bg-white/80 backdrop-blur-md shadow-md border-2 border-white/50 text-primary-300 hover:text-primary-600 hover:scale-105 active:scale-95"
+                  :class="{ 'bg-indigo-400/30 border-indigo-300 text-indigo-600': trip.night_rush }"
+                >
+                  <Moon class="w-5 h-5" :class="{ '-rotate-12 fill-current': trip.night_rush }" />
                 </button>
             </div>
 

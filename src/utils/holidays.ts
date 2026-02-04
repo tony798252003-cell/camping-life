@@ -56,6 +56,7 @@ export const holidays: Holiday[] = [
     { date: '2026-09-25', name: '中秋節' },
     { date: '2026-09-26', name: '連假' },
     { date: '2026-09-27', name: '連假' },
+    { date: '2026-09-28', name: '教師節' },
     { date: '2026-10-09', name: '補假' },
     { date: '2026-10-10', name: '國慶日' },
     { date: '2026-10-11', name: '連假' },

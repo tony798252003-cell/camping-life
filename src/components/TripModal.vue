@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { 
   MapPin, Mountain, CloudRain, Moon, Tent, Wind, Save, RotateCcw, 
-  Globe, ChevronLeft, ChevronRight, Users, Home, Trash2, Snowflake, IceCream, Droplets, Pencil, Star
+  Globe, ChevronLeft, ChevronRight, Users, Home, Trash2, Snowflake, IceCream, Droplets, Pencil, Star, AlarmClock
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
@@ -738,7 +738,53 @@ onMounted(async () => {
                           </div>
                       </div>
 
-                      <!-- 2. Zone -->
+                      <!-- 1.5 Time Info Card (Check-in/out, Night Rush, Shower) -->
+                      <h3 class="col-span-2 text-xs font-bold text-gray-400 uppercase tracking-widest mt-2 px-1" v-if="trip?.campsites">
+                          TIME & RULES
+                      </h3>
+                      <div class="col-span-2 card-organic bg-white p-3 md:p-4 flex items-center gap-3 overflow-hidden" v-if="trip?.campsites">
+                          <!-- Icon -->
+                          <div class="w-10 h-10 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-500 shrink-0">
+                              <AlarmClock class="w-5 h-5" />
+                          </div>
+                          
+                          <!-- Content -->
+                          <div class="flex-1 min-w-0">
+                              <!-- Header Label inside? No, user wanted title outside. Labels for values are okay. -->
+                              <!-- Header Label inside? No, user wanted title outside. Labels for values are okay. -->
+                              <div class="grid grid-cols-3 divide-x divide-gray-100">
+                                  <!-- Check In/Out -->
+                                  <div class="flex flex-col items-center px-1">
+                                      <span class="text-[10px] font-bold text-gray-400 mb-0.5">進場 / 離場</span>
+                                      <div class="flex items-center gap-1 font-black text-gray-800 text-sm md:text-base leading-tight">
+                                          <span>{{ trip.campsites.check_in_time || '--:--' }}</span>
+                                          <span class="text-gray-300">/</span>
+                                          <span>{{ trip.campsites.check_out_time || '--:--' }}</span>
+                                      </div>
+                                  </div>
+
+                                  <!-- Night Rush -->
+                                  <div class="flex flex-col items-center px-1" v-if="trip.campsites.night_rush_time">
+                                      <span class="text-[10px] font-bold text-indigo-300 mb-0.5">夜衝時段</span>
+                                      <div class="flex items-center gap-1 font-black text-indigo-600 text-sm md:text-base leading-tight">
+                                          <Moon class="w-3 h-3" />
+                                          <span>{{ trip.campsites.night_rush_time }}</span>
+                                      </div>
+                                  </div>
+                                  
+                                  <!-- Hot Water -->
+                                  <div class="flex flex-col items-center px-1" v-if="trip.campsites.shower_restrictions">
+                                      <span class="text-[10px] font-bold text-rose-300 mb-0.5">熱水供應</span>
+                                      <div class="flex items-center gap-1 font-black text-rose-500 text-sm md:text-base leading-tight">
+                                          <Droplets class="w-3 h-3" />
+                                          <span>{{ trip.campsites.shower_restrictions }}</span>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
+                       <!-- 2. Zone -->
                       <div class="card-organic bg-white p-4 flex items-center gap-3 overflow-hidden">
                           <div class="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-500 shrink-0">
                               <Tent class="w-5 h-5" />
@@ -821,6 +867,21 @@ onMounted(async () => {
                   </div>
 
                   <!-- Section Header: Conditions & Notes -->
+                  <!-- Campsite Map (Read-Only) -->
+                  <div v-if="trip?.campsites?.layout_image_url" class="mt-6 mb-2">
+                      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">營區配置圖</h3>
+                      <div class="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-white group cursor-zoom-in" onclick="window.open(this.querySelector('img').src)">
+                          <img 
+                            :src="trip.campsites.layout_image_url" 
+                            class="w-full h-auto object-contain bg-gray-50 max-h-[400px]" 
+                            title="點擊查看大圖"
+                          />
+                          <div class="bg-gray-50 px-3 py-2 border-t border-gray-100 flex items-center justify-center text-xs text-gray-400 group-hover:text-primary-600 font-bold transition-colors">
+                             點擊放大查看
+                          </div>
+                      </div>
+                  </div>
+
                   <!-- Section Header: Ratings -->
                   <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">評分</h3>
 
@@ -883,20 +944,7 @@ onMounted(async () => {
                       </div>
                   </div>
 
-                  <!-- Campsite Map (Read-Only) -->
-                  <div v-if="trip?.campsites?.layout_image_url" class="mt-6 mb-2">
-                      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">營區配置圖</h3>
-                      <div class="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-white group cursor-zoom-in" onclick="window.open(this.querySelector('img').src)">
-                          <img 
-                            :src="trip.campsites.layout_image_url" 
-                            class="w-full h-auto object-contain bg-gray-50 max-h-[400px]" 
-                            title="點擊查看大圖"
-                          />
-                          <div class="bg-gray-50 px-3 py-2 border-t border-gray-100 flex items-center justify-center text-xs text-gray-400 group-hover:text-primary-600 font-bold transition-colors">
-                             點擊放大查看
-                          </div>
-                      </div>
-                  </div>
+
 
                   <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">CONDITIONS & NOTES</h3>
 
