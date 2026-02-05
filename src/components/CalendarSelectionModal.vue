@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { X, ChevronRight } from 'lucide-vue-next'
-import type { CalendarEvent, CampingTrip } from '../types/database'
+
 
 // Define the shape of ViewEvent as used in CalendarView
 // Ideally this should be exported from a types file, but re-defining for now or importing if possible.

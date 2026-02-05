@@ -58,33 +58,57 @@ const screenToIso = (x: number, y: number) => {
 const gridLines = computed(() => {
   if (!backgroundConfig.value.image) return []
 
+  const imgWidth = backgroundConfig.value.width
+  const imgHeight = backgroundConfig.value.height
+
+  // Constrain Grid to Image Size
+  // Iso Grid extends diagonally. 
+  // We approximate simply: Cover the image area.
+  // Actually, we can just mask it? No, better to limit points.
+  
+  // Calculate approx rows/cols needed
+  // This is a rough estimation for infinite grid within bounds
+  const GRID_SIZE = Math.max(imgWidth, imgHeight) / TILE_WIDTH * 2
+  const ROWS = Math.floor(GRID_SIZE)
+  const COLS = Math.floor(GRID_SIZE)
+
   const lines = []
-  // Generate a larger diamond grid
-  const GRID_ROWS = 30
-  const GRID_COLS = 30
+
 
   // Vertical Lines (along V axis)
-  for (let u = -GRID_COLS/2; u <= GRID_COLS/2; u++) {
-    const start = isoToScreen(u, -GRID_ROWS/2)
-    const end = isoToScreen(u, GRID_ROWS/2)
+  for (let u = -COLS/2; u <= COLS/2; u++) {
+    const start = isoToScreen(u, -ROWS/2)
+    const end = isoToScreen(u, ROWS/2)
+    
+    // Simple bound check: if start and end are WAY off, skip?
+    
     lines.push({
       points: [start.x, start.y, end.x, end.y],
-      stroke: 'rgba(255, 255, 255, 0.6)', // Increased opacity
-      strokeWidth: 1.5,
+      stroke: 'rgba(255, 255, 255, 0.4)', 
+      strokeWidth: 1,
+      dash: [4, 4] // Make it subtle/dash
     })
   }
 
   // Horizontal Lines (along U axis)
-  for (let v = -GRID_ROWS/2; v <= GRID_ROWS/2; v++) {
-    const start = isoToScreen(-GRID_COLS/2, v)
-    const end = isoToScreen(GRID_COLS/2, v)
+  for (let v = -ROWS/2; v <= ROWS/2; v++) {
+    const start = isoToScreen(-COLS/2, v)
+    const end = isoToScreen(COLS/2, v)
     lines.push({
       points: [start.x, start.y, end.x, end.y],
-      stroke: 'rgba(255, 255, 255, 0.6)', // Increased opacity
-      strokeWidth: 1.5,
+      stroke: 'rgba(255, 255, 255, 0.4)',
+      strokeWidth: 1,
+      dash: [4, 4]
     })
   }
   
+  // Explicit Border for Image
+  lines.push({
+      points: [0, 0, imgWidth, 0, imgWidth, imgHeight, 0, imgHeight, 0, 0],
+      stroke: 'rgba(255, 255, 255, 0.2)',
+      strokeWidth: 5
+  })
+
   return lines
 })
 
@@ -215,42 +239,25 @@ const fetchUserGear = async () => {
         // We want the footprint at the "feet" of the image.
         
         // Center of footprint in Screen Coords:
+        // Item X,Y is now the BOTTOM CENTER (Feet)
         const centerX = item.x
-        const centerY = item.y + (item.image.height * item.scaleY) / 2
-        
-        // Vector logic:
-        // Top Corner: -hTiles/2 along V, -wTiles/2 along U? No
-        
-        // Let's use the helper by simulating offsets
-        // U Vector (1, 0) -> Screen Delta?
-        // V Vector (0, 1) -> Screen Delta?
+        const centerY = item.y 
         
         // Corners from centered U,V (0,0) with extent wTiles, hTiles
-        // 1. Top (min Y): -w/2 * U + -h/2 * V ??
-        // No, let's just use the vertices relative to center
         
-        // U goes Right-Down. V goes Left-Down.
-        // Top corner is (-w/2, -h/2) ??
-        // Let's test: -1 * U + -1 * V = (-w/2 - -w/2, -h/2 + -h/2)? No.
-        
-        // If center is 0,0.
-        // Top corner is at u = -w/2, v = -h/2 ?
-        // Screen X = (-w/2 - -h/2) * ... = (-w/2 + h/2) * ... 
-        // Screen Y = (-w/2 + -h/2) * ... 
-        
-        // Top corner: -w/2 along U, -h/2 along V
+        // Top Corner: -w/2, -h/2
         const topX = (-wTiles/2 - -hTiles/2) * (TILE_WIDTH / 2)
         const topY = (-wTiles/2 + -hTiles/2) * (TILE_HEIGHT / 2)
         
-        // Right corner: +w/2 along U, -h/2 along V
+        // Right Corner: +w/2, -h/2
         const rightX = (wTiles/2 - -hTiles/2) * (TILE_WIDTH / 2)
         const rightY = (wTiles/2 + -hTiles/2) * (TILE_HEIGHT / 2)
         
-        // Bottom corner: +w/2, +h/2
+        // Bottom Corner: +w/2, +h/2
         const botX = (wTiles/2 - hTiles/2) * (TILE_WIDTH / 2)
         const botY = (wTiles/2 + hTiles/2) * (TILE_HEIGHT / 2)
         
-        // Left corner: -w/2, +h/2
+        // Left Corner: -w/2, +h/2
         const leftX = (-wTiles/2 - hTiles/2) * (TILE_WIDTH / 2)
         const leftY = (-wTiles/2 + hTiles/2) * (TILE_HEIGHT / 2)
         
@@ -337,24 +344,31 @@ const addItem = (gear: any) => {
   img.src = gear.image_url
   img.onload = () => {
     // Calculate center of current view
-    // (viewWidth/2 - stageX) / scale
     const stage = stageConfig.value
     const cx = (window.innerWidth / 2 - (stage.x || 0)) / stage.scaleX
     const cy = (window.innerHeight / 2 - (stage.y || 0)) / stage.scaleY
     
+    // Auto-scale logic
+    // Initial Scale: Make it fit a 2x2 grid roughly
+    const targetPixelWidth = TILE_WIDTH * 2.5
+    const initialScale = targetPixelWidth / img.width
+
     items.value.push({
        id: `item-${Date.now()}`,
        x: cx,
        y: cy,
        rotation: 0,
-       scaleX: 0.3, // Start smaller for better proportion
-       scaleY: 0.3,
+       scaleX: initialScale, 
+       scaleY: initialScale,
+       isoWidth: 2, // Default 2x2
+       isoDepth: 2,
        image: img,
        name: gear.name
     })
     selectedShapeName.value = items.value[items.value.length - 1].id
   }
 }
+
 
 // Controls
 const zoomIn = () => {
@@ -382,25 +396,57 @@ const rotateRight = () => {
 }
 
 // Size Controls
+// Helper to auto-scale image when grid size changes
+const updateItemScale = (item: any) => {
+   if (!item.image) return
+   
+   // Heuristic: Max(w, h) * TILE_WIDTH roughly
+   const maxDim = Math.max(item.isoWidth || 1, item.isoDepth || 1)
+   const targetPixels = maxDim * TILE_WIDTH * 1.2 // slightly larger than grid
+   const newScale = targetPixels / item.image.width
+   
+   // Animate it? Or just set it.
+   // Use Konva tween if possible, or just reactivity
+   // Let's just set properties, reactivity handles redraw?
+   // Look at updateTransformer, it reads node. Here we write data.
+   // We need to update the Node if possible or rely on :config binding.
+   // :config binding works if we update reference.
+   
+   item.scaleX = newScale
+   item.scaleY = newScale
+}
+
 const increaseWidth = () => {
   if (!selectedShapeName.value) return
   const item = items.value.find(i => i.id === selectedShapeName.value)
-  if (item) item.isoWidth = (item.isoWidth || 1) + 1
+  if (item) {
+     item.isoWidth = (item.isoWidth || 1) + 1
+     updateItemScale(item)
+  }
 }
 const decreaseWidth = () => {
   if (!selectedShapeName.value) return
   const item = items.value.find(i => i.id === selectedShapeName.value)
-  if (item && (item.isoWidth || 0) > 1) item.isoWidth = item.isoWidth - 1
+  if (item && (item.isoWidth || 0) > 1) {
+     item.isoWidth = item.isoWidth - 1
+     updateItemScale(item)
+  }
 }
 const increaseDepth = () => {
   if (!selectedShapeName.value) return
   const item = items.value.find(i => i.id === selectedShapeName.value)
-  if (item) item.isoDepth = (item.isoDepth || 1) + 1
+  if (item) {
+     item.isoDepth = (item.isoDepth || 1) + 1
+     updateItemScale(item)
+  }
 }
 const decreaseDepth = () => {
   if (!selectedShapeName.value) return
   const item = items.value.find(i => i.id === selectedShapeName.value)
-  if (item && (item.isoDepth || 0) > 1) item.isoDepth = item.isoDepth - 1
+  if (item && (item.isoDepth || 0) > 1) {
+     item.isoDepth = item.isoDepth - 1
+     updateItemScale(item)
+  }
 }
 
 const downloadSnapshot = () => {
@@ -469,12 +515,11 @@ const downloadSnapshot = () => {
            }"
         >
            <!-- Filled Base -->
-           <v-line :config="{
-              points: activeFootprint.points,
-              fill: 'rgba(74, 222, 128, 0.3)', // Green-400 with opacity
+              fill: 'rgba(74, 222, 128, 0.4)', // More visible
               closed: true,
-              stroke: '#4ade80',
-              strokeWidth: 2
+              stroke: '#22c55e', // Stronger green
+              strokeWidth: 3,
+              dash: [10, 5] // Dashed look specifically for footprint? Or solid? User said "grid under tent". Solid is clearer.
            }" />
            
            <!-- Size Label -->
@@ -509,7 +554,7 @@ const downloadSnapshot = () => {
              name: 'item-image',
              draggable: true,
              offsetX: item.image ? item.image.width / 2 : 0,
-             offsetY: item.image ? item.image.height / 2 : 0,
+             offsetY: item.image ? item.image.height : 0, // Anchor at Bottom Center (Feet)
            }"
            @dragstart="handleDragStart"
            @dragend="handleDragEnd"

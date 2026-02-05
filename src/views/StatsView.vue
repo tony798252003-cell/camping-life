@@ -9,11 +9,18 @@ import NightRushChart from '../components/charts/NightRushChart.vue'
 import TravelTimeChart from '../components/charts/TravelTimeChart.vue'
 import StatsHeader from '../components/StatsHeader.vue'
 import TaiwanChoroplethMap from '../components/charts/TaiwanChoroplethMap.vue'
+import CityCampsiteListModal from '../components/CityCampsiteListModal.vue'
+import { TAIWAN_MAP_PATHS } from '../constants/taiwanMapSvg'
+
 import { BarChart3, TrendingUp, CalendarClock, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Moon, Car, Map as MapIcon } from 'lucide-vue-next'
 
 const props = defineProps<{
   trips: CampingTripWithCampsite[]
   userOrigin?: { lat: number; lng: number } | null
+}>()
+
+const emit = defineEmits<{
+  (e: 'view-detail', trip: CampingTripWithCampsite): void
 }>()
 
 const router = useRouter()
@@ -57,6 +64,31 @@ const nextYear = () => {
     if (currentIndex > 0) {
         selectedYear.value = availableYears.value[currentIndex - 1] || selectedYear.value
     }
+}
+
+// Map City Click Logic
+const selectedCityId = ref<string | null>(null)
+const isListModalOpen = ref(false)
+
+const handleCityClick = (cityId: string) => {
+    selectedCityId.value = cityId
+    isListModalOpen.value = true
+}
+
+const selectedCityName = computed(() => {
+    if (!selectedCityId.value) return ''
+    const city = TAIWAN_MAP_PATHS.find(c => c.id === selectedCityId.value)
+    return city?.name || selectedCityId.value
+})
+
+const selectedCityTrips = computed(() => {
+    if (!selectedCityId.value) return []
+    return validTrips.value.filter(trip => trip.campsites?.city === selectedCityId.value)
+})
+
+const handleViewTrip = (trip: CampingTripWithCampsite) => {
+    isListModalOpen.value = false
+    emit('view-detail', trip)
 }
 
 </script>
@@ -138,7 +170,10 @@ const nextYear = () => {
               </h2>
            </div>
            <div class="w-full relative z-10">
-              <TaiwanChoroplethMap :trips="validTrips" />
+              <TaiwanChoroplethMap 
+                 :trips="validTrips" 
+                  @city-click="handleCityClick"
+              />
            </div>
            <div class="text-center text-xs text-gray-400 font-medium relative z-10 mt-2">
               各縣市露營次數 • 顏色越亮次數越多
@@ -179,6 +214,15 @@ const nextYear = () => {
               </div>
            </div>
        </div>
+
+       <!-- City Campsite List Modal -->
+       <CityCampsiteListModal
+          :is-open="isListModalOpen"
+          :title="selectedCityName"
+          :trips="selectedCityTrips"
+          @close="isListModalOpen = false"
+          @view-trip="handleViewTrip"
+       />
     </div>
   </div>
 </template>

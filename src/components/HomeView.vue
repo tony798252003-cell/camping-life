@@ -28,8 +28,10 @@ const sortedTrips = computed(() => {
 })
 
 // 當前顯示的行程索引
+// 當前顯示的行程索引
 const currentIndex = ref<number>(-1)
 const defaultIndex = ref<number>(-1)
+const currentTripId = ref<number | null>(null)
 
 // 計算「真正」的下一個行程 (用於初始化)
 const initialNextTrip = computed(() => {
@@ -54,17 +56,42 @@ const initialNextTrip = computed(() => {
 })
 
 // 初始化索引
+// Sync currentTripId when index changes (User Navigation)
+// Sync currentTripId removed. We update it explicitly in navigation functions.
+
+// 初始化索引 & Data Update Handling
 watch(() => props.trips, () => {
+  // 1. Try to restore previous selection using ID
+  if (currentTripId.value !== null) {
+      // Find where our tracked trip went
+      const newIndex = sortedTrips.value.findIndex(t => t.id === currentTripId.value)
+      if (newIndex !== -1) {
+          currentIndex.value = newIndex
+          // Verify if default index needs update? 
+          // Default index tracks "Upcoming" usually.
+          // Let's re-calculate default only if we lost track or on init?
+          // Actually, just restoring current index is enough for "Night Rush toggle".
+          return 
+      }
+  }
+
+  // 2. Initialization (if no selection or selection lost)
   if (currentIndex.value === -1 && initialNextTrip.value) {
     const idx = sortedTrips.value.findIndex(t => t.id === initialNextTrip.value?.id)
     if (idx !== -1) {
       currentIndex.value = idx
       defaultIndex.value = idx
+      currentTripId.value = initialNextTrip.value.id
     }
   } else if (currentIndex.value === -1 && sortedTrips.value.length > 0) {
     // 如果沒有未來行程，預設顯示最後一個 (最近的過去)
-    currentIndex.value = sortedTrips.value.length - 1
-    defaultIndex.value = sortedTrips.value.length - 1
+    const idx = sortedTrips.value.length - 1
+    currentIndex.value = idx
+    defaultIndex.value = idx
+    const trip = sortedTrips.value[idx]
+    if (trip) {
+        currentTripId.value = trip.id
+    }
   }
 }, { immediate: true })
 
@@ -80,18 +107,33 @@ const displayedTrip = computed(() => {
 const nextSlide = () => {
   if (currentIndex.value < sortedTrips.value.length - 1) {
     currentIndex.value++
+    // Update ID Tracker
+    const trip = sortedTrips.value[currentIndex.value]
+    if (trip) {
+        currentTripId.value = trip.id
+    }
   }
 }
 
 const prevSlide = () => {
   if (currentIndex.value > 0) {
     currentIndex.value--
+    // Update ID Tracker
+    const trip = sortedTrips.value[currentIndex.value]
+    if (trip) {
+        currentTripId.value = trip.id
+    }
   }
 }
 
 const resetSlide = () => {
   if (defaultIndex.value !== -1) {
     currentIndex.value = defaultIndex.value
+    // Update ID Tracker to default
+    const trip = sortedTrips.value[currentIndex.value]
+    if (trip) {
+        currentTripId.value = trip.id
+    }
   }
 }
 

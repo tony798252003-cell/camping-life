@@ -13,8 +13,10 @@ const mapPaths = computed(() => {
     !['金門縣', '連江縣', '澎湖縣'].includes(city.id)
   )
 })
+const emit = defineEmits<{
+  (e: 'city-click', cityId: string): void
+}>()
 
-// 統計各縣市露營次數
 const cityStats = computed(() => {
   const counts: Record<string, number> = {}
 
@@ -144,6 +146,7 @@ const updateTooltipPosition = (event: MouseEvent) => {
         :class="{ 'scale-[1.02] origin-center': hoveredCity === city.id }"
         @mouseenter="onCityHover(city.id, $event)"
         @mousemove="onCityMove($event)"
+        @click="emit('city-click', city.id)"
       />
 
 
