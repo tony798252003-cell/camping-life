@@ -252,6 +252,11 @@ export interface Database {
                 Insert: NewCalendarEvent
                 Update: Partial<NewCalendarEvent>
             }
+            cpbl_schedule: {
+                Row: CpblSchedule
+                Insert: Omit<CpblSchedule, 'id' | 'created_at'>
+                Update: Partial<Omit<CpblSchedule, 'id' | 'created_at'>>
+            }
         }
     }
 }
@@ -280,4 +285,14 @@ export interface NewCalendarEvent {
     color?: string
     family_id?: string | null
     created_by?: string
+}
+
+export interface CpblSchedule {
+    id: string
+    created_at: string
+    game_sno: number
+    game_date: string
+    home_team_name: string
+    visiting_team_name: string
+    field_abbe: string
 }

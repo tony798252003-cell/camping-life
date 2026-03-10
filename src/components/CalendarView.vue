@@ -8,6 +8,8 @@ import EventModal from './EventModal.vue'
 import CalendarSelectionModal from './CalendarSelectionModal.vue'
 import CalendarEventList from './CalendarEventList.vue'
 import type { ViewEvent } from '../types/calendarView'
+import { getCpblSchedule } from '../services/cpblService'
+import type { CpblSchedule } from '../types/database'
 
 const props = withDefaults(defineProps<{
   trips?: CampingTripWithCampsite[]
@@ -28,12 +30,50 @@ const editingEvent = ref<CalendarEvent | null>(null)
 const isSelectionModalOpen = ref(false)
 const selectedDayEvents = ref<ViewEvent[]>([])
 
+const cpblGames = ref<CpblSchedule[]>([])
+const selectedCpblTeam = ref<string>('')
+const selectedCpblStadium = ref<string>('')
+
+const cpblStadiums = computed(() => {
+    return [...new Set(cpblGames.value.map(g => g.field_abbe))].filter(Boolean)
+})
+
+const getCpblTeamColor = (teamName: string) => {
+    // Desaturated CPBL team colors for calendar blocks so they don't overpower camping trips
+    if (teamName.includes('兄弟')) return '#FDE68A' // amber-200
+    if (teamName.includes('統一')) return '#FDBA74' // orange-300
+    if (teamName.includes('樂天')) return '#FCA5A5' // red-300
+    if (teamName.includes('富邦')) return '#93C5FD' // blue-300
+    if (teamName.includes('味全')) return '#F87171' // red-400
+    if (teamName.includes('台鋼')) return '#6EE7B7' // emerald-300
+    return '#E2E8F0' // slate-200
+}
+
+const getCpblGameGradient = (game: CpblSchedule | null) => {
+    if (!game) return ''
+    const c1 = getCpblTeamColor(game.visiting_team_name)
+    const c2 = getCpblTeamColor(game.home_team_name)
+    // Use 100% opacity for maximum visibility as requested by user
+    return `linear-gradient(135deg, ${c1} 0%, ${c1} 50%, ${c2} 50%, ${c2} 100%)`
+}
+
+const loadCpblGames = async () => {
+    const currentYear = currentDate.value.getFullYear()
+    cpblGames.value = await getCpblSchedule(`${currentYear}-01-01`, `${currentYear}-12-31`)
+}
+
+import { watch } from 'vue'
+// Add watcher for filters so we can trigger reactivity, though computed handles it if we do it in generateMonthData
+watch(() => currentDate.value.getFullYear(), () => {
+   loadCpblGames()
+})
+
 onMounted(() => {
     fetchEvents()
+    loadCpblGames()
 })
 
 // ViewEvent type imported from types/calendarView
-
 
 // 切換月份 (Mobile)
 const prevMonth = () => {
@@ -132,12 +172,45 @@ const generateMonthData = (year: number, month: number) =>{
         isAllDay: e.is_all_day
     }))
     
-    allDays.push({ 
-      date: d, 
-      isCurrentMonth: true, 
+    // 3. Filter CPBL Games (Background Highlight)
+    let cpblGameInfo: CpblSchedule | null = null
+    const todaysGames = cpblGames.value.filter(g => g.game_date === currentYMD)
+    
+    // Only show CPBL games if a filter is active
+    if (todaysGames.length > 0 && (selectedCpblTeam.value || selectedCpblStadium.value)) {
+        let filteredGames = todaysGames
+        if (selectedCpblTeam.value) {
+            filteredGames = filteredGames.filter(g => 
+                g.home_team_name.includes(selectedCpblTeam.value) || 
+                g.visiting_team_name.includes(selectedCpblTeam.value)
+            )
+        }
+        if (selectedCpblStadium.value) {
+            filteredGames = filteredGames.filter(g => g.field_abbe === selectedCpblStadium.value)
+        }
+        if (filteredGames.length > 0) {
+           cpblGameInfo = filteredGames[0] || null
+        }
+    }
+    
+    let userCpblEventGradient = ''
+    const cpblEvent = daysEvents.find(e => e.color?.startsWith('cpbl:'))
+    if (cpblEvent) {
+        const parts = (cpblEvent.color || '').split(':')
+        const c1 = getCpblTeamColor(parts[1] || '')
+        const c2 = getCpblTeamColor(parts[2] || '')
+        userCpblEventGradient = `linear-gradient(135deg, ${c1} 0%, ${c1} 50%, ${c2} 50%, ${c2} 100%)`
+    }
+
+    allDays.push({
+      date: d,
+      isCurrentMonth: true,
+      isToday: currentYMD === getLocalYMD(new Date()),
+      holiday: holidayInfo,
       events: [...daysTrips, ...daysEvents],
-      isToday: new Date().toDateString() === d.toDateString(),
-      holiday: holidayInfo
+      cpblGame: cpblGameInfo,
+      cpblGradient: cpblGameInfo ? getCpblGameGradient(cpblGameInfo) : '',
+      userCpblEventGradient
     })
   }
   
@@ -164,11 +237,16 @@ const generateMonthData = (year: number, month: number) =>{
 
 // Mobile: 單一月份
 const currentMonthDays = computed(() => {
+  // Add dependencies explicitly to trigger reactivity:
+  selectedCpblTeam.value
+  selectedCpblStadium.value
   return generateMonthData(currentDate.value.getFullYear(), currentDate.value.getMonth())
 })
 
 // Desktop: 全年 12 個月
 const fullYearMonths = computed(() => {
+  selectedCpblTeam.value
+  selectedCpblStadium.value
   const year = currentDate.value.getFullYear()
   const months = []
   for (let i = 0; i < 12; i++) {
@@ -326,6 +404,16 @@ const handleEventListClick = (event: ViewEvent) => {
         openEditModal(event.data as CalendarEvent)
     }
 }
+const getTeamColor = (teamName: string) => {
+    if (!teamName) return '#E2E8F0'
+    if (teamName.includes('兄弟')) return '#FFD100' // 兄弟黃
+    if (teamName.includes('統一')) return '#F47920' // 統一橘
+    if (teamName.includes('樂天')) return '#BF0000' // 樂天紅
+    if (teamName.includes('富邦')) return '#004A9C' // 富邦藍
+    if (teamName.includes('味全')) return '#E3002C' // 味全紅
+    if (teamName.includes('台鋼')) return '#006233' // 台鋼綠
+    return '#E2E8F0' // slate-200
+}
 </script>
 
 <template>
@@ -360,9 +448,30 @@ const handleEventListClick = (event: ViewEvent) => {
              </button>
            </div>
         </div>
-        <button @click="openCreateModal()" class="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-bold shadow-lg shadow-primary-500/30">
-            <Plus class="w-5 h-5" /> 新增行程
-        </button>
+        <div class="flex items-center gap-4">
+           <div class="flex items-center gap-2">
+               <!-- CPBL Team Selector -->
+               <select v-model="selectedCpblTeam" class="px-3 py-2 bg-white border border-primary-200 rounded-lg text-sm font-medium text-primary-700 outline-none focus:border-primary-400">
+                   <option value="">所有球隊</option>
+                   <option value="中信兄弟">中信兄弟</option>
+                   <option value="統一">統一獅</option>
+                   <option value="樂天">樂天桃猿</option>
+                   <option value="富邦">富邦悍將</option>
+                   <option value="味全">味全龍</option>
+                   <option value="台鋼">台鋼雄鷹</option>
+               </select>
+
+               <!-- CPBL Stadium Selector -->
+               <select v-model="selectedCpblStadium" class="px-3 py-2 bg-white border border-primary-200 rounded-lg text-sm font-medium text-primary-700 outline-none focus:border-primary-400">
+                   <option value="">所有球場</option>
+                   <option v-for="stadium in cpblStadiums" :key="stadium" :value="stadium">{{ stadium }}</option>
+               </select>
+           </div>
+
+           <button @click="openCreateModal()" class="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-bold shadow-lg shadow-primary-500/30">
+               <Plus class="w-5 h-5" /> 新增行程
+           </button>
+        </div>
      </div>
 
      <!-- Mobile View: Single Month -->
@@ -384,35 +493,42 @@ const handleEventListClick = (event: ViewEvent) => {
              :key="day.date.toISOString()" 
              class="relative aspect-square rounded-xl flex flex-col items-center justify-start gap-0.5 pt-1 pb-0.5 transition-all cursor-pointer group/day overflow-hidden border"
                   :class="[
-                    day.isCurrentMonth ? ((day.holiday || day.date.getDay() === 0 || day.date.getDay() === 6) ? 'text-red-500' : 'text-primary-700') : 'text-gray-300 opacity-50',
-                    day.isToday ? 'bg-primary-100 ring-2 ring-accent-sky z-10' : [
-                      // Background: Holiday takes precedence
-                      day.holiday ? 'bg-red-50' : (day.events.length > 0 ? 'bg-primary-50' : 'hover:bg-surface-50'),
-                      // Border: Event takes precedence
-                      day.events.length > 0 ? 'border-primary-200' : (day.holiday ? 'border-red-100' : 'border-transparent')
+                    day.isCurrentMonth ? ((day.holiday || day.date.getDay() === 0 || day.date.getDay() === 6) ? 'text-red-500 font-medium' : 'text-primary-800') : 'text-gray-300 opacity-50',
+                    day.isToday && !day.cpblGame && !day.userCpblEventGradient ? 'bg-primary-100 ring-2 ring-accent-sky z-10' : [
+                      // Background: Holiday takes precedence. Then if events, bg-white/70 to frost the cpbl!
+                      day.holiday ? 'bg-red-50' : (day.events.length > 0 ? (day.userCpblEventGradient ? 'bg-white/40 backdrop-blur-[0.5px]' : 'bg-white/80 backdrop-blur-[1px]') : (!day.cpblGame ? 'hover:bg-surface-50' : '')),
+                      // Border: Event takes precedence - Soft elegant border!
+                      day.events.length > 0 ? 'border-2 border-primary-300 shadow-md shadow-primary-500/10 z-10' : (day.holiday ? 'border border-red-100' : 'border border-transparent'),
+                      // Add ring to today even if cpblGame is true
+                      (day.isToday && (day.cpblGame || day.userCpblEventGradient)) ? 'ring-2 ring-accent-sky z-20' : ''
                     ]
                   ]"
+             :style="(day.cpblGame && day.isCurrentMonth) ? { backgroundImage: day.cpblGradient } : ((day.userCpblEventGradient && day.isCurrentMonth) ? { backgroundImage: day.userCpblEventGradient } : {})"
              @click="handleDayClick(day)"
            >
               <!-- Top: Date & Holiday -->
-              <div class="flex flex-col items-center leading-none w-full h-[26px] justify-start">
-                <span class="font-bold block" :class="[day.isToday ? 'text-accent-sky' : '', day.holiday ? 'text-xs' : 'text-sm']">
+              <div class="flex flex-col items-center leading-none w-full h-[26px] justify-start mt-0.5">
+                <span class="font-bold block rounded-full px-1.5 py-0.5" 
+                      :class="[day.isToday ? 'text-accent-sky' : '', day.holiday ? 'text-xs' : 'text-sm', ((day.cpblGame || day.userCpblEventGradient) && day.isCurrentMonth) ? 'bg-white/90 shadow-sm' : '']">
                   {{ day.date.getDate() }}
                 </span>
-                <span v-if="day.holiday" class="text-[8px] text-red-500 font-medium scale-90 whitespace-nowrap mt-0.5">
+                <span v-if="day.holiday" class="text-[8px] text-red-500 font-medium scale-90 whitespace-nowrap mt-0.5"
+                      :class="[((day.cpblGame || day.userCpblEventGradient) && day.isCurrentMonth) ? 'bg-white/90 px-1 rounded-sm shadow-sm' : '']">
                     {{ day.holiday.name }}
                 </span>
               </div>
 
               <!-- Bottom: Events -->
-              <div class="w-full px-0.5 flex flex-col gap-px justify-start min-h-0">
+              <div class="w-full px-0.5 flex flex-col gap-px justify-start min-h-0 relative">
+                 <div v-if="day.cpblGame && day.isCurrentMonth" class="absolute -top-[16px] right-0 bg-yellow-400 text-[9px] font-bold text-yellow-900 px-1 py-px rounded-l-md shadow-sm opacity-90">⚾</div>
+                 
                  <!-- Event Bars -->
                  <div v-if="day.events.length > 0" class="flex gap-px justify-center h-1 my-0.5">
                     <div 
                        v-for="event in day.events.slice(0, 3)" 
                        :key="event.id" 
                        class="w-full rounded-full h-full"
-                       :style="{ backgroundColor: event.color }"
+                       :style="event.color?.startsWith('cpbl:') ? { backgroundImage: `linear-gradient(to right, ${getTeamColor((event.color || '').split(':')[1] || '')} 50%, ${getTeamColor((event.color || '').split(':')[2] || '')} 50%)` } : { backgroundColor: event.color }"
                     ></div>
                  </div>
                  <!-- Event Text (Only show 1st) -->
@@ -457,18 +573,24 @@ const handleEventListClick = (event: ViewEvent) => {
                        :key="dIdx" 
                       class="relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer group/day"
                       :class="[
-                        day.isCurrentMonth ? ((day.holiday || day.date.getDay() === 0 || day.date.getDay() === 6) ? 'text-red-500' : 'text-primary-700') : 'text-gray-300',
-                        day.isToday ? 'bg-primary-50 font-bold text-accent-sky' : [
-                           // Background: Holiday takes precedence
-                           day.holiday ? 'bg-red-50' : (day.events.length > 0 ? 'bg-white' : 'hover:bg-primary-50'),
-                           // Ring/Shadow: Event always gets ring
-                           day.events.length > 0 ? 'ring-1 ring-accent-sky/30 shadow-sm' : ''
+                        day.isCurrentMonth ? ((day.holiday || day.date.getDay() === 0 || day.date.getDay() === 6) ? 'text-red-500 font-medium' : 'text-primary-800') : 'text-gray-300',
+                        day.isToday && !day.cpblGame && !day.userCpblEventGradient ? 'bg-primary-50 font-bold text-accent-sky' : [
+                           // Background: Frosted glass effect if there is an event.
+                           day.holiday ? 'bg-red-50' : (day.events.length > 0 ? (day.userCpblEventGradient ? 'bg-white/40 backdrop-blur-[0.5px]' : 'bg-white/80 backdrop-blur-[1px]') : (!day.cpblGame ? 'hover:bg-primary-50' : '')),
+                           // Ring/Shadow: Softer, elegant ring for events
+                           day.events.length > 0 ? 'ring-2 ring-primary-300 ring-offset-1 shadow-md z-10' : (day.cpblGame ? 'ring-1 ring-yellow-400/60 shadow-sm' : ''),
+                           (day.isToday && (day.cpblGame || day.userCpblEventGradient)) ? 'font-bold text-accent-sky ring-2 ring-accent-sky z-20' : ''
                         ]
                       ]"
+                      :style="(day.cpblGame && day.isCurrentMonth) ? { backgroundImage: day.cpblGradient } : ((day.userCpblEventGradient && day.isCurrentMonth) ? { backgroundImage: day.userCpblEventGradient } : {})"
                       @click="handleDayClick(day)"
                     >
-                       <span class="text-xs">{{ day.date.getDate() }}</span>
-                       <span v-if="day.holiday" class="text-[8px] text-red-500 font-bold -mt-0.5 mb-1 truncate w-full text-center px-0.5">
+                       <span class="text-xs rounded-full px-1" :class="[((day.cpblGame || day.userCpblEventGradient) && day.isCurrentMonth) ? 'bg-white/90 shadow-sm mt-0.5' : '']">
+                         {{ day.date.getDate() }}
+                       </span>
+                       <div v-if="day.cpblGame && day.isCurrentMonth" class="absolute top-[2px] right-0 bg-yellow-400 text-[7px] leading-tight font-bold text-yellow-900 px-0.5 rounded-l-sm shadow-xs z-10">⚾</div>
+                       <span v-if="day.holiday" class="text-[8px] text-red-500 font-bold -mt-0.5 mb-1 truncate w-full text-center px-0.5 relative z-0"
+                             :class="[((day.cpblGame || day.userCpblEventGradient) && day.isCurrentMonth) ? 'bg-white/90 rounded-sm' : '']">
                          {{ day.holiday.name }}
                        </span>
                         
@@ -477,7 +599,7 @@ const handleEventListClick = (event: ViewEvent) => {
                                v-for="event in day.events.slice(0,3)" 
                                :key="event.id" 
                                class="w-1.5 h-1.5 rounded-full" 
-                               :style="{ backgroundColor: event.color }"
+                               :style="event.color?.startsWith('cpbl:') ? { backgroundImage: `linear-gradient(to right, ${getTeamColor((event.color || '').split(':')[1] || '')} 50%, ${getTeamColor((event.color || '').split(':')[2] || '')} 50%)` } : { backgroundColor: event.color }"
                             ></div>
                         </div>
                         

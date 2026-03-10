@@ -20,6 +20,7 @@ const emit = defineEmits<{
   close: []
   next: []
   previous: []
+  goToStep: [step: number]
 }>()
 
 const { updateProfile } = useUserProfile()

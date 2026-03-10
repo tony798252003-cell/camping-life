@@ -2,7 +2,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { X, Clock, Users, Lock, Palette } from 'lucide-vue-next'
-import type { NewCalendarEvent, CalendarEvent } from '../types/database'
+import type { NewCalendarEvent, CalendarEvent, CpblSchedule } from '../types/database'
+import { getCpblSchedule } from '../services/cpblService'
 
 const props = defineProps<{
     isOpen: boolean
@@ -27,6 +28,26 @@ const endTime = ref('10:00')
 const isAllDay = ref(true)
 const isFamily = ref(true) // Default to family shared
 const color = ref('#3b82f6') // Default Blue
+
+const dailyCpblGames = ref<CpblSchedule[]>([])
+const cpblGameData = ref<CpblSchedule | null>(null)
+
+const fetchDailyGames = async (dateStr: string) => {
+    if (!props.editEvent && dateStr) {
+        dailyCpblGames.value = await getCpblSchedule(dateStr, dateStr)
+    } else {
+        dailyCpblGames.value = []
+    }
+}
+
+const applyCpblGame = (game: CpblSchedule) => {
+    cpblGameData.value = game
+    title.value = `⚾ ${game.visiting_team_name} vs ${game.home_team_name}`
+    const existingDesc = description.value.replace(/📍 球場: .*\n\n?/, '') // Remove old stadium if exists
+    description.value = `📍 球場: ${game.field_abbe}` + (existingDesc ? `\n\n${existingDesc}` : '')
+    // Use a special format for color to let CalendarView know it's a game
+    color.value = `cpbl:${game.visiting_team_name}:${game.home_team_name}`
+}
 
 const colors = [
     { value: '#3b82f6', label: '藍色' },
@@ -70,6 +91,7 @@ watch(() => props.isOpen, (newVal) => {
              // Inherit family preference or default
              isFamily.value = props.isFamilyMode !== undefined ? props.isFamilyMode : true 
              color.value = '#3b82f6'
+             fetchDailyGames(todayStr)
         }
     }
 })
@@ -80,6 +102,9 @@ const isValid = computed(() => title.value.trim().length > 0 && startDate.value 
 watch(startDate, (newStart) => {
     if (newStart && endDate.value && newStart > endDate.value) {
         endDate.value = newStart
+    }
+    if (newStart && props.isOpen) {
+        fetchDailyGames(newStart)
     }
 })
 
@@ -232,6 +257,24 @@ const handleSave = async () => {
                     class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all resize-none"
                     placeholder="新增備註..."
                   ></textarea>
+              </div>
+
+              <!-- CPBL Games Suggestion -->
+              <div v-if="dailyCpblGames.length > 0 && !editEvent" class="space-y-2 pt-2 border-t border-gray-100 mt-2">
+                  <label class="text-sm font-bold text-yellow-800 flex items-center gap-1">
+                      ⚾ 今日中職賽事 (點擊帶入)
+                  </label>
+                  <div class="flex flex-col gap-2">
+                       <button 
+                         v-for="game in dailyCpblGames" 
+                         :key="game.id"
+                         @click.prevent="applyCpblGame(game)"
+                         class="text-left px-3 py-2 text-sm bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors text-yellow-900 shadow-sm block w-full"
+                       >
+                         <span class="font-bold">{{ game.visiting_team_name }} vs {{ game.home_team_name }}</span>
+                         <span class="text-xs ml-2 opacity-80">@ {{ game.field_abbe }}</span>
+                       </button>
+                  </div>
               </div>
           </div>
 

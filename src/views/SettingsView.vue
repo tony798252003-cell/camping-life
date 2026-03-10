@@ -371,6 +371,39 @@
                        {{ isBatchProcessing ? '處理中...' : '開始批次更新' }}
                     </button>
                  </div>
+                 
+                 <div class="bg-white p-4 rounded-lg border border-blue-200 shadow-sm mt-4">
+                    <h4 class="font-bold text-gray-800 mb-1 flex items-center gap-2">
+                       ⚾ 同步/清除 CPBL 賽程
+                    </h4>
+                    <p class="text-xs text-gray-500 mb-3">
+                       從中華職棒官網抓取指定年度的賽程並寫入資料庫，供前台行事曆與新增行程時使用。此操作需要一些時間。
+                    </p>
+                    
+                    <div class="flex gap-2 mb-3">
+                       <input type="number" v-model="syncYear" class="px-3 py-2 bg-gray-50 border border-gray-200 rounded text-sm w-32 flex-1" placeholder="年份" />
+                    </div>
+                    
+                    <div class="flex flex-col gap-2">
+                        <button 
+                           @click="handleSyncCpbl"
+                           :disabled="isSyncingCpbl || isClearingCpbl"
+                           class="w-full justify-center py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                           <Loader2 v-if="isSyncingCpbl" class="w-4 h-4 animate-spin" />
+                           {{ isSyncingCpbl ? '同步中...' : '開始同步賽程' }}
+                        </button>
+
+                        <button 
+                           @click="handleClearCpbl"
+                           :disabled="isSyncingCpbl || isClearingCpbl"
+                           class="w-full justify-center py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                           <Loader2 v-if="isClearingCpbl" class="w-4 h-4 animate-spin" />
+                           {{ isClearingCpbl ? '清除中...' : '清除該年度所有賽程' }}
+                        </button>
+                    </div>
+                 </div>
               </div>
            </div>
         </div>
@@ -446,6 +479,7 @@ import GearROIView from '../components/GearROIView.vue'
 import TentManagement from '../components/TentManagement.vue'
 import GooglePlaceSearch from '../components/GooglePlaceSearch.vue'
 import SystemAssetManager from '../components/SystemAssetManager.vue'
+import { syncCpblScheduleForYear, clearCpblScheduleForYear } from '../services/cpblService'
 
 // Logic to fetch necessary data if not provided (for standalone view)
 const router = useRouter()
@@ -588,6 +622,43 @@ const resetOnboarding = async () => {
     alert('❌ 重設失敗: ' + error.message)
   } finally {
     isResettingOnboarding.value = false
+  }
+}
+
+// CPBL Sync Logic
+const isSyncingCpbl = ref(false)
+const isClearingCpbl = ref(false)
+const syncYear = ref(new Date().getFullYear())
+
+const handleSyncCpbl = async () => {
+  if (!confirm(`確定要同步 ${syncYear.value} 年度的 CPBL 賽程嗎？這可能會需要 10~20 秒。`)) {
+    return
+  }
+  isSyncingCpbl.value = true
+  try {
+    await syncCpblScheduleForYear(syncYear.value)
+    alert('✅ CPBL 賽程同步完成！')
+  } catch (error: any) {
+    console.error('CPBL 同步失敗:', error)
+    alert('❌ 同步失敗: ' + error.message)
+  } finally {
+    isSyncingCpbl.value = false
+  }
+}
+
+const handleClearCpbl = async () => {
+  if (!confirm(`確定要清除 ${syncYear.value} 年度的 所有 CPBL 賽程資料嗎？這將會刪除資料庫中該年度的所有賽程。`)) {
+    return
+  }
+  isClearingCpbl.value = true
+  try {
+    await clearCpblScheduleForYear(syncYear.value)
+    alert('✅ 已清除該年度所有賽程！')
+  } catch (error: any) {
+    console.error('清除失敗:', error)
+    alert('❌ 清除失敗: ' + error.message)
+  } finally {
+    isClearingCpbl.value = false
   }
 }
 
