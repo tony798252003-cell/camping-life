@@ -96,9 +96,9 @@ export async function syncCpblScheduleForYearMonth(year: number, month: number):
 
         if (scheduleRecords.length > 0) {
             // Upsert into Supabase
-            const { error } = await supabase
-                .from('cpbl_schedule')
-                .upsert(scheduleRecords as any[], { onConflict: 'game_sno, game_date' })
+            const { error } = await (supabase
+                .from('cpbl_schedule') as any)
+                .upsert(scheduleRecords, { onConflict: 'game_sno, game_date' })
 
             if (error) {
                 throw error
