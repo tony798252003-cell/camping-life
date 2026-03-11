@@ -151,11 +151,8 @@ const saveTent = async () => {
             brand: newTentBrand.value.trim(),
             base_usage_count: 0,
             cost: 0,
-            price: 0,
-            rental_price: 0,
             type: 'tent',
             category: 'tent',
-            purchase_date: new Date().toISOString(),
             user_id: session.user.id,
             image_url: newTentImage.value || undefined
         }

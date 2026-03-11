@@ -51,6 +51,7 @@ interface PendingImage {
   name: string
   brand: string // New
   status: 'pending' | 'uploading' | 'success' | 'error'
+  errorMessage?: string
 }
 const pendingImages = ref<PendingImage[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -199,6 +200,7 @@ const uploadAll = async () => {
         if (img.status === 'success') return
         
         img.status = 'uploading'
+        img.errorMessage = undefined
         try {
             const result = await uploadImage(img.file)
             if (result) {
@@ -213,15 +215,17 @@ const uploadAll = async () => {
                     name: img.name,
                     brand: img.brand // Insert brand
                 }])
-                
+
                 if (error) throw error
                 img.status = 'success'
             } else {
                 img.status = 'error'
+                img.errorMessage = 'Cloudinary 上傳失敗，請確認設定'
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error(e)
             img.status = 'error'
+            img.errorMessage = e?.message || '未知錯誤'
         }
     }
 
@@ -412,8 +416,11 @@ const clearSuccess = () => {
                                <div v-else-if="img.status === 'success'" class="flex items-center gap-1 text-green-600 font-bold text-xs">
                                    <CheckCircle class="w-4 h-4" /> 完成
                                </div>
-                               <div v-else-if="img.status === 'error'" class="flex items-center gap-1 text-red-500 font-bold text-xs">
-                                   <AlertCircle class="w-4 h-4" /> 失敗
+                               <div v-else-if="img.status === 'error'" class="flex flex-col items-end gap-0.5 text-red-500 text-xs max-w-[140px]">
+                                   <div class="flex items-center gap-1 font-bold">
+                                       <AlertCircle class="w-4 h-4 shrink-0" /> 失敗
+                                   </div>
+                                   <span v-if="img.errorMessage" class="text-[10px] text-red-400 text-right leading-tight">{{ img.errorMessage }}</span>
                                </div>
                                
                                <button 

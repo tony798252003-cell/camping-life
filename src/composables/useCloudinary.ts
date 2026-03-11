@@ -35,7 +35,7 @@ export function useCloudinary() {
     const uploadImage = async (file: File): Promise<CloudinaryResult | null> => {
         if (!CLOUD_NAME || !UPLOAD_PRESET) {
             error.value = 'Cloudinary configuration missing'
-            return null
+            throw new Error('Cloudinary 環境變數未設定 (CLOUD_NAME/UPLOAD_PRESET)')
         }
 
         isUploading.value = true
