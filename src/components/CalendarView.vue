@@ -418,12 +418,13 @@ const getTeamColor = (teamName: string) => {
 
 <template>
   <div class="h-full flex flex-col bg-surface-50 overflow-hidden md:pb-0 font-sans relative">
-     <div class="md:hidden sticky top-0 bg-white/80 backdrop-blur-md z-10 p-4 border-b border-primary-100 flex items-center justify-between supports-[backdrop-filter]:bg-white/60">
-        <div class="flex items-center gap-2">
-           <h1 class="text-2xl font-black text-primary-900 tracking-tight">露營行事曆</h1>
-         </div>
-        
-        <div class="flex items-center gap-1 bg-surface-100 rounded-xl p-1 border border-primary-100">
+     <div class="md:hidden sticky top-0 bg-white/80 backdrop-blur-md z-10 p-4 border-b border-primary-100 flex flex-col gap-3 supports-[backdrop-filter]:bg-white/60">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+               <h1 class="text-2xl font-black text-primary-900 tracking-tight">露營行事曆</h1>
+             </div>
+            
+            <div class="flex items-center gap-1 bg-surface-100 rounded-xl p-1 border border-primary-100">
                <button @click="prevMonth" class="p-2 hover:bg-white rounded-lg transition-all shadow-sm text-primary-600">
                  <ChevronLeft class="w-5 h-5" />
                </button>
@@ -433,6 +434,26 @@ const getTeamColor = (teamName: string) => {
                </button>
             </div>
         </div>
+
+        <div class="flex items-center gap-2">
+            <!-- CPBL Team Selector -->
+            <select v-model="selectedCpblTeam" class="flex-1 px-2 py-1.5 bg-white border border-primary-200 rounded-lg text-xs font-medium text-primary-700 outline-none focus:border-primary-400">
+                <option value="">所有球隊</option>
+                <option value="中信兄弟">中信兄弟</option>
+                <option value="統一">統一獅</option>
+                <option value="樂天">樂天桃猿</option>
+                <option value="富邦">富邦悍將</option>
+                <option value="味全">味全龍</option>
+                <option value="台鋼">台鋼雄鷹</option>
+            </select>
+
+            <!-- CPBL Stadium Selector -->
+            <select v-model="selectedCpblStadium" class="flex-1 px-2 py-1.5 bg-white border border-primary-200 rounded-lg text-xs font-medium text-primary-700 outline-none focus:border-primary-400">
+                <option value="">所有球場</option>
+                <option v-for="stadium in cpblStadiums" :key="stadium" :value="stadium">{{ stadium }}</option>
+            </select>
+        </div>
+     </div>
 
      <!-- Desktop Header -->
      <div class="hidden md:flex sticky top-0 bg-white/80 backdrop-blur-md z-10 p-6 border-b border-primary-100 items-center justify-between supports-[backdrop-filter]:bg-white/60">
