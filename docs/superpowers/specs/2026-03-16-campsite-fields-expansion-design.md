@@ -15,7 +15,7 @@
 
 1. Supabase Migration：新增欄位至 `campsites` 資料表
 2. TypeScript 型別更新：更新 `Campsite` interface
-3. UI 擴充：`CampsiteEditModal` 加入新欄位編輯介面
+3. UI 擴充：`CampsiteEditModal` 加入新欄位編輯介面（以 Accordion 分組避免 Modal 過長）
 4. 一次性資料匯入腳本
 5. `CampsiteLibrary` 顯示新欄位
 
@@ -32,11 +32,13 @@
 | `scenery_features` | `text[]` | 自然景觀標籤陣列 |
 | `spot_types` | `text[]` | 營位類型標籤陣列 |
 | `booking_method` | `text[]` | 訂位方式標籤陣列 |
-| `booking_deadline` | `date` | 可訂截止日期 |
-| `booking_timing` | `text` | 訂位規則說明（例：1號、年底、180天後） |
-| `is_competitive` | `boolean` | 是否難搶（預設 false） |
+| `booking_available_until` | `date` | 可訂位到期日（Excel「可訂時間」欄，如 2026/9/30）。意思是：這個日期之後暫停開放訂位，不是截止報名。若無限期開放則為 null。 |
+| `booking_timing` | `text` | 訂位規則說明（Excel「訂位時間」欄，如「1號」「年底」「180天後」）。儲存原始文字，不轉換。 |
+| `booking_difficulty` | `text` | 搶位難度：`normal`（預設）/ `moderate`（△）/ `hard`（O） |
 | `recommended_spots` | `text` | 推薦營位說明 |
 | `campsite_notes` | `text` | 其他備注 |
+
+> `booking_available_until` 與 `booking_timing` 用途不同：前者是日期截止點，後者是週期性規則說明，兩欄不重疊。
 
 ### 欄位允許值
 
@@ -55,6 +57,9 @@
 **`booking_method`**
 `電話` `FB` `Line` `官網`
 
+**`booking_difficulty`**
+`normal`（不難）/ `moderate`（稍難搶，Excel △）/ `hard`（需要搶，Excel O）
+
 ### 現有欄位保留不動
 
 `amenities`（has_fridge / has_freezer / has_water_dispenser）維持原有結構，不擴充。
@@ -70,12 +75,14 @@ ALTER TABLE campsites
   ADD COLUMN scenery_features text[] DEFAULT '{}',
   ADD COLUMN spot_types text[] DEFAULT '{}',
   ADD COLUMN booking_method text[] DEFAULT '{}',
-  ADD COLUMN booking_deadline date,
+  ADD COLUMN booking_available_until date,
   ADD COLUMN booking_timing text,
-  ADD COLUMN is_competitive boolean DEFAULT false,
+  ADD COLUMN booking_difficulty text DEFAULT 'normal',
   ADD COLUMN recommended_spots text,
   ADD COLUMN campsite_notes text;
 ```
+
+RLS：沿用現有 `campsites` 資料表的 RLS 規則，無需額外設定。新欄位對登入用戶可讀，僅 admin 或 created_by 可寫，與現有行為一致。
 
 ---
 
@@ -89,54 +96,137 @@ water_features?: string[]
 scenery_features?: string[]
 spot_types?: string[]
 booking_method?: string[]
-booking_deadline?: string | null
+booking_available_until?: string | null
 booking_timing?: string | null
-is_competitive?: boolean
+booking_difficulty?: 'normal' | 'moderate' | 'hard'
 recommended_spots?: string | null
 campsite_notes?: string | null
+```
+
+**注意：** 陣列欄位在元件初始化時需要加 fallback，例如：
+```typescript
+const form = reactive({
+  playground_features: campsite.playground_features ?? [],
+  water_features: campsite.water_features ?? [],
+  // ...
+})
 ```
 
 ---
 
 ## UI 設計
 
-### CampsiteEditModal 新增區塊
+### CampsiteEditModal：Accordion 分組
 
-在現有編輯 Modal 裡新增「設施與訂位」區塊，包含：
+現有 Modal 已有多個區塊，新增欄位以 **Accordion（可折疊區塊）** 方式加入，避免 Modal 過長。新增一個「設施與訂位資訊」Accordion，包含：
 
-- **遊樂設施** — Checkbox 群組（多選）
-- **水域設施** — Checkbox 群組（多選）
-- **自然景觀** — Checkbox 群組（多選）
-- **營位類型** — Checkbox 群組（多選）
-- **訂位方式** — Checkbox 群組（多選）
-- **可訂截止日** — Date picker
-- **訂位規則說明** — 單行文字輸入
-- **是否難搶** — Toggle
-- **推薦營位** — 單行文字輸入
-- **其他備注** — 多行文字輸入
+**設施子區塊：**
+- 遊樂設施 — Checkbox 群組（多選）
+- 水域設施 — Checkbox 群組（多選）
+- 自然景觀 — Checkbox 群組（多選）
+- 營位類型 — Checkbox 群組（多選）
+
+**訂位子區塊：**
+- 訂位方式 — Checkbox 群組（多選）
+- 可訂到期日 — Date picker
+- 訂位規則說明 — 單行文字輸入（自由填寫，如「每月1號」）
+- 搶位難度 — 三選一 Radio（不難 / 稍難搶 / 需要搶）
+- 推薦營位 — 單行文字輸入
+- 其他備注 — 多行文字輸入
 
 ### CampsiteLibrary 顯示
 
-在營地卡片上以小標籤（pill）方式顯示：
-- 景觀標籤（最多 3 個）
+在營地卡片上以 pill 標籤方式顯示：
+- 景觀標籤（最多 3 個，超過顯示 +N）
 - 水域/遊樂設施 icon 提示
-- 若 `is_competitive === true`，顯示「需搶」警示標籤
-- 若 `booking_deadline` 快到期，顯示提醒
+- 搶位難度標籤：`moderate` 顯示橙色「稍難搶」，`hard` 顯示紅色「需搶」
+- 若 `booking_available_until` 在 30 天內到期，顯示黃色「訂位快到期」提醒
 
 ---
 
 ## 一次性資料匯入
 
-撰寫 Node.js 腳本（`scripts/import-campsites.ts`），將 Excel 資料轉換並批次插入 Supabase：
+撰寫 Node.js 腳本（`scripts/import-campsites.ts`），將 Excel 資料轉換並批次插入 Supabase。
 
-- 地點欄位（如「新竹尖石」）→ 拆分為 `city=新竹`、`district=尖石`
-- 遊樂區/水/景文字 → 對應標籤陣列
-- 草地/碎石欄位有值 → 對應 `spot_types`
-- 可訂時間日期格式 → `booking_deadline`
-- 要搶欄位（O/△）→ `is_competitive = true`
-- 無法自動對應的資料 → 放入 `campsite_notes`
+### Excel 來源欄位對應表
 
-腳本執行方式：`npx tsx scripts/import-campsites.ts`
+| Excel 欄位 | 轉換邏輯 | 目標欄位 |
+|-----------|---------|---------|
+| 名稱 | 直接對應 | `name` |
+| 地點（如「新竹尖石」）| 用空格/縣市名稱清單拆分 | `city` + `district` |
+| 海拔 | 數字轉換 | `altitude` |
+| 遊樂區（如「溜 沙 盪」）| 空白分隔，對應 mapping table | `playground_features` |
+| 水（如「溪 池」）| 空白分隔，對應 mapping table | `water_features` |
+| 景（如「櫻 落羽松」）| 空白分隔，對應 mapping table | `scenery_features` |
+| 草地、碎石、雨棚、棧板有值 | 欄位有值 → 加入對應 spot_type | `spot_types` |
+| 免搭 有值 | → 加入 `免搭帳` | `spot_types` |
+| 可訂時間（如「2026/9/30」）| 解析日期 | `booking_available_until` |
+| 訂位時間（如「1號」「年底」）| 原始文字 | `booking_timing` |
+| 要搶（O / △）| O → `hard`，△ → `moderate`，空 → `normal` | `booking_difficulty` |
+| 推薦營位 | 原始文字 | `recommended_spots` |
+| 其他 | 原始文字 | `campsite_notes` |
+
+### 遊樂區 Mapping Table（部分）
+
+| Excel 值 | 對應標籤 |
+|---------|---------|
+| 溜 | 溜滑梯 |
+| 沙 | 沙坑 |
+| 盪 | 盪鞦韆 |
+| 遊戲區 / 遊戲室 | 遊戲室 |
+| 氣墊城堡 | 氣墊城堡 |
+| 滑草 | 滑草 |
+| 彈簧床 | 彈簧床 |
+| 兒童攀岩 | 兒童攀岩 |
+| 棒球九宮格 | 棒球九宮格 |
+
+### 水域 Mapping Table
+
+| Excel 值 | 對應標籤 |
+|---------|---------|
+| 池 | 戲水池 |
+| 溪 | 溪流 |
+| 河 | 河流 |
+| 瀑布 | 瀑布 |
+| 湖 | 湖泊 |
+| 溫泉 | 溫泉 |
+| 滑水道 | 滑水道 |
+| 海 | 海邊 |
+
+### 景色 Mapping Table
+
+| Excel 值 | 對應標籤 |
+|---------|---------|
+| 櫻 | 櫻花 |
+| 落羽松 | 落羽松 |
+| 桐花 | 桐花 |
+| 楓 | 楓葉 |
+| 螢 / 螢火蟲 | 螢火蟲 |
+| 雲 / 雲海 | 雲海 |
+| 夜 / 夜景 | 夜景 |
+| 山 | 山景 |
+| 海景 | 海景 |
+| 湖 / 湖景 | 湖景 |
+| 林 / 森林 | 森林 |
+
+無法對應的文字值 → 附加至 `campsite_notes`。
+
+### 執行前置準備
+
+```bash
+npm install --save-dev tsx xlsx dotenv
+```
+
+環境變數（從 `.env.local` 讀取）：
+```
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...  # 需 service role，繞過 RLS
+```
+
+執行方式：
+```bash
+npx tsx scripts/import-campsites.ts ./data/campsites.xlsx
+```
 
 ---
 
@@ -146,4 +236,5 @@ campsite_notes?: string | null
 - 已去/未去狀態欄位
 - CSV 匯入 UI 功能
 - amenities 欄位擴充（雨棚、電源、WiFi、烤肉設備）
-- 車泊營位類型
+- 車泊營位類型（Excel 中此欄位若出現，匯入時忽略）
+- 依標籤篩選/搜尋功能（Phase 2 考慮）
