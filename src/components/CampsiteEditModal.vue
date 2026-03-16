@@ -635,6 +635,7 @@ const showerEndOptions = computed(() => generateTimeRange(20, 24))
            </button>
 
            <div v-show="isFacilityOpen" class="p-4 space-y-5">
+            <template v-if="isEditable">
 
              <!-- 遊樂設施 -->
              <div>
@@ -828,6 +829,51 @@ const showerEndOptions = computed(() => generateTimeRange(20, 24))
                  />
                </div>
              </div>
+            </template>
+            <template v-else>
+              <div class="space-y-3 text-sm text-gray-700">
+                <div v-if="form.scenery_features?.length">
+                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">景觀　</span>
+                  <span v-for="t in form.scenery_features" :key="t" class="inline-block bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full text-xs mr-1 mb-1">{{ t }}</span>
+                </div>
+                <div v-if="form.water_features?.length">
+                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">水域　</span>
+                  <span v-for="t in form.water_features" :key="t" class="inline-block bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full text-xs mr-1 mb-1">{{ t }}</span>
+                </div>
+                <div v-if="form.playground_features?.length">
+                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">遊樂　</span>
+                  <span v-for="t in form.playground_features" :key="t" class="inline-block bg-yellow-50 text-yellow-600 px-1.5 py-0.5 rounded-full text-xs mr-1 mb-1">{{ t }}</span>
+                </div>
+                <div v-if="form.spot_types?.length">
+                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">營位　</span>
+                  <span v-for="t in form.spot_types" :key="t" class="inline-block bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full text-xs mr-1 mb-1">{{ t }}</span>
+                </div>
+                <div v-if="form.booking_method?.length || form.booking_timing || form.booking_platform">
+                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide block mb-1">訂位</span>
+                  <div class="text-xs text-gray-600 space-y-0.5">
+                    <div v-if="form.booking_platform">
+                      平台：{{ form.booking_platform === 'icamping' ? '愛露營' : '露營樂' }}
+                      <a v-if="form.booking_platform_url" :href="form.booking_platform_url" target="_blank" class="ml-1 text-sky-500 hover:underline">前往訂位 ↗</a>
+                    </div>
+                    <div v-if="form.booking_method?.length">訂位方式：{{ form.booking_method.join('、') }}</div>
+                    <div v-if="form.booking_timing">規則：{{ form.booking_timing }}</div>
+                    <div v-if="form.booking_available_until">可訂到：{{ form.booking_available_until }}</div>
+                    <div v-if="form.booking_difficulty && form.booking_difficulty !== 'normal'">
+                      難度：<span :class="form.booking_difficulty === 'hard' ? 'text-red-600 font-bold' : 'text-orange-500'">
+                        {{ form.booking_difficulty === 'hard' ? '需要搶' : '稍難搶' }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="form.recommended_spots">
+                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">推薦營位　</span>{{ form.recommended_spots }}
+                </div>
+                <div v-if="form.campsite_notes">
+                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">備注　</span>{{ form.campsite_notes }}
+                </div>
+                <p v-if="!form.scenery_features?.length && !form.water_features?.length && !form.playground_features?.length && !form.spot_types?.length && !form.booking_platform && !form.recommended_spots && !form.campsite_notes" class="text-gray-400 text-xs">尚無設施資訊</p>
+              </div>
+            </template>
 
            </div>
          </div>
