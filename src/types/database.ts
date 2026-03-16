@@ -32,6 +32,20 @@ export interface Campsite {
     tags?: string[]
     phone?: string
     zone_config?: string
+    playground_features?: string[]
+    water_features?: string[]
+    scenery_features?: string[]
+    spot_types?: string[]
+    booking_method?: string[]
+    booking_available_until?: string | null
+    booking_timing?: string | null
+    booking_difficulty?: 'normal' | 'moderate' | 'hard'
+    recommended_spots?: string | null
+    campsite_notes?: string | null
+    booking_platform?: 'icamping' | 'campingfun' | null
+    booking_platform_url?: string | null
+    booking_last_available_date?: string | null
+    booking_scraped_at?: string | null
     // New Features v2
     amenities?: {
         has_fridge?: boolean
