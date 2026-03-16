@@ -1,12 +1,13 @@
-import * as XLSX from 'xlsx'
+import XLSX from 'xlsx'
 import { createClient } from '@supabase/supabase-js'
 import * as dotenv from 'dotenv'
 import * as fs from 'fs'
 
+dotenv.config({ path: '.env' })
 dotenv.config({ path: '.env.local' })
 
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
+  (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
@@ -131,7 +132,7 @@ async function main() {
       ].filter(Boolean).join('；') || null,
     }
 
-    const { error } = await (supabase.from('campsites') as any).upsert(campsite, { onConflict: 'name', ignoreDuplicates: false })
+    const { error } = await supabase.from('campsites').insert(campsite as any)
     if (error) {
       console.error(`❌ 匯入失敗：${name}`, error.message)
       failed++
