@@ -1,13 +1,13 @@
 # 設計文件：營地庫欄位擴充 + 資料匯入
 
 **日期：** 2026-03-16
-**狀態：** 待實作
+**狀態：** 待實作（v2：加入爬蟲範圍）
 
 ---
 
 ## 背景
 
-使用者有一份 Google Sheets 記錄著台灣各地待去的露營區，包含設施、景觀、訂位規則等資訊。現有 `campsites` 資料表缺少這些欄位。目標是擴充營地庫的資料模型，並將現有 Excel 資料一次性匯入。
+使用者有一份 Google Sheets 記錄著台灣各地待去的露營區，包含設施、景觀、訂位規則等資訊。現有 `campsites` 資料表缺少這些欄位。目標是擴充營地庫的資料模型、將現有 Excel 資料一次性匯入，並透過爬取愛露營（iCamping）和露營樂平台，自動取得各營區的訂位開放週期資訊。
 
 ---
 
@@ -18,6 +18,7 @@
 3. UI 擴充：`CampsiteEditModal` 加入新欄位編輯介面（以 Accordion 分組避免 Modal 過長）
 4. 一次性資料匯入腳本
 5. `CampsiteLibrary` 顯示新欄位
+6. 爬蟲：Supabase Edge Function 爬取愛露營/露營樂的訂位開放週期，每週自動執行 + 手動觸發
 
 ---
 
@@ -35,6 +36,10 @@
 | `booking_available_until` | `date` | 可訂位到期日（Excel「可訂時間」欄，如 2026/9/30）。意思是：這個日期之後暫停開放訂位，不是截止報名。若無限期開放則為 null。 |
 | `booking_timing` | `text` | 訂位規則說明（Excel「訂位時間」欄，如「1號」「年底」「180天後」）。儲存原始文字，不轉換。 |
 | `booking_difficulty` | `text` | 搶位難度：`normal`（預設）/ `moderate`（△）/ `hard`（O） |
+| `booking_window_months` | `integer` | 訂位開放提前幾個月（由爬蟲自動填入，如 6 表示提前6個月開放）。null 表示尚未爬取或不在平台上。 |
+| `booking_platform` | `text` | 訂位平台：`icamping`（愛露營）/ `campingfun`（露營樂）/ null（不在平台） |
+| `booking_platform_url` | `text` | 營地在平台上的直接連結 |
+| `booking_scraped_at` | `timestamptz` | 最後一次爬取時間，用於判斷資料新鮮度 |
 | `recommended_spots` | `text` | 推薦營位說明 |
 | `campsite_notes` | `text` | 其他備注 |
 
@@ -79,7 +84,11 @@ ALTER TABLE campsites
   ADD COLUMN booking_timing text,
   ADD COLUMN booking_difficulty text DEFAULT 'normal',
   ADD COLUMN recommended_spots text,
-  ADD COLUMN campsite_notes text;
+  ADD COLUMN campsite_notes text,
+  ADD COLUMN booking_window_months integer,
+  ADD COLUMN booking_platform text,
+  ADD COLUMN booking_platform_url text,
+  ADD COLUMN booking_scraped_at timestamptz;
 ```
 
 RLS：沿用現有 `campsites` 資料表的 RLS 規則，無需額外設定。新欄位對登入用戶可讀，僅 admin 或 created_by 可寫，與現有行為一致。
@@ -101,6 +110,10 @@ booking_timing?: string | null
 booking_difficulty?: 'normal' | 'moderate' | 'hard'
 recommended_spots?: string | null
 campsite_notes?: string | null
+booking_window_months?: number | null
+booking_platform?: 'icamping' | 'campingfun' | null
+booking_platform_url?: string | null
+booking_scraped_at?: string | null
 ```
 
 **注意：** 陣列欄位在元件初始化時需要加 fallback，例如：
@@ -227,6 +240,84 @@ SUPABASE_SERVICE_ROLE_KEY=...  # 需 service role，繞過 RLS
 ```bash
 npx tsx scripts/import-campsites.ts ./data/campsites.xlsx
 ```
+
+---
+
+---
+
+## 爬蟲設計：訂位開放偵測器
+
+### 目標
+
+定期爬取愛露營（iCamping）和露營樂平台，偵測各營地是否**開放了新的訂位日期**。一旦偵測到，立即透過 App 內通知 + 手機推播通知使用者。
+
+### 新增資料欄位（`campsites` 資料表）
+
+| 欄位名 | 型別 | 說明 |
+|--------|------|------|
+| `booking_platform` | `text` | 訂位平台：`icamping` / `campingfun` / null |
+| `booking_platform_url` | `text` | 營地在平台上的直接連結 |
+| `booking_last_available_date` | `date` | 上次爬取時，平台上最遠可訂的日期 |
+| `booking_scraped_at` | `timestamptz` | 最後一次爬取時間 |
+
+> 移除原先設計的 `booking_window_months`，改為儲存實際最遠可訂日期做比較。
+
+### 新增資料表：`booking_alerts`
+
+用來儲存每次偵測到訂位開放的事件，作為 App 內通知的來源：
+
+```sql
+CREATE TABLE booking_alerts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamptz DEFAULT now(),
+  campsite_id integer REFERENCES campsites(id),
+  campsite_name text,
+  new_available_date date,       -- 新偵測到的最遠可訂日期
+  platform text,                 -- icamping / campingfun
+  platform_url text,
+  is_read boolean DEFAULT false,
+  user_id text                   -- 通知對象（家族成員皆通知）
+);
+```
+
+### 架構
+
+- **Supabase Edge Function**（`supabase/functions/scrape-booking/index.ts`）
+- **排程**：pg_cron 每週日凌晨2點自動執行
+- **手動觸發**：設定頁面提供「立即檢查」按鈕，呼叫同一 Edge Function
+
+### 爬取流程
+
+1. 取出所有 `booking_platform` 不為 null 的營地
+2. 對每筆營地，爬取平台頁面，取得目前**最遠可訂日期**
+3. 比較 `booking_last_available_date`：
+   - 若新日期 > 舊日期 → **偵測到新訂位開放**
+   - 寫入 `booking_alerts` 資料表
+   - 觸發 Web Push 通知
+4. 更新 `booking_last_available_date` 與 `booking_scraped_at`
+
+### 比對策略（初次設定）
+
+首次使用時，需手動在 CampsiteEditModal 為每個營地設定 `booking_platform` 和 `booking_platform_url`（貼上平台連結）。不做自動名稱比對，避免比對錯誤。
+
+### 通知機制
+
+**App 內通知（In-app）：**
+- 在 App 頂部導覽列顯示紅點（未讀 `booking_alerts` 數量）
+- 點擊後顯示通知列表，內容：「{營地名稱} 在 {平台} 開放訂位了！最遠可訂到 {日期}」
+- 點擊通知直接跳轉平台連結
+
+**手機推播（Web Push）：**
+- 使用 Web Push API + VAPID 金鑰
+- Service Worker 接收推播（`vite-plugin-pwa` 已有 SW 基礎）
+- Edge Function 爬到新訂位後，呼叫 Web Push API 推送
+- 使用者需在首次使用時授權推播權限
+
+### CampsiteLibrary 顯示
+
+- 若有 `booking_platform_url`，顯示「前往訂位」連結按鈕
+- 若 `booking_last_available_date` 在近 7 天內更新，顯示綠色「訂位剛開放！」標籤
+- 若 `booking_scraped_at` 超過 14 天，顯示灰色「資訊可能過時」提示
 
 ---
 
