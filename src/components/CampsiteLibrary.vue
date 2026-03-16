@@ -155,6 +155,22 @@ const deleteCampsite = async (id: number, isReject = false) => {
   }
 }
 
+const isNewlyOpened = (lastAvailableDate: string | null | undefined, scrapedAt: string | null | undefined) => {
+  if (!lastAvailableDate || !scrapedAt) return false
+  const scraped = new Date(scrapedAt)
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  return scraped > sevenDaysAgo
+}
+
+const isExpiringSoon = (availableUntil: string | null | undefined) => {
+  if (!availableUntil) return false
+  const deadline = new Date(availableUntil)
+  const thirtyDaysLater = new Date()
+  thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30)
+  return deadline <= thirtyDaysLater && deadline >= new Date()
+}
+
 onMounted(() => {
   fetchCampsites()
 })
@@ -257,6 +273,46 @@ onMounted(() => {
           <div v-if="site.phone" class="text-xs text-gray-400 flex items-center gap-1 mb-2">
              <Phone class="w-3 h-3" />
              {{ site.phone }}
+          </div>
+
+          <!-- 景觀/設施標籤 -->
+          <div class="mt-2 flex flex-wrap gap-1" v-if="site.scenery_features?.length || site.water_features?.length || site.playground_features?.length">
+            <template v-for="tag in (site.scenery_features ?? []).slice(0, 3)" :key="'s-'+tag">
+              <span class="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full font-medium">{{ tag }}</span>
+            </template>
+            <span v-if="(site.scenery_features?.length ?? 0) > 3" class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+              +{{ (site.scenery_features?.length ?? 0) - 3 }}
+            </span>
+            <span v-if="site.water_features?.length" class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">💧 水域</span>
+            <span v-if="site.playground_features?.length" class="text-[10px] bg-yellow-50 text-yellow-600 px-1.5 py-0.5 rounded-full">🎠 遊樂</span>
+          </div>
+
+          <!-- 訂位相關標籤 -->
+          <div class="mt-1 flex flex-wrap gap-1">
+            <span
+              v-if="site.booking_difficulty === 'hard'"
+              class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold"
+            >需搶</span>
+            <span
+              v-else-if="site.booking_difficulty === 'moderate'"
+              class="text-[10px] bg-orange-50 text-orange-500 px-1.5 py-0.5 rounded-full font-bold"
+            >稍難搶</span>
+            <a
+              v-if="site.booking_platform_url"
+              :href="site.booking_platform_url"
+              target="_blank"
+              rel="noopener"
+              @click.stop
+              class="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-full font-medium hover:bg-sky-100 transition-colors"
+            >前往訂位 ↗</a>
+            <span
+              v-if="site.booking_last_available_date && isNewlyOpened(site.booking_last_available_date, site.booking_scraped_at)"
+              class="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse"
+            >訂位剛開放！</span>
+            <span
+              v-if="isExpiringSoon(site.booking_available_until)"
+              class="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-medium"
+            >訂位快到期</span>
           </div>
 
           <!-- Pending Actions (Admin Only) -->
