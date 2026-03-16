@@ -6,6 +6,13 @@ import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { parseTaiwanLocation } from '../utils/googleMaps'
 import type { Campsite } from '../types/database'
 
+// Facility options constants
+const PLAYGROUND_OPTIONS = ['沙坑', '溜滑梯', '盪鞦韆', '遊戲室', '氣墊城堡', '滑草', '彈簧床', '兒童攀岩', '棒球九宮格']
+const WATER_OPTIONS = ['戲水池', '溪流', '河流', '瀑布', '湖泊', '溫泉', '滑水道', '海邊']
+const SCENERY_OPTIONS = ['櫻花', '落羽松', '桐花', '楓葉', '螢火蟲', '雲海', '夜景', '山景', '海景', '湖景', '森林']
+const SPOT_TYPE_OPTIONS = ['草地', '碎石', '草地混碎石', '棧板', '雨棚', '免搭帳']
+const BOOKING_METHOD_OPTIONS = ['電話', 'FB', 'Line', '官網']
+const isFacilityOpen = ref(true)
 
 const props = defineProps<{
   isOpen: boolean
@@ -113,13 +120,19 @@ const isShower24H = ref(false)
 
 watch(() => props.campsite, (newVal) => {
   if (newVal) {
-    form.value = { 
+    form.value = {
       ...newVal,
       amenities: newVal.amenities || { // Ensure amenities object exists
          has_fridge: false,
          has_freezer: false,
          has_water_dispenser: false
-      }
+      },
+      playground_features: newVal.playground_features ?? [],
+      water_features: newVal.water_features ?? [],
+      scenery_features: newVal.scenery_features ?? [],
+      spot_types: newVal.spot_types ?? [],
+      booking_method: newVal.booking_method ?? [],
+      booking_difficulty: newVal.booking_difficulty ?? 'normal',
     }
     tagsString.value = newVal.tags ? newVal.tags.join(', ') : ''
 
@@ -602,6 +615,221 @@ const showerEndOptions = computed(() => generateTimeRange(20, 24))
                   ⚠ 待審核
                </div>
             </template>
+         </div>
+
+         <!-- 設施與訂位資訊 Accordion -->
+         <div class="border border-gray-200 rounded-xl overflow-hidden mb-4">
+           <button
+             type="button"
+             @click="isFacilityOpen = !isFacilityOpen"
+             class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+           >
+             <span class="font-bold text-primary-900 text-sm">設施與訂位資訊</span>
+             <svg
+               class="w-4 h-4 text-gray-500 transition-transform"
+               :class="{ 'rotate-180': isFacilityOpen }"
+               fill="none" viewBox="0 0 24 24" stroke="currentColor"
+             >
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+             </svg>
+           </button>
+
+           <div v-show="isFacilityOpen" class="p-4 space-y-5">
+
+             <!-- 遊樂設施 -->
+             <div>
+               <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">遊樂設施</p>
+               <div class="flex flex-wrap gap-2">
+                 <label
+                   v-for="opt in PLAYGROUND_OPTIONS"
+                   :key="opt"
+                   class="flex items-center gap-1.5 cursor-pointer"
+                 >
+                   <input
+                     type="checkbox"
+                     :value="opt"
+                     v-model="form.playground_features"
+                     class="w-4 h-4 rounded accent-sky-500"
+                   />
+                   <span class="text-sm text-gray-700">{{ opt }}</span>
+                 </label>
+               </div>
+             </div>
+
+             <!-- 水域設施 -->
+             <div>
+               <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">水域設施</p>
+               <div class="flex flex-wrap gap-2">
+                 <label
+                   v-for="opt in WATER_OPTIONS"
+                   :key="opt"
+                   class="flex items-center gap-1.5 cursor-pointer"
+                 >
+                   <input
+                     type="checkbox"
+                     :value="opt"
+                     v-model="form.water_features"
+                     class="w-4 h-4 rounded accent-sky-500"
+                   />
+                   <span class="text-sm text-gray-700">{{ opt }}</span>
+                 </label>
+               </div>
+             </div>
+
+             <!-- 自然景觀 -->
+             <div>
+               <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">自然景觀</p>
+               <div class="flex flex-wrap gap-2">
+                 <label
+                   v-for="opt in SCENERY_OPTIONS"
+                   :key="opt"
+                   class="flex items-center gap-1.5 cursor-pointer"
+                 >
+                   <input
+                     type="checkbox"
+                     :value="opt"
+                     v-model="form.scenery_features"
+                     class="w-4 h-4 rounded accent-sky-500"
+                   />
+                   <span class="text-sm text-gray-700">{{ opt }}</span>
+                 </label>
+               </div>
+             </div>
+
+             <!-- 營位類型 -->
+             <div>
+               <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">營位類型</p>
+               <div class="flex flex-wrap gap-2">
+                 <label
+                   v-for="opt in SPOT_TYPE_OPTIONS"
+                   :key="opt"
+                   class="flex items-center gap-1.5 cursor-pointer"
+                 >
+                   <input
+                     type="checkbox"
+                     :value="opt"
+                     v-model="form.spot_types"
+                     class="w-4 h-4 rounded accent-sky-500"
+                   />
+                   <span class="text-sm text-gray-700">{{ opt }}</span>
+                 </label>
+               </div>
+             </div>
+
+             <hr class="border-gray-100" />
+
+             <!-- 訂位資訊 -->
+             <div class="space-y-3">
+               <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">訂位資訊</p>
+
+               <!-- 訂位方式 -->
+               <div>
+                 <p class="text-sm text-gray-600 mb-1.5">訂位方式</p>
+                 <div class="flex flex-wrap gap-3">
+                   <label
+                     v-for="opt in BOOKING_METHOD_OPTIONS"
+                     :key="opt"
+                     class="flex items-center gap-1.5 cursor-pointer"
+                   >
+                     <input
+                       type="checkbox"
+                       :value="opt"
+                       v-model="form.booking_method"
+                       class="w-4 h-4 rounded accent-sky-500"
+                     />
+                     <span class="text-sm text-gray-700">{{ opt }}</span>
+                   </label>
+                 </div>
+               </div>
+
+               <!-- 訂位平台連結 -->
+               <div class="grid grid-cols-2 gap-3">
+                 <div>
+                   <label class="block text-sm text-gray-600 mb-1">訂位平台</label>
+                   <select
+                     v-model="form.booking_platform"
+                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none"
+                   >
+                     <option :value="null">無</option>
+                     <option value="icamping">愛露營</option>
+                     <option value="campingfun">露營樂</option>
+                   </select>
+                 </div>
+                 <div>
+                   <label class="block text-sm text-gray-600 mb-1">平台連結</label>
+                   <input
+                     v-model="form.booking_platform_url"
+                     type="url"
+                     placeholder="https://..."
+                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none"
+                   />
+                 </div>
+               </div>
+
+               <!-- 可訂到期日 + 訂位規則 -->
+               <div class="grid grid-cols-2 gap-3">
+                 <div>
+                   <label class="block text-sm text-gray-600 mb-1">可訂到期日</label>
+                   <input
+                     v-model="form.booking_available_until"
+                     type="date"
+                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none"
+                   />
+                 </div>
+                 <div>
+                   <label class="block text-sm text-gray-600 mb-1">訂位規則說明</label>
+                   <input
+                     v-model="form.booking_timing"
+                     type="text"
+                     placeholder="例：每月1號、年底"
+                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none"
+                   />
+                 </div>
+               </div>
+
+               <!-- 搶位難度 -->
+               <div>
+                 <label class="block text-sm text-gray-600 mb-1.5">搶位難度</label>
+                 <div class="flex gap-4">
+                   <label class="flex items-center gap-1.5 cursor-pointer">
+                     <input type="radio" value="normal" v-model="form.booking_difficulty" class="accent-sky-500" />
+                     <span class="text-sm text-gray-700">不難</span>
+                   </label>
+                   <label class="flex items-center gap-1.5 cursor-pointer">
+                     <input type="radio" value="moderate" v-model="form.booking_difficulty" class="accent-orange-500" />
+                     <span class="text-sm text-gray-700">稍難搶</span>
+                   </label>
+                   <label class="flex items-center gap-1.5 cursor-pointer">
+                     <input type="radio" value="hard" v-model="form.booking_difficulty" class="accent-red-500" />
+                     <span class="text-sm text-gray-700">需要搶</span>
+                   </label>
+                 </div>
+               </div>
+
+               <!-- 推薦營位 -->
+               <div>
+                 <label class="block text-sm text-gray-600 mb-1">推薦營位</label>
+                 <input
+                   v-model="form.recommended_spots"
+                   type="text"
+                   placeholder="例：A1、B2~B5"
+                   class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none"
+                 />
+               </div>
+
+               <!-- 其他備注 -->
+               <div>
+                 <label class="block text-sm text-gray-600 mb-1">其他備注</label>
+                 <textarea
+                   v-model="form.campsite_notes"
+                   rows="3"
+                   placeholder="其他資訊..."
+                   class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none resize-none"
+                 />
+               </div>
+             </div>
+
+           </div>
          </div>
 
       </div>
