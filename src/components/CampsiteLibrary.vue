@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Search, MapPin, Plus, CheckCircle, Upload, Phone, Tent, AlertTriangle, XCircle, Trash2 } from 'lucide-vue-next'
+import { Search, MapPin, Plus, CheckCircle, Upload, Phone, Tent, AlertTriangle, XCircle, Trash2, SlidersHorizontal } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { Campsite } from '../types/database'
 import ImportCampsites from './ImportCampsites.vue'
 import CampsiteEditModal from './CampsiteEditModal.vue'
+import CampsiteFilterSheet, { type CampsiteFilters } from './CampsiteFilterSheet.vue'
 
 const props = defineProps<{
   isAdmin: boolean
@@ -18,6 +19,34 @@ const activeTab = ref<'verified' | 'pending'>('verified')
 const isImportModalOpen = ref(false)
 const editingCampsite = ref<Campsite | null>(null)
 const isEditModalOpen = ref(false)
+const isFilterOpen = ref(false)
+const filters = ref<CampsiteFilters>({
+  city: '',
+  district: '',
+  playgroundFeatures: [],
+  waterFeatures: [],
+  sceneryFeatures: [],
+  spotTypes: [],
+  altitudeMin: null,
+  altitudeMax: null,
+})
+
+const activeFilterCount = computed(() => {
+  const f = filters.value
+  let count = 0
+  if (f.city) count++
+  if (f.district) count++
+  if (f.playgroundFeatures.length) count++
+  if (f.waterFeatures.length) count++
+  if (f.sceneryFeatures.length) count++
+  if (f.spotTypes.length) count++
+  if (f.altitudeMin !== null || f.altitudeMax !== null) count++
+  return count
+})
+
+function applyFilters(newFilters: CampsiteFilters) {
+  filters.value = newFilters
+}
 
 const handleEdit = (site: Campsite) => {
   // Allow everyone to view details
@@ -75,13 +104,46 @@ const fetchCampsites = async () => {
 }
 
 const filteredCampsites = computed(() => {
-  if (!searchQuery.value) return campsites.value
-  const q = searchQuery.value.toLowerCase()
-  return campsites.value.filter(c => 
-    c.name.toLowerCase().includes(q) || 
-    (c.city && c.city.toLowerCase().includes(q)) ||
-    (c.district && c.district.toLowerCase().includes(q))
-  )
+  let result = campsites.value
+
+  // 文字搜尋
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    result = result.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      (c.city && c.city.toLowerCase().includes(q)) ||
+      (c.district && c.district.toLowerCase().includes(q))
+    )
+  }
+
+  const f = filters.value
+
+  if (f.city) result = result.filter(c => c.city === f.city)
+
+  if (f.district) {
+    const districtShort = f.district.replace(/(鄉|鎮|市|區|里)$/, '')
+    result = result.filter(c => c.district === districtShort)
+  }
+
+  if (f.playgroundFeatures.length)
+    result = result.filter(c => f.playgroundFeatures.some(tag => c.playground_features?.includes(tag)))
+
+  if (f.waterFeatures.length)
+    result = result.filter(c => f.waterFeatures.some(tag => c.water_features?.includes(tag)))
+
+  if (f.sceneryFeatures.length)
+    result = result.filter(c => f.sceneryFeatures.some(tag => c.scenery_features?.includes(tag)))
+
+  if (f.spotTypes.length)
+    result = result.filter(c => f.spotTypes.some(tag => c.spot_types?.includes(tag)))
+
+  if (f.altitudeMin !== null)
+    result = result.filter(c => c.altitude !== null && c.altitude !== undefined && c.altitude >= f.altitudeMin!)
+
+  if (f.altitudeMax !== null)
+    result = result.filter(c => c.altitude !== null && c.altitude !== undefined && c.altitude <= f.altitudeMax!)
+
+  return result
 })
 
 const verifyCampsite = async (id: number) => {
@@ -207,15 +269,29 @@ onMounted(() => {
        </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="mb-6 relative">
-       <input 
-         v-model="searchQuery" 
-         type="text" 
-         placeholder="搜尋營地名稱、縣市..." 
-         class="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-sky focus:border-transparent outline-none transition-all shadow-sm"
-       />
-       <Search class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
+    <!-- Search Bar + Filter Button -->
+    <div class="mb-6 flex gap-2 items-center">
+      <div class="relative flex-1">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="搜尋營地名稱、縣市..."
+          class="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-sky focus:border-transparent outline-none transition-all shadow-sm"
+        />
+        <Search class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
+      </div>
+      <button
+        @click="isFilterOpen = true"
+        class="relative flex-shrink-0 flex items-center gap-1.5 px-4 py-3 bg-white border border-gray-200 rounded-xl shadow-sm font-semibold text-sm transition-all hover:border-primary-400"
+        :class="activeFilterCount > 0 ? 'text-primary-600 border-primary-400' : 'text-gray-600'"
+      >
+        <SlidersHorizontal class="w-4 h-4" />
+        篩選
+        <span
+          v-if="activeFilterCount > 0"
+          class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-primary-600 text-white text-[10px] font-bold flex items-center justify-center"
+        >{{ activeFilterCount }}</span>
+      </button>
     </div>
 
     <!-- List -->
@@ -376,6 +452,13 @@ onMounted(() => {
       :is-editable="props.isAdmin"
       @close="isEditModalOpen = false"
       @saved="handleEditSaved"
+    />
+
+    <CampsiteFilterSheet
+      v-if="isFilterOpen"
+      :model-value="filters"
+      @apply="applyFilters"
+      @close="isFilterOpen = false"
     />
 
   </div>
