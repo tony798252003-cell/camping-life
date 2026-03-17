@@ -973,54 +973,47 @@ const startBatchUpdateGPS = async () => {
       addLog(`找到 ${allTargets.length} 筆資料，準備處理...`)
       batchProgress.total = allTargets.length
 
-      const geocoder = new window.google.maps.Geocoder()
+      // Use a dummy map element for PlacesService (required by the API)
+      const mapDiv = document.createElement('div')
+      const dummyMap = new window.google.maps.Map(mapDiv, { center: { lat: 23.5, lng: 121 }, zoom: 8 })
+      const placesService = new window.google.maps.places.PlacesService(dummyMap)
 
       for (const site of allTargets) {
-         const query = `${site.name} 台灣`
+         const query = `${site.name} 台灣露營`
          try {
             const result = await new Promise<any>((resolve, reject) => {
-               geocoder.geocode({ address: query, region: 'TW' }, (results: any, status: any) => {
-                  if (status === 'OK' && results && results.length > 0) {
-                     resolve(results[0])
-                  } else {
-                     reject(new Error(`geocode failed: ${status}`))
+               placesService.findPlaceFromQuery(
+                  { query, fields: ['geometry', 'name', 'formatted_address'] },
+                  (results: any, status: any) => {
+                     if (status === window.google.maps.places.PlacesServiceStatus.OK && results?.length > 0) {
+                        resolve(results[0])
+                     } else {
+                        reject(new Error(`places failed: ${status}`))
+                     }
                   }
-               })
+               )
             })
 
             const lat = result.geometry.location.lat()
             const lng = result.geometry.location.lng()
 
-            // Extract city/district from address_components
-            let city = site.city || ''
-            let district = site.district || ''
-            for (const comp of result.address_components) {
-               if (comp.types.includes('administrative_area_level_1')) {
-                  // Map to TAIWAN_LOCATIONS city IDs (台 → 臺)
-                  city = comp.long_name.replace(/^台/, '臺')
-               }
-               if (comp.types.includes('administrative_area_level_2') || comp.types.includes('administrative_area_level_3')) {
-                  district = comp.long_name
-               }
-            }
-
             const { error: updateError } = await supabase
                .from('campsites')
-               .update({ latitude: lat, longitude: lng, city, district })
+               .update({ latitude: lat, longitude: lng })
                .eq('id', site.id)
 
             if (updateError) throw updateError
 
             batchProgress.current++
-            addLog(`✅ ${site.name} → (${lat.toFixed(5)}, ${lng.toFixed(5)}) ${city}${district}`)
+            addLog(`✅ ${site.name} → (${lat.toFixed(5)}, ${lng.toFixed(5)})`)
          } catch (e: any) {
             batchProgress.errors++
             batchProgress.current++
             addLog(`❌ ${site.name}: ${e.message}`)
          }
 
-         // Avoid hitting Google rate limit
-         await new Promise(r => setTimeout(r, 200))
+         // Avoid hitting Places API rate limit
+         await new Promise(r => setTimeout(r, 300))
       }
 
       addLog(`完成！成功 ${batchProgress.current - batchProgress.errors} 筆，失敗 ${batchProgress.errors} 筆`)
