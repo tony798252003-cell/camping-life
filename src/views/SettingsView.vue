@@ -972,7 +972,58 @@ const startBatchUpdateGPS = async () => {
       // In a real refactor we should extract this to a composable or utility
       addLog(`找到 ${allTargets.length} 筆資料，準備處理...`)
       batchProgress.total = allTargets.length
-      // ... For now, keeping just the shell or copying fully if needed.
+
+      const geocoder = new window.google.maps.Geocoder()
+
+      for (const site of allTargets) {
+         const query = `${site.name} 台灣`
+         try {
+            const result = await new Promise<any>((resolve, reject) => {
+               geocoder.geocode({ address: query, region: 'TW' }, (results: any, status: any) => {
+                  if (status === 'OK' && results && results.length > 0) {
+                     resolve(results[0])
+                  } else {
+                     reject(new Error(`geocode failed: ${status}`))
+                  }
+               })
+            })
+
+            const lat = result.geometry.location.lat()
+            const lng = result.geometry.location.lng()
+
+            // Extract city/district from address_components
+            let city = site.city || ''
+            let district = site.district || ''
+            for (const comp of result.address_components) {
+               if (comp.types.includes('administrative_area_level_1')) {
+                  // Map to TAIWAN_LOCATIONS city IDs (台 → 臺)
+                  city = comp.long_name.replace(/^台/, '臺')
+               }
+               if (comp.types.includes('administrative_area_level_2') || comp.types.includes('administrative_area_level_3')) {
+                  district = comp.long_name
+               }
+            }
+
+            const { error: updateError } = await supabase
+               .from('campsites')
+               .update({ latitude: lat, longitude: lng, city, district })
+               .eq('id', site.id)
+
+            if (updateError) throw updateError
+
+            batchProgress.current++
+            addLog(`✅ ${site.name} → (${lat.toFixed(5)}, ${lng.toFixed(5)}) ${city}${district}`)
+         } catch (e: any) {
+            batchProgress.errors++
+            batchProgress.current++
+            addLog(`❌ ${site.name}: ${e.message}`)
+         }
+
+         // Avoid hitting Google rate limit
+         await new Promise(r => setTimeout(r, 200))
+      }
+
+      addLog(`完成！成功 ${batchProgress.current - batchProgress.errors} 筆，失敗 ${batchProgress.errors} 筆`)
    } catch(e: any) {
        addLog('Error: ' + e.message)
    } finally {
