@@ -42,20 +42,13 @@ const availableDistricts = computed(() => {
   return TAIWAN_LOCATIONS.find(c => c.id === local.value.city)?.districts ?? []
 })
 
-// District IDs in TAIWAN_LOCATIONS have suffixes (e.g. '魚池鄉', '尖石鄉')
-// but campsite.district in DB stores values WITHOUT suffix (e.g. '魚池', '尖石').
-function stripDistrictSuffix(d: string): string {
-  return d.replace(/(鄉|鎮|市|區|里)$/, '')
-}
-
 function onCitySelect(cityId: string) {
   local.value.city = local.value.city === cityId ? '' : cityId
   local.value.district = ''
 }
 
 function onDistrictSelect(districtId: string) {
-  const short = stripDistrictSuffix(districtId)
-  local.value.district = local.value.district === short ? '' : short
+  local.value.district = local.value.district === districtId ? '' : districtId
 }
 
 function toggleChip(arr: string[], val: string) {
@@ -132,7 +125,7 @@ function apply() {
               :key="d.id"
               @click="onDistrictSelect(d.id)"
               class="px-3 py-1.5 rounded-full text-sm border transition-all"
-              :class="local.district === stripDistrictSuffix(d.id) ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'"
+              :class="local.district === d.id ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'"
             >{{ d.name }}</button>
           </div>
         </div>

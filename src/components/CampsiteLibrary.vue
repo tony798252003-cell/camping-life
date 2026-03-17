@@ -120,10 +120,7 @@ const filteredCampsites = computed(() => {
 
   if (f.city) result = result.filter(c => c.city === f.city)
 
-  if (f.district) {
-    const districtShort = f.district.replace(/(鄉|鎮|市|區|里)$/, '')
-    result = result.filter(c => c.district === districtShort)
-  }
+  if (f.district) result = result.filter(c => c.district === f.district)
 
   if (f.playgroundFeatures.length)
     result = result.filter(c => f.playgroundFeatures.some(tag => c.playground_features?.includes(tag)))

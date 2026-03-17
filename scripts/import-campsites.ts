@@ -2,6 +2,7 @@ import XLSX from 'xlsx'
 import { createClient } from '@supabase/supabase-js'
 import * as dotenv from 'dotenv'
 import * as fs from 'fs'
+import { TAIWAN_LOCATIONS } from '../src/constants/locations'
 
 dotenv.config({ path: '.env' })
 dotenv.config({ path: '.env.local' })
@@ -47,15 +48,31 @@ function mapTags(raw: string | undefined, mapping: Record<string, string>): stri
   return result
 }
 
+// Maps Excel short city names to TAIWAN_LOCATIONS IDs
+const CITY_MAP: Record<string, string> = {
+  '基隆': '基隆市', '台北': '臺北市', '臺北': '臺北市',
+  '新北': '新北市', '桃園': '桃園市', '新竹市': '新竹市',
+  '新竹': '新竹縣', '苗栗': '苗栗縣', '台中': '臺中市', '臺中': '臺中市',
+  '彰化': '彰化縣', '南投': '南投縣', '雲林': '雲林縣',
+  '嘉義市': '嘉義市', '嘉義': '嘉義縣', '台南': '臺南市', '臺南': '臺南市',
+  '高雄': '高雄市', '屏東': '屏東縣', '宜蘭': '宜蘭縣',
+  '花蓮': '花蓮縣', '台東': '臺東縣', '臺東': '臺東縣',
+  '澎湖': '澎湖縣', '金門': '金門縣', '連江': '連江縣',
+}
+
 function parseLocation(location: string | undefined): { city: string; district: string } {
   if (!location) return { city: '', district: '' }
-  const s = String(location)
-  const cities = ['台北', '新北', '桃園', '新竹', '苗栗', '台中', '彰化', '南投', '雲林',
-    '嘉義', '台南', '高雄', '屏東', '宜蘭', '花蓮', '台東', '澎湖', '基隆', '新竹市', '嘉義市']
-  for (const city of cities) {
-    if (s.startsWith(city)) {
-      const district = s.slice(city.length).trim()
-      return { city, district }
+  const s = String(location).trim()
+  // Try longer prefixes first (e.g. '新竹市' before '新竹', '嘉義市' before '嘉義')
+  const sortedKeys = Object.keys(CITY_MAP).sort((a, b) => b.length - a.length)
+  for (const key of sortedKeys) {
+    if (s.startsWith(key)) {
+      const city = CITY_MAP[key]
+      const districtShort = s.slice(key.length).trim()
+      // Look up full district ID from TAIWAN_LOCATIONS (e.g. '成功' → '成功鎮')
+      const cityData = TAIWAN_LOCATIONS.find(c => c.id === city)
+      const districtFull = cityData?.districts.find(d => d.id.startsWith(districtShort))?.id ?? districtShort
+      return { city, district: districtFull }
     }
   }
   return { city: s, district: '' }
