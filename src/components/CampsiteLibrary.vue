@@ -152,19 +152,27 @@ const fetchCampsites = async () => {
     // Fetch usage counts + visited/booked ids
     const { data: tripData, error: tripError } = await supabase
       .from('camping_trips')
-      .select('campsite_id, status')
+      .select('campsite_id, campsite_name, status')
 
     if (!tripError && tripData) {
       const counts: Record<number, number> = {}
       const visited = new Set<number>()
+      const visitedNames = new Set<string>()
       ;(tripData as any[]).forEach(t => {
+        const isVisited = t.status === 'completed' || t.status === 'booked'
         if (t.campsite_id) {
           counts[t.campsite_id] = (counts[t.campsite_id] || 0) + 1
-          if (t.status === 'completed' || t.status === 'booked') {
-            visited.add(t.campsite_id)
-          }
+          if (isVisited) visited.add(t.campsite_id)
+        } else if (t.campsite_name && isVisited) {
+          visitedNames.add(t.campsite_name.trim())
         }
       })
+      // Also add IDs for name-matched campsites
+      for (const site of campsites.value) {
+        if (visitedNames.has(site.name.trim())) {
+          visited.add(site.id)
+        }
+      }
       usageCounts.value = counts
       visitedIds.value = visited
     }
