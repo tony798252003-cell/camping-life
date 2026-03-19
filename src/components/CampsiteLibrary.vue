@@ -236,17 +236,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-6 pb-24 font-sans text-center">
-    <div class="mb-6">
-      <h2 class="text-2xl font-black text-primary-900 flex items-center justify-center gap-2 mb-2">
-        <Search class="w-6 h-6 text-accent-sky" />
+  <div class="p-3 pb-24 font-sans text-center">
+    <div class="mb-3">
+      <h2 class="text-xl font-black text-primary-900 flex items-center justify-center gap-2 mb-1">
+        <Search class="w-5 h-5 text-accent-sky" />
         找營地
       </h2>
-      <p class="text-primary-500 text-sm">搜尋全台露營區資料庫</p>
     </div>
 
     <!-- Admin Tabs -->
-    <div v-if="isAdmin" class="flex justify-center mb-6">
+    <div v-if="isAdmin" class="flex justify-center mb-3">
        <div class="bg-gray-100 p-1 rounded-xl flex gap-1">
           <button 
             @click="activeTab = 'verified'; fetchCampsites()" 
@@ -267,7 +266,7 @@ onMounted(() => {
     </div>
 
     <!-- Search Bar + Filter Button -->
-    <div class="mb-6 flex gap-2 items-center">
+    <div class="mb-3 flex gap-2 items-center">
       <div class="relative flex-1">
         <input
           v-model="searchQuery"
@@ -301,107 +300,55 @@ onMounted(() => {
        <p>沒有找到相關營地</p>
     </div>
 
-    <div v-else class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-       <div 
-         v-for="site in filteredCampsites" 
-         :key="site.id" 
+    <div v-else class="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+       <div
+         v-for="site in filteredCampsites"
+         :key="site.id"
          @click="handleEdit(site)"
-         class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all text-left group relative cursor-pointer"
-         :class="{'ring-2 ring-primary-500 ring-offset-2': isAdmin}"
+         class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all text-left group relative cursor-pointer"
+         :class="{'ring-2 ring-primary-500 ring-offset-1': isAdmin}"
        >
-          <div class="flex justify-between items-start mb-2">
-             <div class="flex items-center gap-2">
-                <h3 class="font-bold text-lg text-primary-900 group-hover:text-accent-sky transition-colors">{{ site.name }}</h3>
-                <div v-if="!site.latitude || !site.longitude" class="text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1" title="缺少 GPS 座標">
+          <div class="flex justify-between items-start mb-1">
+             <div class="flex items-center gap-1 min-w-0">
+                <h3 class="font-bold text-sm text-primary-900 group-hover:text-accent-sky transition-colors truncate">{{ site.name }}</h3>
+                <div v-if="!site.latitude || !site.longitude" class="flex-shrink-0 text-orange-500" title="缺少 GPS 座標">
                    <AlertTriangle class="w-3 h-3" />
-                   無座標
                 </div>
              </div>
-             <span v-if="site.altitude" class="text-xs bg-purple-50 text-purple-600 px-2 py-1 rounded-md font-medium">
+             <span v-if="site.altitude" class="flex-shrink-0 text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded font-medium ml-1">
                {{ site.altitude }}m
              </span>
           </div>
-          
-          <div class="flex items-center text-gray-500 text-sm mb-1">
-             <MapPin class="w-4 h-4 mr-1 text-gray-400" />
-             {{ site.city }}{{ site.district }}
+
+          <div class="flex items-center text-gray-400 text-xs mb-1">
+             <MapPin class="w-3 h-3 mr-0.5 flex-shrink-0" />
+             <span class="truncate">{{ site.city }}{{ site.district }}</span>
           </div>
 
 
 
-          <!-- Zone Config (Raw) -->
-          <div v-if="site.zone_config" class="mb-3 px-3 py-2 bg-gray-50 rounded-lg text-xs text-gray-500 whitespace-pre-wrap border border-gray-100">
-             {{ site.zone_config }}
-          </div>
-
-          <!-- Tags -->
-          <div v-if="site.tags && site.tags.length > 0" class="flex flex-wrap gap-1.5 mb-3">
-             <span v-for="tag in site.tags" :key="tag" class="px-2 py-0.5 bg-gray-50 text-gray-600 text-xs rounded-md border border-gray-100 flex items-center gap-1">
-                <Tent v-if="['草地','棧板','碎石','雨棚'].includes(tag)" class="w-3 h-3" />
-                {{ tag }}
-             </span>
-          </div>
-
-          <!-- Phone -->
-          <div v-if="site.phone" class="text-xs text-gray-400 flex items-center gap-1 mb-2">
-             <Phone class="w-3 h-3" />
-             {{ site.phone }}
-          </div>
-
-          <!-- 景觀/設施標籤 -->
-          <div class="mt-2 flex flex-wrap gap-1" v-if="site.scenery_features?.length || site.water_features?.length || site.playground_features?.length">
-            <template v-for="tag in (site.scenery_features ?? []).slice(0, 3)" :key="'s-'+tag">
-              <span class="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full font-medium">{{ tag }}</span>
-            </template>
-            <span v-if="(site.scenery_features?.length ?? 0) > 3" class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
-              +{{ (site.scenery_features?.length ?? 0) - 3 }}
-            </span>
-            <span v-if="site.water_features?.length" class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">💧 水域</span>
-            <span v-if="site.playground_features?.length" class="text-[10px] bg-yellow-50 text-yellow-600 px-1.5 py-0.5 rounded-full">🎠 遊樂</span>
-          </div>
-
-          <!-- 訂位相關標籤 -->
-          <div class="mt-1 flex flex-wrap gap-1">
-            <span
-              v-if="site.booking_difficulty === 'hard'"
-              class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold"
-            >需搶</span>
-            <span
-              v-else-if="site.booking_difficulty === 'moderate'"
-              class="text-[10px] bg-orange-50 text-orange-500 px-1.5 py-0.5 rounded-full font-bold"
-            >稍難搶</span>
-            <a
-              v-if="site.booking_platform_url"
-              :href="site.booking_platform_url"
-              target="_blank"
-              rel="noopener"
-              @click.stop
-              class="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-full font-medium hover:bg-sky-100 transition-colors"
-            >前往訂位 ↗</a>
-            <span
-              v-if="site.booking_last_available_date && isNewlyOpened(site.booking_last_available_date, site.booking_scraped_at)"
-              class="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse"
-            >訂位剛開放！</span>
-            <span
-              v-if="isExpiringSoon(site.booking_available_until)"
-              class="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-medium"
-            >訂位快到期</span>
+          <!-- 設施 & 訂位標籤 -->
+          <div class="flex flex-wrap gap-1 mt-1">
+            <span v-if="site.scenery_features?.length" class="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">{{ site.scenery_features[0] }}</span>
+            <span v-if="site.water_features?.length" class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">💧</span>
+            <span v-if="site.playground_features?.length" class="text-[10px] bg-yellow-50 text-yellow-600 px-1.5 py-0.5 rounded-full">🎠</span>
+            <span v-if="site.booking_difficulty === 'hard'" class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold">需搶</span>
+            <span v-else-if="site.booking_difficulty === 'moderate'" class="text-[10px] bg-orange-50 text-orange-500 px-1.5 py-0.5 rounded-full">稍難</span>
+            <span v-if="site.booking_last_available_date && isNewlyOpened(site.booking_last_available_date, site.booking_scraped_at)" class="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse">剛開放</span>
           </div>
 
           <!-- Pending Actions (Admin Only) -->
-          <div v-if="isAdmin && !site.is_verified" class="mt-4 pt-4 border-t border-gray-100 flex justify-end gap-2">
-             <button @click.stop="deleteCampsite(site.id, true)" class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
-                <XCircle class="w-3.5 h-3.5" />
-                駁回
+          <div v-if="isAdmin && !site.is_verified" class="mt-2 pt-2 border-t border-gray-100 flex justify-end gap-1">
+             <button @click.stop="deleteCampsite(site.id, true)" class="bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-0.5">
+                <XCircle class="w-3 h-3" />駁回
              </button>
-             <button @click.stop="verifyCampsite(site.id)" class="bg-green-50 text-green-600 hover:bg-green-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
-                <CheckCircle class="w-3.5 h-3.5" />
-                通過
+             <button @click.stop="verifyCampsite(site.id)" class="bg-green-50 text-green-600 hover:bg-green-100 px-2 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-0.5">
+                <CheckCircle class="w-3 h-3" />通過
              </button>
           </div>
-          
+
           <!-- Usage Count (Admin Only or Verified) -->
-          <div v-if="isAdmin && site.is_verified" class="mt-3 pt-3 border-t border-gray-50 flex justify-between items-center">
+          <div v-if="isAdmin && site.is_verified" class="mt-2 pt-2 border-t border-gray-50 flex justify-between items-center">
               <span class="text-[10px] text-gray-400 font-bold">
                   已使用: {{ usageCounts[site.id] || 0 }} 次
               </span>
