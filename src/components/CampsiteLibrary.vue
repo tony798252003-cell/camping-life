@@ -353,16 +353,18 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-3 pb-24 font-sans text-center">
-    <div class="mb-3">
-      <h2 class="text-xl font-black text-primary-900 flex items-center justify-center gap-2 mb-1">
-        <Search class="w-5 h-5 text-accent-sky" />
-        找營地
-      </h2>
-    </div>
+  <div class="pb-24 font-sans text-center">
+    <!-- Sticky Header -->
+    <div class="sticky top-0 z-20 bg-gray-50 px-3 pt-3 pb-1 shadow-sm">
+      <div class="mb-3">
+        <h2 class="text-xl font-black text-primary-900 flex items-center justify-center gap-2 mb-1">
+          <Search class="w-5 h-5 text-accent-sky" />
+          找營地
+        </h2>
+      </div>
 
-    <!-- Admin Tabs -->
-    <div v-if="isAdmin" class="flex justify-center mb-3">
+      <!-- Admin Tabs -->
+      <div v-if="isAdmin" class="flex justify-center mb-3">
        <div class="bg-gray-100 p-1 rounded-xl flex gap-1">
           <button 
             @click="activeTab = 'verified'; fetchCampsites()" 
@@ -382,51 +384,52 @@ onMounted(() => {
        </div>
     </div>
 
-    <!-- Search Bar + Filter Button -->
-    <div class="mb-2 flex gap-2 items-center">
-      <div class="relative flex-1">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="搜尋營地名稱、縣市..."
-          class="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-sky focus:border-transparent outline-none transition-all shadow-sm"
-        />
-        <Search class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
+      <!-- Search Bar + Filter Button -->
+      <div class="mb-2 flex gap-2 items-center">
+        <div class="relative flex-1">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜尋營地名稱、縣市..."
+            class="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-sky focus:border-transparent outline-none transition-all shadow-sm"
+          />
+          <Search class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
+        </div>
+        <button
+          @click="isFilterOpen = true"
+          class="relative flex-shrink-0 flex items-center gap-1.5 px-4 py-3 bg-white border border-gray-200 rounded-xl shadow-sm font-semibold text-sm transition-all hover:border-primary-400"
+          :class="activeFilterCount > 0 ? 'text-primary-600 border-primary-400' : 'text-gray-600'"
+        >
+          <SlidersHorizontal class="w-4 h-4" />
+          篩選
+          <span
+            v-if="activeFilterCount > 0"
+            class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-primary-600 text-white text-[10px] font-bold flex items-center justify-center"
+          >{{ activeFilterCount }}</span>
+        </button>
       </div>
-      <button
-        @click="isFilterOpen = true"
-        class="relative flex-shrink-0 flex items-center gap-1.5 px-4 py-3 bg-white border border-gray-200 rounded-xl shadow-sm font-semibold text-sm transition-all hover:border-primary-400"
-        :class="activeFilterCount > 0 ? 'text-primary-600 border-primary-400' : 'text-gray-600'"
-      >
-        <SlidersHorizontal class="w-4 h-4" />
-        篩選
-        <span
-          v-if="activeFilterCount > 0"
-          class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-primary-600 text-white text-[10px] font-bold flex items-center justify-center"
-        >{{ activeFilterCount }}</span>
-      </button>
-    </div>
 
-    <!-- Quick Filter Chips -->
-    <div class="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide items-center">
-      <button
-        v-for="chip in visibleChips"
-        :key="chip.key"
-        @click="toggleQuickChip(chip)"
-        class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-        :class="isChipActive(chip) ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200'"
-      >{{ chip.label }}</button>
-      <button
-        @click="hideVisited = !hideVisited"
-        class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-        :class="hideVisited ? 'bg-gray-700 text-white border-gray-700' : 'bg-white text-gray-600 border-gray-200'"
-      >隱藏去過</button>
-      <button
-        @click="isChipConfigOpen = true"
-        class="flex-shrink-0 p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-        title="自訂快捷篩選"
-      ><Settings2 class="w-4 h-4" /></button>
-    </div>
+      <!-- Quick Filter Chips -->
+      <div class="mb-1 flex gap-2 overflow-x-auto pb-2 scrollbar-hide items-center">
+        <button
+          v-for="chip in visibleChips"
+          :key="chip.key"
+          @click="toggleQuickChip(chip)"
+          class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
+          :class="isChipActive(chip) ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200'"
+        >{{ chip.label }}</button>
+        <button
+          @click="hideVisited = !hideVisited"
+          class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
+          :class="hideVisited ? 'bg-gray-700 text-white border-gray-700' : 'bg-white text-gray-600 border-gray-200'"
+        >隱藏去過</button>
+        <button
+          @click="isChipConfigOpen = true"
+          class="flex-shrink-0 p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+          title="自訂快捷篩選"
+        ><Settings2 class="w-4 h-4" /></button>
+      </div>
+    </div><!-- end sticky -->
 
     <!-- Chip 設定 Modal -->
     <Teleport to="body">
@@ -451,16 +454,16 @@ onMounted(() => {
     </Teleport>
 
     <!-- List -->
-    <div v-if="loading" class="py-12">
+    <div v-if="loading" class="px-3 py-12">
        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto"></div>
     </div>
 
-    <div v-else-if="filteredCampsites.length === 0" class="py-12 text-gray-400">
+    <div v-else-if="filteredCampsites.length === 0" class="px-3 py-12 text-gray-400">
        <MapPin class="w-12 h-12 mx-auto mb-2 opacity-50" />
        <p>沒有找到相關營地</p>
     </div>
 
-    <div v-else class="flex flex-col gap-2">
+    <div v-else class="flex flex-col gap-2 px-3">
        <div
          v-for="site in filteredCampsites"
          :key="site.id"
