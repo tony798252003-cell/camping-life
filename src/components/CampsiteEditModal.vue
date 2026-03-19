@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { X, MapPin, Loader2, Navigation, Snowflake, IceCream, Droplets, Upload, Image as ImageIcon } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
@@ -118,8 +118,50 @@ const showerStart = ref('')
 const showerEnd = ref('')
 const isShower24H = ref(false)
 
+// localStorage draft key per campsite
+const draftKey = computed(() => `campsite-draft-${props.campsite?.id}`)
+
+function saveDraft() {
+  if (!props.isEditable) return
+  localStorage.setItem(draftKey.value, JSON.stringify({
+    form: form.value,
+    tagsString: tagsString.value,
+    nightRushStart: nightRushStart.value,
+    nightRushEnd: nightRushEnd.value,
+    showerStart: showerStart.value,
+    showerEnd: showerEnd.value,
+    isShower24H: isShower24H.value,
+  }))
+}
+
+function clearDraft() {
+  localStorage.removeItem(draftKey.value)
+}
+
+// Auto-save on any form change
+watch([form, tagsString, nightRushStart, nightRushEnd, showerStart, showerEnd, isShower24H],
+  saveDraft, { deep: true })
+
 watch(() => props.campsite, (newVal) => {
   if (newVal) {
+    // Check for saved draft first
+    const saved = localStorage.getItem(`campsite-draft-${newVal.id}`)
+    if (saved && props.isEditable) {
+      try {
+        const draft = JSON.parse(saved)
+        form.value = draft.form
+        tagsString.value = draft.tagsString ?? ''
+        nightRushStart.value = draft.nightRushStart ?? ''
+        nightRushEnd.value = draft.nightRushEnd ?? ''
+        showerStart.value = draft.showerStart ?? ''
+        showerEnd.value = draft.showerEnd ?? ''
+        isShower24H.value = draft.isShower24H ?? false
+        return
+      } catch {
+        clearDraft()
+      }
+    }
+
     form.value = {
       ...newVal,
       amenities: newVal.amenities || { // Ensure amenities object exists
@@ -224,6 +266,7 @@ const save = async () => {
     }
 
     console.log('Update success:', data)
+    clearDraft()
     emit('saved')
     emit('close')
   } catch (e: any) {
