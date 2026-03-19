@@ -212,7 +212,6 @@ function apply() {
             />
           </div>
         </div>
-      </div>
 
         <!-- 最少帳數 -->
         <div>
