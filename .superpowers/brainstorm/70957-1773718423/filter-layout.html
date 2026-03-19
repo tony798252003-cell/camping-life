@@ -1,0 +1,113 @@
+<h2>Filter 功能的 UI 佈局</h2>
+<p class="subtitle">篩選條件要放在哪裡？選一個你偏好的方向</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>頂部篩選列（Horizontal Filter Bar）</h3>
+      <p>篩選條件以下拉選單或 chip 的方式排在搜尋列下方，一排橫式呈現。點選後即時過濾結果。適合篩選項目不多時。</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">預覽</div>
+        <div class="mockup-body" style="padding:12px;font-size:13px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px;background:#f8f9fa;border-radius:8px;margin-bottom:8px">
+            <span style="background:#e2e8f0;padding:4px 10px;border-radius:20px;font-size:12px">縣市 ▾</span>
+            <span style="background:#e2e8f0;padding:4px 10px;border-radius:20px;font-size:12px">鄉鎮 ▾</span>
+            <span style="background:#e2e8f0;padding:4px 10px;border-radius:20px;font-size:12px">設施 ▾</span>
+            <span style="background:#e2e8f0;padding:4px 10px;border-radius:20px;font-size:12px">海拔 ▾</span>
+            <span style="background:#3b82f6;color:white;padding:4px 10px;border-radius:20px;font-size:12px">✕ 清除</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="background:#f1f5f9;border-radius:8px;height:60px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b">營地卡片</div>
+            <div style="background:#f1f5f9;border-radius:8px;height:60px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b">營地卡片</div>
+            <div style="background:#f1f5f9;border-radius:8px;height:60px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b">營地卡片</div>
+            <div style="background:#f1f5f9;border-radius:8px;height:60px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b">營地卡片</div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>優點</h4><ul><li>操作直覺</li><li>不佔空間</li></ul></div>
+        <div class="cons"><h4>缺點</h4><ul><li>選項多時擠</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>側邊篩選抽屜（Filter Drawer）</h3>
+      <p>點擊「篩選」按鈕後從右側或底部滑出抽屜，裡面有完整的篩選條件（多選 checkbox）。適合篩選項目複雜時。</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">預覽</div>
+        <div class="mockup-body" style="padding:12px;font-size:13px">
+          <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+            <div style="flex:1;background:#f1f5f9;border-radius:8px;padding:6px 10px;font-size:12px;color:#64748b">🔍 搜尋營區...</div>
+            <span style="background:#3b82f6;color:white;padding:6px 12px;border-radius:8px;font-size:12px">篩選 ▾</span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:1">
+              <div style="background:#f1f5f9;border-radius:8px;height:60px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b">營地卡片</div>
+              <div style="background:#f1f5f9;border-radius:8px;height:60px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b">營地卡片</div>
+              <div style="background:#f1f5f9;border-radius:8px;height:60px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b">營地卡片</div>
+              <div style="background:#f1f5f9;border-radius:8px;height:60px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b">營地卡片</div>
+            </div>
+            <div style="width:130px;background:#f8f9fa;border-radius:8px;padding:10px;font-size:11px;border:1px solid #e2e8f0">
+              <div style="font-weight:600;margin-bottom:6px">篩選</div>
+              <div style="margin-bottom:4px;color:#475569">縣市</div>
+              <div>☑ 南投縣</div><div>☐ 宜蘭縣</div>
+              <div style="margin-top:6px;margin-bottom:4px;color:#475569">設施</div>
+              <div>☑ 溜滑梯</div><div>☐ 戲水池</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>優點</h4><ul><li>可容納大量選項</li><li>清楚分類</li></ul></div>
+        <div class="cons"><h4>缺點</h4><ul><li>多一個點擊步驟</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>折疊篩選面板（Collapsible Panel）</h3>
+      <p>搜尋列下方有可展開/收合的篩選區塊，預設收合，點擊展開後顯示所有選項。</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">預覽</div>
+        <div class="mockup-body" style="padding:12px;font-size:13px">
+          <div style="background:#f1f5f9;border-radius:8px;padding:6px 10px;font-size:12px;color:#64748b;margin-bottom:6px">🔍 搜尋營區...</div>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px;margin-bottom:8px;font-size:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="color:#1d4ed8;font-weight:600">▼ 篩選條件</span>
+              <span style="color:#64748b;font-size:11px">已選 2 項</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <div><div style="color:#475569;margin-bottom:3px">縣市</div><select style="width:100%;font-size:11px;border:1px solid #cbd5e1;border-radius:4px;padding:2px">
+                <option>南投縣</option></select></div>
+              <div><div style="color:#475569;margin-bottom:3px">鄉鎮</div><select style="width:100%;font-size:11px;border:1px solid #cbd5e1;border-radius:4px;padding:2px">
+                <option>全部</option></select></div>
+              <div><div style="color:#475569;margin-bottom:3px">海拔</div>
+                <div style="display:flex;gap:4px"><input style="width:45%;font-size:11px;border:1px solid #cbd5e1;border-radius:4px;padding:2px" placeholder="最低"/><input style="width:45%;font-size:11px;border:1px solid #cbd5e1;border-radius:4px;padding:2px" placeholder="最高"/></div>
+              </div>
+              <div><div style="color:#475569;margin-bottom:3px">設施</div>
+                <div style="display:flex;flex-wrap:wrap;gap:3px">
+                  <span style="background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:10px;font-size:10px">溜滑梯 ✕</span>
+                  <span style="background:#e2e8f0;padding:2px 6px;border-radius:10px;font-size:10px">戲水池</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="background:#f1f5f9;border-radius:8px;height:50px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b">營地卡片</div>
+            <div style="background:#f1f5f9;border-radius:8px;height:50px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b">營地卡片</div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>優點</h4><ul><li>介面整合度高</li><li>不需切換頁面</li></ul></div>
+        <div class="cons"><h4>缺點</h4><ul><li>展開時佔頁面空間</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

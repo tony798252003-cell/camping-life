@@ -31,13 +31,16 @@
     "autoprefixer": "^10.4.23",
     "d3-geo": "^3.1.1",
     "d3-geo-projection": "^4.0.0",
+    "dotenv": "^17.3.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "topojson-client": "^3.1.0",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "vite": "npm:rolldown-vite@7.2.5",
     "vite-plugin-pwa": "^1.2.0",
-    "vue-tsc": "^3.1.4"
+    "vue-tsc": "^3.1.4",
+    "xlsx": "^0.18.5"
   },
   "overrides": {
     "vite": "npm:rolldown-vite@7.2.5"
