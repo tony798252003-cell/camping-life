@@ -13,6 +13,8 @@ const props = defineProps<{
 
 const campsites = ref<Campsite[]>([])
 const usageCounts = ref<Record<number, number>>({}) // campsite_id -> count
+const visitedIds = ref<Set<number>>(new Set()) // completed or booked campsite_ids
+const hideVisited = ref(false)
 const loading = ref(false)
 const searchQuery = ref('')
 const activeTab = ref<'verified' | 'pending'>('verified')
@@ -147,19 +149,24 @@ const fetchCampsites = async () => {
     if (error) throw error
     campsites.value = data || []
 
-    // Fetch usage counts
+    // Fetch usage counts + visited/booked ids
     const { data: tripData, error: tripError } = await supabase
       .from('camping_trips')
-      .select('campsite_id')
-    
+      .select('campsite_id, status')
+
     if (!tripError && tripData) {
       const counts: Record<number, number> = {}
+      const visited = new Set<number>()
       ;(tripData as any[]).forEach(t => {
         if (t.campsite_id) {
           counts[t.campsite_id] = (counts[t.campsite_id] || 0) + 1
+          if (t.status === 'completed' || t.status === 'booked') {
+            visited.add(t.campsite_id)
+          }
         }
       })
       usageCounts.value = counts
+      visitedIds.value = visited
     }
   } catch (e) {
     console.error('Error fetching campsites:', e)
@@ -207,6 +214,9 @@ const filteredCampsites = computed(() => {
 
   if (f.capacityMin !== null)
     result = result.filter(c => (c.total_capacity ?? 0) >= f.capacityMin!)
+
+  if (hideVisited.value)
+    result = result.filter(c => !visitedIds.value.has(c.id))
 
   return result
 })
@@ -367,6 +377,11 @@ onMounted(() => {
         class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
         :class="isChipActive(chip) ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200'"
       >{{ chip.label }}</button>
+      <button
+        @click="hideVisited = !hideVisited"
+        class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
+        :class="hideVisited ? 'bg-gray-700 text-white border-gray-700' : 'bg-white text-gray-600 border-gray-200'"
+      >隱藏去過</button>
     </div>
 
     <!-- List -->
