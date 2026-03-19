@@ -237,15 +237,15 @@ watch([showerStart, showerEnd, isShower24H], () => {
 })
 
 const save = async () => {
-  if (!form.value.id) return
   isSaving.value = true
-  
+  const isNew = form.value.id === 0
+
   try {
     const updates = {
       ...form.value,
       tags: tagsString.value.split(/[,，]/).map(t => t.trim()).filter(Boolean)
     }
-    
+
     // Remove protected fields
     delete (updates as any).id
     delete (updates as any).created_at
@@ -253,7 +253,6 @@ const save = async () => {
 
     console.log('Sending updates:', updates)
 
-    const isNew = !form.value.id || form.value.id === 0
     const { data, error } = isNew
       ? await (supabase.from('campsites') as any).insert(updates).select()
       : await (supabase.from('campsites') as any).update(updates).eq('id', form.value.id).select()
