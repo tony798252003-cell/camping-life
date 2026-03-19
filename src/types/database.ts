@@ -18,6 +18,12 @@ export interface Profile {
     onboarding_completed_at?: string | null
 }
 
+export interface CapacityZone {
+    name: string        // 區域名稱，例如 A區、草地區，可空白
+    type: '草地' | '碎石' | '雨棚' | '棧板' | '其他'
+    tents: number       // 該區帳數
+}
+
 export interface Campsite {
     id: number
     created_at: string
@@ -57,6 +63,8 @@ export interface Campsite {
     night_rush_time?: string
     shower_restrictions?: string
     layout_image_url?: string
+    total_capacity?: number | null
+    capacity_zones?: CapacityZone[]
 }
 
 export interface CampingTrip {

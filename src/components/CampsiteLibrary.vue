@@ -29,6 +29,7 @@ const filters = ref<CampsiteFilters>({
   spotTypes: [],
   altitudeMin: null,
   altitudeMax: null,
+  capacityMin: null,
 })
 
 const activeFilterCount = computed(() => {
@@ -41,6 +42,7 @@ const activeFilterCount = computed(() => {
   if (f.sceneryFeatures.length) count++
   if (f.spotTypes.length) count++
   if (f.altitudeMin !== null || f.altitudeMax !== null) count++
+  if (f.capacityMin !== null) count++
   return count
 })
 
@@ -162,6 +164,9 @@ const filteredCampsites = computed(() => {
 
   if (f.altitudeMax !== null)
     result = result.filter(c => c.altitude !== null && c.altitude !== undefined && c.altitude <= f.altitudeMax!)
+
+  if (f.capacityMin !== null)
+    result = result.filter(c => (c.total_capacity ?? 0) >= f.capacityMin!)
 
   return result
 })

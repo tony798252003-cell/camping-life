@@ -12,6 +12,7 @@ export interface CampsiteFilters {
   spotTypes: string[]
   altitudeMin: number | null
   altitudeMax: number | null
+  capacityMin: number | null
 }
 
 const props = defineProps<{
@@ -34,7 +35,8 @@ const local = ref<CampsiteFilters>({
   playgroundFeatures: [...props.modelValue.playgroundFeatures],
   waterFeatures: [...props.modelValue.waterFeatures],
   sceneryFeatures: [...props.modelValue.sceneryFeatures],
-  spotTypes: [...props.modelValue.spotTypes]
+  spotTypes: [...props.modelValue.spotTypes],
+  capacityMin: props.modelValue.capacityMin ?? null,
 })
 
 const availableDistricts = computed(() => {
@@ -66,7 +68,8 @@ function reset() {
     sceneryFeatures: [],
     spotTypes: [],
     altitudeMin: null,
-    altitudeMax: null
+    altitudeMax: null,
+    capacityMin: null,
   }
 }
 
@@ -207,6 +210,21 @@ function apply() {
               max="3000"
               class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             />
+          </div>
+        </div>
+      </div>
+
+        <!-- 最少帳數 -->
+        <div>
+          <div class="text-sm font-semibold text-gray-600 mb-2">最少帳數</div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="n in [5, 10, 15, 20, 30]"
+              :key="n"
+              @click="local.capacityMin = local.capacityMin === n ? null : n"
+              class="px-3 py-1.5 rounded-full text-sm border transition-all"
+              :class="local.capacityMin === n ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'"
+            >{{ n }}帳以上</button>
           </div>
         </div>
       </div>
