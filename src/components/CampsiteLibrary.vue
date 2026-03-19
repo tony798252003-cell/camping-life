@@ -356,33 +356,28 @@ onMounted(() => {
   <div class="pb-24 font-sans text-center">
     <!-- Sticky Header -->
     <div class="sticky top-0 z-20 bg-gray-50 px-3 pt-3 pb-1 shadow-sm">
-      <div class="mb-3">
-        <h2 class="text-xl font-black text-primary-900 flex items-center justify-center gap-2 mb-1">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-xl font-black text-primary-900 flex items-center gap-2">
           <Search class="w-5 h-5 text-accent-sky" />
           找營地
         </h2>
-      </div>
-
-      <!-- Admin Tabs -->
-      <div v-if="isAdmin" class="flex justify-center mb-3">
-       <div class="bg-gray-100 p-1 rounded-xl flex gap-1">
-          <button 
-            @click="activeTab = 'verified'; fetchCampsites()" 
-            class="px-4 py-2 rounded-lg text-sm font-bold transition-all"
-            :class="activeTab === 'verified' ? 'bg-white text-primary-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-          >
-            已發布
-          </button>
-          <button 
-            @click="activeTab = 'pending'; fetchCampsites()" 
-            class="px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1"
-            :class="activeTab === 'pending' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+        <!-- Admin Tabs -->
+        <div v-if="isAdmin" class="bg-gray-100 p-0.5 rounded-lg flex gap-0.5">
+          <button
+            @click="activeTab = 'verified'; fetchCampsites()"
+            class="px-3 py-1 rounded-md text-xs font-bold transition-all"
+            :class="activeTab === 'verified' ? 'bg-white text-primary-900 shadow-sm' : 'text-gray-500'"
+          >已發布</button>
+          <button
+            @click="activeTab = 'pending'; fetchCampsites()"
+            class="px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1"
+            :class="activeTab === 'pending' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500'"
           >
             待審核
-            <span class="w-2 h-2 rounded-full bg-orange-500" v-if="activeTab !== 'pending'"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-orange-500" v-if="activeTab !== 'pending'"></span>
           </button>
-       </div>
-    </div>
+        </div>
+      </div>
 
       <!-- Search Bar + Filter Button -->
       <div class="mb-2 flex gap-2 items-center">
