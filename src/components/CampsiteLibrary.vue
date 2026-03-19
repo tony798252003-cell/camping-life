@@ -300,12 +300,12 @@ onMounted(() => {
        <p>沒有找到相關營地</p>
     </div>
 
-    <div v-else class="flex flex-col divide-y divide-gray-100">
+    <div v-else class="flex flex-col gap-2">
        <div
          v-for="site in filteredCampsites"
          :key="site.id"
          @click="handleEdit(site)"
-         class="flex items-center gap-3 py-3 px-1 hover:bg-gray-50 transition-colors cursor-pointer group"
+         class="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all cursor-pointer group"
        >
           <!-- 左：名稱 + 地點 -->
           <div class="flex-1 min-w-0">
