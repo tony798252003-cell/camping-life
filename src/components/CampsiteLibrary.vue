@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Search, MapPin, Plus, CheckCircle, Upload, AlertTriangle, XCircle, SlidersHorizontal, ChevronRight } from 'lucide-vue-next'
+import { Search, MapPin, Plus, CheckCircle, Upload, AlertTriangle, XCircle, SlidersHorizontal, ChevronRight, Settings2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { Campsite } from '../types/database'
 import ImportCampsites from './ImportCampsites.vue'
@@ -292,6 +292,44 @@ const deleteCampsite = async (id: number, isReject = false) => {
   }
 }
 
+// Quick chip preferences
+const enabledChipKeys = ref<string[]>(QUICK_CHIPS.map(c => c.key)) // 預設全開
+const isChipConfigOpen = ref(false)
+const userId = ref<string | null>(null)
+
+const visibleChips = computed(() => QUICK_CHIPS.filter(c => enabledChipKeys.value.includes(c.key)))
+
+async function loadChipPrefs() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return
+  userId.value = session.user.id
+  const { data } = await supabase
+    .from('profiles')
+    .select('campsite_quick_chips')
+    .eq('id', session.user.id)
+    .single()
+  if (data?.campsite_quick_chips?.length) {
+    enabledChipKeys.value = data.campsite_quick_chips
+  }
+}
+
+async function saveChipPrefs() {
+  if (!userId.value) return
+  await supabase
+    .from('profiles')
+    .update({ campsite_quick_chips: enabledChipKeys.value } as any)
+    .eq('id', userId.value)
+}
+
+function toggleChipKey(key: string) {
+  if (enabledChipKeys.value.includes(key)) {
+    enabledChipKeys.value = enabledChipKeys.value.filter(k => k !== key)
+  } else {
+    enabledChipKeys.value = [...enabledChipKeys.value, key]
+  }
+  saveChipPrefs()
+}
+
 const isNewlyOpened = (lastAvailableDate: string | null | undefined, scrapedAt: string | null | undefined) => {
   if (!lastAvailableDate || !scrapedAt) return false
   const scraped = new Date(scrapedAt)
@@ -310,6 +348,7 @@ const isExpiringSoon = (availableUntil: string | null | undefined) => {
 
 onMounted(() => {
   fetchCampsites()
+  loadChipPrefs()
 })
 </script>
 
@@ -369,9 +408,9 @@ onMounted(() => {
     </div>
 
     <!-- Quick Filter Chips -->
-    <div class="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+    <div class="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide items-center">
       <button
-        v-for="chip in QUICK_CHIPS"
+        v-for="chip in visibleChips"
         :key="chip.key"
         @click="toggleQuickChip(chip)"
         class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
@@ -382,7 +421,34 @@ onMounted(() => {
         class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
         :class="hideVisited ? 'bg-gray-700 text-white border-gray-700' : 'bg-white text-gray-600 border-gray-200'"
       >隱藏去過</button>
+      <button
+        @click="isChipConfigOpen = true"
+        class="flex-shrink-0 p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+        title="自訂快捷篩選"
+      ><Settings2 class="w-4 h-4" /></button>
     </div>
+
+    <!-- Chip 設定 Modal -->
+    <Teleport to="body">
+      <div v-if="isChipConfigOpen" class="fixed inset-0 bg-black/40 z-50 flex items-end" @click.self="isChipConfigOpen = false">
+        <div class="bg-white w-full rounded-t-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <span class="font-bold text-gray-800">自訂快捷篩選</span>
+            <button @click="isChipConfigOpen = false" class="text-gray-400 hover:text-gray-600">✕</button>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="chip in QUICK_CHIPS"
+              :key="chip.key"
+              @click="toggleChipKey(chip.key)"
+              class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
+              :class="enabledChipKeys.includes(chip.key) ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-400 border-gray-200'"
+            >{{ chip.label }}</button>
+          </div>
+          <p class="text-xs text-gray-400 mt-3">點選開啟或關閉，會自動儲存</p>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- List -->
     <div v-if="loading" class="py-12">
