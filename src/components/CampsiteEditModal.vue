@@ -253,11 +253,10 @@ const save = async () => {
 
     console.log('Sending updates:', updates)
 
-    const { data, error } = await (supabase
-      .from('campsites') as any)
-      .update(updates)
-      .eq('id', form.value.id)
-      .select()
+    const isNew = !form.value.id || form.value.id === 0
+    const { data, error } = isNew
+      ? await (supabase.from('campsites') as any).insert(updates).select()
+      : await (supabase.from('campsites') as any).update(updates).eq('id', form.value.id).select()
 
     if (error) throw error
     

@@ -49,8 +49,31 @@ function applyFilters(newFilters: CampsiteFilters) {
 }
 
 const handleEdit = (site: Campsite) => {
-  // Allow everyone to view details
   editingCampsite.value = site
+  isEditModalOpen.value = true
+}
+
+const handleAddNew = () => {
+  editingCampsite.value = {
+    id: 0,
+    name: '',
+    city: '',
+    district: '',
+    altitude: null,
+    latitude: null,
+    longitude: null,
+    phone: null,
+    tags: [],
+    amenities: { has_fridge: false, has_freezer: false, has_water_dispenser: false },
+    is_verified: false,
+    created_at: new Date().toISOString(),
+    playground_features: [],
+    water_features: [],
+    scenery_features: [],
+    spot_types: [],
+    booking_method: [],
+    booking_difficulty: 'normal',
+  } as any
   isEditModalOpen.value = true
 }
 
@@ -349,7 +372,8 @@ onMounted(() => {
         <Upload class="w-6 h-6" />
       </button>
 
-      <button 
+      <button
+        @click="handleAddNew"
         class="bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 active:scale-90 transition-all z-40 flex items-center justify-center border-4 border-surface-50 w-14 h-14"
         title="新增營地 (管理員)"
       >
