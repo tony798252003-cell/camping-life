@@ -50,6 +50,46 @@ function applyFilters(newFilters: CampsiteFilters) {
   filters.value = newFilters
 }
 
+// Quick chips
+interface QuickChip {
+  key: string
+  label: string
+  apply: (f: CampsiteFilters) => void
+  isActive: (f: CampsiteFilters) => boolean
+}
+
+const QUICK_CHIPS: QuickChip[] = [
+  { key: 'alt800', label: '800m+', apply: f => { f.altitudeMin = 800 }, isActive: f => f.altitudeMin === 800 },
+  { key: 'alt1000', label: '1000m+', apply: f => { f.altitudeMin = 1000 }, isActive: f => f.altitudeMin === 1000 },
+  { key: 'shelter', label: '有雨棚', apply: f => { if (!f.spotTypes.includes('雨棚')) f.spotTypes.push('雨棚') }, isActive: f => f.spotTypes.includes('雨棚') },
+  { key: 'forest', label: '森林', apply: f => { if (!f.sceneryFeatures.includes('森林')) f.sceneryFeatures.push('森林') }, isActive: f => f.sceneryFeatures.includes('森林') },
+  { key: 'water', label: '有戲水', apply: f => { if (!f.waterFeatures.includes('溪流')) f.waterFeatures.push('溪流') }, isActive: f => f.waterFeatures.includes('溪流') },
+  { key: 'playground', label: '有遊樂', apply: f => { if (!f.playgroundFeatures.includes('溜滑梯')) f.playgroundFeatures.push('溜滑梯') }, isActive: f => f.playgroundFeatures.length > 0 },
+  { key: 'cap15', label: '15帳+', apply: f => { f.capacityMin = 15 }, isActive: f => f.capacityMin === 15 },
+  { key: 'cap20', label: '20帳+', apply: f => { f.capacityMin = 20 }, isActive: f => f.capacityMin === 20 },
+  { key: 'cap30', label: '30帳+', apply: f => { f.capacityMin = 30 }, isActive: f => f.capacityMin === 30 },
+]
+
+function isChipActive(chip: QuickChip) {
+  return chip.isActive(filters.value)
+}
+
+function toggleQuickChip(chip: QuickChip) {
+  const f = { ...filters.value, spotTypes: [...filters.value.spotTypes], sceneryFeatures: [...filters.value.sceneryFeatures], waterFeatures: [...filters.value.waterFeatures], playgroundFeatures: [...filters.value.playgroundFeatures] }
+  if (chip.isActive(f)) {
+    // 取消
+    if (chip.key === 'alt800' || chip.key === 'alt1000') f.altitudeMin = null
+    else if (chip.key === 'shelter') f.spotTypes = f.spotTypes.filter(t => t !== '雨棚')
+    else if (chip.key === 'forest') f.sceneryFeatures = f.sceneryFeatures.filter(t => t !== '森林')
+    else if (chip.key === 'water') f.waterFeatures = f.waterFeatures.filter(t => t !== '溪流')
+    else if (chip.key === 'playground') f.playgroundFeatures = []
+    else if (chip.key.startsWith('cap')) f.capacityMin = null
+  } else {
+    chip.apply(f)
+  }
+  filters.value = f
+}
+
 const handleEdit = (site: Campsite) => {
   editingCampsite.value = site
   isEditModalOpen.value = true
@@ -294,7 +334,7 @@ onMounted(() => {
     </div>
 
     <!-- Search Bar + Filter Button -->
-    <div class="mb-3 flex gap-2 items-center">
+    <div class="mb-2 flex gap-2 items-center">
       <div class="relative flex-1">
         <input
           v-model="searchQuery"
@@ -316,6 +356,17 @@ onMounted(() => {
           class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-primary-600 text-white text-[10px] font-bold flex items-center justify-center"
         >{{ activeFilterCount }}</span>
       </button>
+    </div>
+
+    <!-- Quick Filter Chips -->
+    <div class="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+      <button
+        v-for="chip in QUICK_CHIPS"
+        :key="chip.key"
+        @click="toggleQuickChip(chip)"
+        class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
+        :class="isChipActive(chip) ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200'"
+      >{{ chip.label }}</button>
     </div>
 
     <!-- List -->
@@ -351,9 +402,17 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- 右：海拔 + pending admin actions -->
+          <!-- 右：海拔 + 帳數 + pending admin actions -->
           <div class="flex-shrink-0 flex items-center gap-2">
             <span v-if="site.altitude" class="text-[10px] text-purple-500 font-medium">{{ site.altitude }}m</span>
+            <span
+              v-if="site.total_capacity"
+              class="text-[10px] text-indigo-500 font-medium"
+            >{{ site.total_capacity }}帳</span>
+            <span
+              v-else-if="isAdmin"
+              class="text-[10px] text-gray-300 font-medium"
+            >?帳</span>
             <template v-if="isAdmin && !site.is_verified">
               <button @click.stop="deleteCampsite(site.id, true)" class="text-red-400 hover:text-red-600 p-1 transition-colors" title="駁回">
                 <XCircle class="w-4 h-4" />
