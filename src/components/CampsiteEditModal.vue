@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { X, MapPin, Loader2, Navigation, Snowflake, IceCream, Droplets, Upload, Image as ImageIcon, Plus, Trash2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { TAIWAN_LOCATIONS } from '../constants/locations'

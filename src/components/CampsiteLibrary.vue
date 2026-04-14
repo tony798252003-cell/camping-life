@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Search, MapPin, Plus, CheckCircle, Upload, AlertTriangle, XCircle, SlidersHorizontal, ChevronRight, Settings2 } from 'lucide-vue-next'
+import { Search, MapPin, Plus, CheckCircle, Upload, XCircle, SlidersHorizontal, ChevronRight, Settings2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { Campsite } from '../types/database'
 import ImportCampsites from './ImportCampsites.vue'
@@ -315,7 +315,7 @@ async function loadChipPrefs() {
     .from('profiles')
     .select('campsite_quick_chips')
     .eq('id', session.user.id)
-    .single()
+    .single() as any
   if (data?.campsite_quick_chips?.length) {
     enabledChipKeys.value = data.campsite_quick_chips
   }
@@ -323,9 +323,9 @@ async function loadChipPrefs() {
 
 async function saveChipPrefs() {
   if (!userId.value) return
-  await supabase
+  await (supabase as any)
     .from('profiles')
-    .update({ campsite_quick_chips: enabledChipKeys.value } as any)
+    .update({ campsite_quick_chips: enabledChipKeys.value })
     .eq('id', userId.value)
 }
 
@@ -346,13 +346,6 @@ const isNewlyOpened = (lastAvailableDate: string | null | undefined, scrapedAt: 
   return scraped > sevenDaysAgo
 }
 
-const isExpiringSoon = (availableUntil: string | null | undefined) => {
-  if (!availableUntil) return false
-  const deadline = new Date(availableUntil)
-  const thirtyDaysLater = new Date()
-  thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30)
-  return deadline <= thirtyDaysLater && deadline >= new Date()
-}
 
 onMounted(() => {
   fetchCampsites()

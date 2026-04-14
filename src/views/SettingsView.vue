@@ -997,7 +997,7 @@ const startBatchUpdateGPS = async () => {
             const lat = result.geometry.location.lat()
             const lng = result.geometry.location.lng()
 
-            const { error: updateError } = await supabase
+            const { error: updateError } = await (supabase as any)
                .from('campsites')
                .update({ latitude: lat, longitude: lng })
                .eq('id', site.id)

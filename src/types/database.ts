@@ -16,6 +16,7 @@ export interface Profile {
     is_admin?: boolean // Added for Admin permissions
     family_id?: string | null // Family Link
     onboarding_completed_at?: string | null
+    campsite_quick_chips?: string[] | null
 }
 
 export interface CapacityZone {
