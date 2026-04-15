@@ -254,6 +254,12 @@ const save = async () => {
     delete (updates as any).created_at
     delete (updates as any).created_by
 
+    // For new campsites, set created_by to current user
+    if (isNew) {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) (updates as any).created_by = session.user.id
+    }
+
     console.log('Sending updates:', updates)
 
     const { data, error } = isNew
