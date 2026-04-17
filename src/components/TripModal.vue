@@ -387,10 +387,10 @@ const selectCampsite = (campsite: Campsite) => {
     formData.value.longitude = campsite.longitude
   }
   if (campsite.altitude) formData.value.altitude = campsite.altitude
-  let loc = ''
-  if (campsite.city) loc += campsite.city
-  if (campsite.district) loc += campsite.district
-  if (loc) formData.value.location = loc
+  if (campsite.city) {
+    selectedCity.value = campsite.city
+    selectedDistrict.value = campsite.district || ''
+  }
   showCampsiteDropdown.value = false
 }
 
