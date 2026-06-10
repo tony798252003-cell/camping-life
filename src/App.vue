@@ -205,21 +205,23 @@ onMounted(async () => {
   await initAuth()
 
   // Watch for auth changes to load user data
-  watch([session, isAuthReady], async ([sess, ready]) => {
-    if (ready && sess) {
+  // Watch user id (not the session object) so token refresh on tab refocus
+  // doesn't retrigger a full refetch and unmount the current view
+  watch([() => session.value?.user?.id, isAuthReady], async ([userId, ready]) => {
+    if (ready && userId) {
       const pendingCode = localStorage.getItem('pending_invite_code')
       if (pendingCode) {
         inviteCode.value = pendingCode
         localStorage.removeItem('pending_invite_code')
      }
-      await fetchProfile(sess.user.id)
-      await fetchTrips(sess.user.id, familyId())
+      await fetchProfile(userId)
+      await fetchTrips(userId, familyId())
 
       // Check if onboarding should be shown
       if (shouldShowOnboarding(userProfile.value, hasTent.value)) {
         openOnboarding()
       }
-    } else if (ready && !sess) {
+    } else if (ready && !userId) {
       clearProfile()
       clearTrips()
     }
