@@ -160,7 +160,6 @@ export interface GearItem {
     id: number
     name: string
     category: string
-    price: number
     purchase_date: string
     brand: string | null
     notes: string | null
@@ -182,7 +181,6 @@ export type CampingGear = GearItem // Alias for consistency if needed
 export interface NewGearItem {
     name: string
     category: string
-    price: number
     purchase_date: string
     brand?: string
     notes?: string

@@ -151,7 +151,6 @@ const saveTent = async () => {
             brand: newTentBrand.value.trim(),
             base_usage_count: 0,
             cost: 0,
-            price: 0,
             purchase_date: (new Date().toISOString().split('T')[0] as string),
             type: 'tent',
             category: 'tent',

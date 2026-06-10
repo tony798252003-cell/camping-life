@@ -14,9 +14,9 @@ const isSubmitting = ref(false)
 
 // Default examples for reset
 const defaultExamples: NewGearItem[] = [
-  { name: '屋脊13', base_usage_count: 19, cost: 8992, price: 8992, rental_price: 1400, type: 'tent', category: 'tent', purchase_date: new Date().toISOString() },
-  { name: 'CC3', base_usage_count: 12, cost: 34400, price: 34400, rental_price: 2700, type: 'tent', category: 'tent', purchase_date: new Date().toISOString() },
-  { name: '天幕', base_usage_count: 13, cost: 4400, price: 4400, rental_price: 800, type: 'tarp', category: 'tarp', purchase_date: new Date().toISOString() },
+  { name: '屋脊13', base_usage_count: 19, cost: 8992, rental_price: 1400, type: 'tent', category: 'tent', purchase_date: new Date().toISOString() },
+  { name: 'CC3', base_usage_count: 12, cost: 34400, rental_price: 2700, type: 'tent', category: 'tent', purchase_date: new Date().toISOString() },
+  { name: '天幕', base_usage_count: 13, cost: 4400, rental_price: 800, type: 'tarp', category: 'tarp', purchase_date: new Date().toISOString() },
 ]
 
 // Fetch Data
@@ -55,7 +55,6 @@ const addItem = async () => {
       name: '新裝備',
       base_usage_count: 0,
       cost: 0,
-      price: 0,
       rental_price: 0,
       type: 'other',
       category: 'other',
