@@ -21,6 +21,10 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 
 const outIdx = process.argv.indexOf('--out')
 const outArg = outIdx !== -1 ? process.argv[outIdx + 1] : '~/camping-life-backups'
+if (!outArg || outArg.startsWith('--')) {
+  console.error('用法：backup-all.ts [--out <目錄>]')
+  process.exit(2)
+}
 const outBase = path.resolve(outArg.replace(/^~(?=$|\/)/, os.homedir()))
 
 const rel = path.relative(repoRoot, outBase)

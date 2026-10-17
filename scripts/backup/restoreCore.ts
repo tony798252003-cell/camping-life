@@ -35,3 +35,19 @@ export function diffRows(backup: Row[], live: Row[]): { changed: Row[]; missing:
   }
   return { changed, missing }
 }
+
+export function sqlLiteral(v: unknown): string {
+  if (v === null || v === undefined) return 'NULL'
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v)
+  const esc = (s: string) => s.replace(/'/g, "''")
+  if (typeof v === 'object') return `'${esc(JSON.stringify(v))}'::jsonb`
+  return `'${esc(String(v))}'`
+}
+
+/** 產生可貼進 Supabase SQL Editor 的 INSERT（用於 id 為 GENERATED ALWAYS 的表） */
+export function buildInsertSql(table: string, rows: Row[]): string {
+  const cols: string[] = []
+  for (const r of rows) for (const k of Object.keys(r)) if (!cols.includes(k)) cols.push(k)
+  const values = rows.map(r => `(${cols.map(c => sqlLiteral(r[c])).join(', ')})`).join(',\n')
+  return `INSERT INTO public.${table} (${cols.map(c => `"${c}"`).join(', ')}) OVERRIDING SYSTEM VALUE VALUES\n${values};`
+}
