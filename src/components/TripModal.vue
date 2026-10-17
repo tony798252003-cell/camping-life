@@ -7,6 +7,8 @@ import {
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
+import { canSaveTrip, CAMPSITE_REQUIRED_MESSAGE } from '../utils/tripValidation'
+import { useNotification } from '../composables/useNotification'
 
 import TripWeather from './TripWeather.vue'
 import GooglePlaceSearch from './GooglePlaceSearch.vue'
@@ -19,6 +21,7 @@ interface Props {
   userProfile?: any
   hasPrev?: boolean
   hasNext?: boolean
+  initialDate?: string | null
 }
 
 const props = defineProps<Props>()
@@ -26,6 +29,7 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'submit', data: NewCampingTrip): void
   (e: 'edit-campsite', campsite: any): void
+  (e: 'add-campsite', name: string): void
   (e: 'delete', id: number): void
   (e: 'prev'): void
   (e: 'next'): void
@@ -35,6 +39,8 @@ const emit = defineEmits<{
 // Seamless editing: No explicit View/Edit mode toggle.
 // We track changes to show/hide the Save button.
 const isSubmitting = ref(false)
+const campsiteError = ref('')
+const { warning } = useNotification()
 const originalTripData = ref<any>(null)
 
 // Location selection
@@ -216,7 +222,7 @@ const initFormData = (newTrip: any) => {
 
 function resetForm() {
   const emptyForm = {
-    trip_date: new Date().toISOString().split('T')[0],
+    trip_date: props.initialDate || new Date().toISOString().split('T')[0],
     campsite_name: '',
     duration_days: 2,
     location: '',
@@ -269,6 +275,8 @@ watch(() => props.isOpen, (newVal) => {
     // Fetch tents for selection
     fetchTents()
     
+    campsiteError.value = ''
+    
     if (props.trip) {
       initFormData(props.trip)
     } else {
@@ -300,23 +308,10 @@ const handleSubmit = async () => {
 
   isSubmitting.value = true
   try {
-    // Handle new campsite logic if needed
-    if (!formData.value.campsite_id && formData.value.campsite_name) {
-       const { data: existing } = await supabase.from('campsites').select('id').eq('name', formData.value.campsite_name).single()
-       if (existing) {
-         formData.value.campsite_id = (existing as any).id
-       } else {
-         const newCampsite = {
-           name: formData.value.campsite_name,
-           latitude: formData.value.latitude,
-           longitude: formData.value.longitude,
-           altitude: formData.value.altitude || null,
-           is_verified: false,
-           city: formData.value.location ? formData.value.location.substring(0, 3) : null
-         }
-         const { data: created, error } = await supabase.from('campsites').insert([newCampsite] as any).select().single()
-         if (!error && created) formData.value.campsite_id = (created as any).id
-       }
+    if (!canSaveTrip(!props.trip, formData.value.campsite_id)) {
+      campsiteError.value = CAMPSITE_REQUIRED_MESSAGE
+      warning(CAMPSITE_REQUIRED_MESSAGE)
+      return
     }
 
     const payload = { ...formData.value }
@@ -376,9 +371,12 @@ const selectCampsite = (campsite: Campsite) => {
     selectedDistrict.value = campsite.district || ''
   }
   showCampsiteDropdown.value = false
+  campsiteError.value = ''
 }
 
 const closeDropdown = () => setTimeout(() => { showCampsiteDropdown.value = false }, 200)
+
+defineExpose({ selectCampsite })
 
 const handleGooglePlaceSelected = (place: any) => {
   formData.value.campsite_name = place.name
@@ -562,6 +560,12 @@ onMounted(async () => {
                                         </li>
                                       </ul>
                                     </div>
+                               </div>
+                               <div v-if="!trip" class="mt-3 flex flex-col items-center gap-1">
+                                   <button type="button" @click="emit('add-campsite', formData.campsite_name)" class="text-sm font-bold text-primary-700 bg-white/70 px-3 py-1 rounded-full shadow-sm border border-white/40">
+                                       ＋新增營區
+                                   </button>
+                                   <p v-if="campsiteError" class="text-xs font-bold text-red-500">{{ campsiteError }}</p>
                                </div>
                            </div>
                       </div>

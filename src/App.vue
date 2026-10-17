@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterView } from 'vue-router'
-import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './types/database'
+import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite, Campsite } from './types/database'
 
 // Components
 import TripModal from './components/TripModal.vue'
@@ -13,6 +13,7 @@ import ConfirmDialog from './components/ConfirmDialog.vue'
 import { useAuth } from './composables/useAuth'
 import { useUserProfile } from './composables/useUserProfile'
 import { useTrips } from './composables/useTrips'
+import { useTripModal } from './composables/useTripModal'
 
 // Router
 const router = useRouter()
@@ -24,8 +25,8 @@ const { userProfile, fetchProfile, clearProfile, familyId, isAdmin, userOrigin }
 const { trips, loading, fetchTrips, createTrip, updateTrip, deleteTrip, updateNightRush, findTripById, clearTrips } = useTrips()
 
 // Modal state
-const isModalOpen = ref(false)
-const activeTrip = ref<CampingTripWithCampsite | null>(null)
+const { isOpen: isModalOpen, activeTrip, initialDate, openNew, openEdit, close: closeTripModal } = useTripModal()
+const tripModalRef = ref<InstanceType<typeof TripModal> | null>(null)
 const isCampsiteEditOpen = ref(false)
 const editingCampsiteData = ref<any>(null)
 const campsiteLibraryKey = ref(0)
@@ -65,18 +66,15 @@ watch(() => [isAuthReady.value, session.value], ([ready, sess]) => {
 
 // Actions
 const handleViewDetail = (trip: CampingTrip) => {
-  activeTrip.value = trip as CampingTripWithCampsite
-  isModalOpen.value = true
+  openEdit(trip as CampingTripWithCampsite)
 }
 
 const handleAdd = () => {
-  activeTrip.value = null
-  isModalOpen.value = true
+  openNew()
 }
 
 const handleEdit = (trip: CampingTrip) => {
-  activeTrip.value = trip as CampingTripWithCampsite
-  isModalOpen.value = true
+  openEdit(trip as CampingTripWithCampsite)
 }
 
 const handleDeleteTrip = async (id: number) => {
@@ -113,7 +111,7 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
       }
     }
 
-    isModalOpen.value = false
+    closeTripModal()
     activeTrip.value = null
   }
 }
@@ -130,7 +128,35 @@ const handleEditCampsite = (campsite: any) => {
   isCampsiteEditOpen.value = true
 }
 
-const handleCampsiteSaved = () => {
+// TripModal 內「＋新增營區」：在其上疊開新增模式，TripModal 不卸載、表單保留
+const handleAddCampsiteFromTrip = (name: string) => {
+  editingCampsiteData.value = {
+    id: 0,
+    name,
+    city: '',
+    district: '',
+    altitude: null,
+    latitude: null,
+    longitude: null,
+    phone: null,
+    tags: [],
+    amenities: { has_fridge: false, has_freezer: false, has_water_dispenser: false },
+    is_verified: false,
+    created_at: new Date().toISOString(),
+    playground_features: [],
+    water_features: [],
+    scenery_features: [],
+    spot_types: [],
+    booking_method: [],
+    booking_difficulty: 'normal',
+  }
+  isCampsiteEditOpen.value = true
+}
+
+const handleCampsiteSaved = (saved?: Campsite) => {
+  if (editingCampsiteData.value?.id === 0 && saved) {
+    tripModalRef.value?.selectCampsite(saved)
+  }
   isCampsiteEditOpen.value = false
   editingCampsiteData.value = null
   campsiteLibraryKey.value++
@@ -238,15 +264,18 @@ onMounted(async () => {
   
       <!-- Modals -->
       <TripModal
+        ref="tripModalRef"
         :is-open="isModalOpen"
         :trip="activeTrip"
+        :initial-date="initialDate"
         :is-admin="userProfile?.is_admin || false"
         :user-profile="userProfile"
         :has-prev="hasPrevTrip"
         :has-next="hasNextTrip"
-        @close="isModalOpen = false"
+        @close="closeTripModal"
         @submit="handleSubmit"
         @edit-campsite="handleEditCampsite"
+        @add-campsite="handleAddCampsiteFromTrip"
         @delete="deleteTrip"
         @prev="navigateTrip('prev')"
         @next="navigateTrip('next')"
