@@ -36,20 +36,6 @@
         <!-- MENU VIEW -->
         <div v-if="currentView === 'menu'" class="p-6 space-y-3">
            
-           <!-- Family Button -->
-           <button @click="currentView = 'family'" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
-              <div class="flex items-center gap-3">
-                 <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-                    <User class="w-5 h-5" />
-                 </div>
-                 <div class="text-left">
-                    <h3 class="font-bold text-gray-900">家庭共享</h3>
-                    <p class="text-xs text-gray-500">邀請家人加入，同步行程裝備</p>
-                 </div>
-              </div>
-              <ChevronRight class="w-5 h-5 text-gray-300" />
-           </button>
-
            <button @click="currentView = 'location'" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
               <div class="flex items-center gap-3">
                  <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
@@ -123,130 +109,6 @@
            </button>
         </div>
 
-        <!-- FAMILY VIEW -->
-        <div v-else-if="currentView === 'family'" class="p-6 space-y-6">
-           <div v-if="userFamily" class="text-center space-y-6">
-              <div class="w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-full mx-auto flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-                 {{ userFamily.name.charAt(0) }}
-              </div>
-              <div>
-                 <h3 class="text-2xl font-bold text-gray-900">{{ userFamily.name }}</h3>
-                 <p class="text-gray-500 text-sm">已加入家庭共享</p>
-              </div>
-
-              <div class="bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300">
-                 <p class="text-xs text-gray-500 mb-2 uppercase tracking-wide">邀請代碼</p>
-                 <div class="text-3xl font-mono font-bold text-indigo-600 tracking-widest select-all">
-                    {{ userFamily.invite_code }}
-                 </div>
-                 <p class="text-xs text-gray-400 mt-2">將此代碼分享給您的另一半</p>
-              </div>
-
-              <button 
-                @click="shareInviteLink"
-                class="w-full py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl hover:bg-indigo-100 flex items-center justify-center gap-2 transition-colors active:scale-[0.98]"
-              >
-                 <Share2 class="w-5 h-5" />
-                 分享加入連結
-              </button>
-              
-              <div v-if="familyMembers.length > 0" class="border-t border-gray-100 pt-4 text-left">
-                 <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">家庭成員</h4>
-                 <div class="space-y-2">
-                    <div v-for="member in familyMembers" :key="member.id" class="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
-                       <div class="flex items-center gap-3 overflow-hidden">
-                          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0 overflow-hidden">
-                             <img v-if="member.avatar_url" :src="member.avatar_url" class="w-full h-full object-cover" />
-                             <span v-else>{{ member.email?.charAt(0).toUpperCase() }}</span>
-                          </div>
-                          <div class="flex flex-col min-w-0">
-                             <div class="flex items-center gap-2">
-                                <span class="text-sm font-medium text-gray-700 truncate block">{{ member.name }}</span>
-                                <span v-if="member.is_head" class="px-1.5 py-0.5 text-[10px] bg-yellow-100 text-yellow-700 rounded-full font-bold whitespace-nowrap">戶長</span>
-                             </div>
-                          </div>
-                       </div>
-                       
-                       <!-- Actions -->
-                       <div v-if="isFamilyHead && !member.is_head" class="shrink-0">
-                          <button @click="kickMember(member.id)" class="text-xs text-red-400 hover:text-red-600 px-2 py-1">移除</button>
-                       </div>
-                    </div>
-                 </div>
-              </div>
-
-              <div class="pt-4 border-t border-gray-100">
-                 <button 
-                  @click="leaveFamily"
-                  class="w-full py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm font-medium"
-                 >
-                    退出家庭
-                 </button>
-                 
-                 <div class="mt-2">
-                    <button 
-                      @click="handleManualMigration"
-                      :disabled="isProcessingFamily"
-                      class="text-xs text-gray-400 hover:text-gray-600 underline"
-                    >
-                       匯入我的舊資料
-                    </button>
-                 </div>
-              </div>
-           </div>
-
-           <div v-else class="space-y-8">
-              <!-- Create -->
-              <div class="space-y-4">
-                 <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <span class="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs">1</span>
-                    建立新家庭
-                 </h3>
-                 <div class="flex gap-2">
-                    <input 
-                      v-model="newFamilyName"
-                      type="text" 
-                      placeholder="輸入家庭名稱 (例如: 王小明的家)"
-                      class="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                    />
-                    <button 
-                      @click="createFamily"
-                      :disabled="isProcessingFamily || !newFamilyName"
-                      class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-                    >
-                      建立
-                    </button>
-                 </div>
-              </div>
-
-              <div class="h-px bg-gray-100"></div>
-
-              <!-- Join -->
-              <div class="space-y-4">
-                 <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <span class="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs">2</span>
-                    加入現有家庭
-                 </h3>
-                 <div class="flex gap-2">
-                    <input 
-                      v-model="inviteCodeInput"
-                      type="text" 
-                      placeholder="輸入 6 位數邀請碼"
-                      class="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none uppercase font-mono placeholder:font-sans"
-                      maxlength="6"
-                    />
-                    <button 
-                      @click="joinFamily"
-                      :disabled="isProcessingFamily || !inviteCodeInput"
-                      class="px-4 py-2 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-                    >
-                      加入
-                    </button>
-                 </div>
-              </div>
-           </div>
-        </div>
-
         <!-- LOCATION VIEW -->
         <div v-else-if="currentView === 'location'" class="p-6 space-y-6">
           <div class="space-y-4">
@@ -255,12 +117,7 @@
               位置設定
             </h3>
             
-            <div v-if="userFamily && !isFamilyHead" class="bg-blue-50 text-blue-800 p-3 rounded-lg text-xs flex items-start gap-2">
-               <ShieldAlert class="w-4 h-4 mt-0.5 shrink-0" />
-               <p>您已加入家庭群組，起始位置設定由<strong>戶長</strong>統一管理。如需修改請聯繫戶長。</p>
-            </div>
-
-            <div class="space-y-3" :class="{'opacity-60 pointer-events-none': userFamily && !isFamilyHead}">
+            <div class="space-y-3">
               <div>
                  <label class="block text-xs text-gray-500 mb-1">搜尋地點 (輸入地址或地標)</label>
                  <GooglePlaceSearch
@@ -373,9 +230,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { Settings, MapPin, Navigation, LogOut, Loader2, User, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Share2, Images } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { Settings, MapPin, Navigation, LogOut, Loader2, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Images } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { CampingTripWithCampsite } from '../types/database'
 import GearROIView from '../components/GearROIView.vue'
@@ -386,7 +243,6 @@ import { syncCpblScheduleForYear, clearCpblScheduleForYear } from '../services/c
 
 // Logic to fetch necessary data if not provided (for standalone view)
 const router = useRouter()
-const route = useRoute()
 
 // We need to either receive props or fetch data. 
 // Since we are moving to a view, we might not get complex props like 'trips' easily unless using a store or passing state.
@@ -409,7 +265,7 @@ const internalIsAdmin = ref(false)
 
 const effectiveUserId = computed(() => props.userId || internalUserId.value)
 
-type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'family' | 'admin'
+type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'admin'
 const currentView = ref<ViewState>('menu')
 const isAssetManagerOpen = ref(false)
 
@@ -439,31 +295,6 @@ const handlePlaceSelected = (place: any) => {
   formData.value.location_name = place.name || place.formatted_address || ''
   formData.value.latitude = place.lat
   formData.value.longitude = place.lng
-}
-
-const shareInviteLink = async () => {
-  if (!userFamily.value) return
-  
-  const url = `${window.location.origin}?invite_code=${userFamily.value.invite_code}`
-  const text = `加入我的露營家庭「${userFamily.value.name}」！點擊連結加入：\n${url}`
-  
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: '加入露營家庭',
-        text: text
-      })
-    } catch (e) {
-      console.log('Share cancelled')
-    }
-  } else {
-    try {
-      await navigator.clipboard.writeText(text)
-      alert('已複製邀請連結！')
-    } catch (e) {
-      alert('複製失敗，請手動複製代碼')
-    }
-  }
 }
 
 // CPBL Sync Logic
@@ -512,7 +343,7 @@ const fetchProfile = async () => {
   try {
     const { data } = await supabase
       .from('profiles')
-      .select('*, families(*)')
+      .select('*')
       .eq('id', uid)
       .single()
 
@@ -523,207 +354,12 @@ const fetchProfile = async () => {
         longitude: (data as any).longitude
       }
       internalIsAdmin.value = (data as any).is_admin || false
-      
-      if ((data as any).families) {
-        userFamily.value = (data as any).families
-      }
     }
   } catch (err) {
     console.error('Error fetching profile:', err)
   } finally {
     isLoadingProfile.value = false
   }
-}
-
-// Family Logic
-const userFamily = ref<any>(null)
-const inviteCodeInput = ref('')
-const newFamilyName = ref('')
-const isProcessingFamily = ref(false)
-const familyMembers = ref<any[]>([])
-
-const isFamilyHead = computed(() => {
-   return userFamily.value && userFamily.value.created_by === effectiveUserId.value
-})
-
-const fetchFamilyMembers = async () => {
-   if (!userFamily.value) return
-   try {
-      const { data, error } = await (supabase.rpc as any)('get_family_members')
-      if (error) throw error
-      familyMembers.value = ((data as any[]) || []).sort((a: any, b: any) => {
-         if (a.is_head && !b.is_head) return -1
-         if (!a.is_head && b.is_head) return 1
-         return 0
-      })
-   } catch (e) {
-      console.error('Error fetching members:', e)
-   }
-}
-
-watch(userFamily, (newVal) => {
-   if (newVal) {
-      fetchFamilyMembers()
-   } else {
-      familyMembers.value = []
-   }
-}, { immediate: true })
-
-const kickMember = async (targetId: string) => {
-   const { useConfirm } = await import('../composables/useConfirm')
-   const { confirm: showConfirm } = useConfirm()
-   
-   const confirmed = await showConfirm({
-       title: '確定要移除此成員嗎？',
-       message: '該成員將無法看到家庭行程，但其個人行程會保留。',
-       confirmText: '確定移除',
-       cancelText: '取消',
-       type: 'warning'
-   })
-   
-   if (!confirmed) return
-   
-   try {
-      const { error } = await (supabase.rpc as any)('kick_family_member', { target_user_id: targetId })
-      if (error) throw error
-      alert('已移除成員')
-      await fetchFamilyMembers()
-   } catch(e: any) {
-      alert('移除失敗: ' + e.message)
-   }
-}
-
-const leaveFamily = async () => {
-   const { useConfirm } = await import('../composables/useConfirm')
-   const { confirm: showConfirm } = useConfirm()
-   
-   const confirmed = await showConfirm({
-       title: '確定要退出家庭嗎？',
-       message: '退出後您將無法看到家庭共有行程，頁面將重新整理。',
-       confirmText: '確定退出',
-       cancelText: '取消',
-       type: 'warning'
-   })
-   
-   if (!confirmed) return
-   
-   try {
-      const { error } = await (supabase.rpc as any)('leave_family')
-      if (error) throw error
-      alert('已退出家庭，頁面將重新整理。')
-      window.location.href = '/'
-   } catch(e: any) {
-      alert('退出失敗: ' + e.message)
-   }
-}
-
-const createFamily = async () => {
-  if (!newFamilyName.value) return alert('請輸入家庭名稱')
-  if (!effectiveUserId.value) return
-
-  isProcessingFamily.value = true
-  try {
-    const list = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    let code = ""
-    for(let i=0; i<6; i++) {
-      code += list.charAt(Math.floor(Math.random() * list.length))
-    }
-
-    const { data: family, error } = await supabase
-      .from('families')
-      .insert([{
-        name: newFamilyName.value,
-        invite_code: code,
-        created_by: effectiveUserId.value
-      }] as any)
-      .select()
-      .single()
-
-    if (error) throw error
-    if (!family) throw new Error('Family creation failed')
-
-    await linkUserToFamily((family as any).id)
-    await migrateUserDataToFamily((family as any).id)
-    
-    userFamily.value = family
-    newFamilyName.value = ''
-    alert('家庭建立成功！已將既有行程匯入家庭。')
-  } catch(e: any) {
-    alert('建立失敗: ' + e.message)
-  } finally {
-    isProcessingFamily.value = false
-  }
-}
-
-const handleManualMigration = async () => {
-  if (!userFamily.value) return
-  
-  isProcessingFamily.value = true
-  try {
-    await migrateUserDataToFamily(userFamily.value.id)
-    alert('匯入完成！')
-  } catch (e) {
-    alert('匯入失敗')
-  } finally {
-    isProcessingFamily.value = false
-  }
-}
-
-const joinFamily = async () => {
-  const codeToUse = inviteCodeInput.value?.toUpperCase()
-  if (!codeToUse) return alert('請輸入邀請碼')
-  
-  isProcessingFamily.value = true
-  try {
-    const { data: families, error } = await (supabase.rpc as any)('get_family_by_invite_code', { 
-       code_input: codeToUse
-    })
-      
-    if (error) throw error
-    if (!families || (families as any[]).length === 0) throw new Error('找不到此邀請碼的家庭')
-    
-    const family = (families as any[])[0]
-    await linkUserToFamily((family as any).id)
-    await migrateUserDataToFamily((family as any).id)
-    
-    userFamily.value = family
-    inviteCodeInput.value = ''
-    alert(`成功加入 ${(family as any).name}！`)
-    window.location.reload()
-  } catch(e: any) {
-    alert('加入失敗: ' + e.message)
-  } finally {
-    isProcessingFamily.value = false
-  }
-}
-
-const linkUserToFamily = async (familyId: string) => {
-  if (!effectiveUserId.value) return
-  const { error } = await (supabase
-    .from('profiles') as any)
-    .update({ family_id: familyId })
-    .eq('id', effectiveUserId.value)
-  if (error) throw error
-}
-
-const migrateUserDataToFamily = async (familyId: string) => {
-  if (!effectiveUserId.value) return
-  
-  const { error: tripError } = await (supabase
-    .from('camping_trips') as any)
-    .update({ family_id: familyId })
-    .eq('user_id', effectiveUserId.value)
-    .is('family_id', null)
-    
-  if (tripError) console.error('Trip migration failed', tripError)
-  
-  const { error: gearError } = await (supabase
-    .from('camping_gear') as any)
-    .update({ family_id: familyId })
-    .eq('user_id', effectiveUserId.value)
-    .is('family_id', null)
-
-  if (gearError) console.error('Gear migration failed', gearError)
 }
 
 const getCurrentLocation = () => {
@@ -784,13 +420,6 @@ onMounted(async () => {
      }
   } else {
      fetchProfile()
-  }
-
-  // Handle URL code
-  const code = props.initialInviteCode || route.query.invite_code as string
-  if (code) {
-     inviteCodeInput.value = code
-     currentView.value = 'family'
   }
 })
 </script>
