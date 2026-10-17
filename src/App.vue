@@ -129,15 +129,17 @@ const handleEditCampsite = (campsite: any) => {
 }
 
 // TripModal 內「＋新增營區」：在其上疊開新增模式，TripModal 不卸載、表單保留
-const handleAddCampsiteFromTrip = (name: string) => {
+const handleAddCampsiteFromTrip = (prefill: { name: string; latitude?: number; longitude?: number; altitude?: number }) => {
+  // 營區圖鑑新增流程共用 draft key，清掉舊草稿才不會蓋掉預填的名稱
+  localStorage.removeItem('campsite-draft-0')
   editingCampsiteData.value = {
     id: 0,
-    name,
+    name: prefill.name,
     city: '',
     district: '',
-    altitude: null,
-    latitude: null,
-    longitude: null,
+    altitude: prefill.altitude ?? null,
+    latitude: prefill.latitude ?? null,
+    longitude: prefill.longitude ?? null,
     phone: null,
     tags: [],
     amenities: { has_fridge: false, has_freezer: false, has_water_dispenser: false },
@@ -285,6 +287,7 @@ onMounted(async () => {
         v-if="isCampsiteEditOpen && editingCampsiteData"
         :is-open="isCampsiteEditOpen"
         :campsite="editingCampsiteData"
+        :is-editable="editingCampsiteData.id === 0"
         @close="isCampsiteEditOpen = false"
         @saved="handleCampsiteSaved"
       />

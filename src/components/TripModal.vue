@@ -29,7 +29,7 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'submit', data: NewCampingTrip): void
   (e: 'edit-campsite', campsite: any): void
-  (e: 'add-campsite', name: string): void
+  (e: 'add-campsite', prefill: { name: string; latitude?: number; longitude?: number; altitude?: number }): void
   (e: 'delete', id: number): void
   (e: 'prev'): void
   (e: 'next'): void
@@ -562,7 +562,7 @@ onMounted(async () => {
                                     </div>
                                </div>
                                <div v-if="!trip" class="mt-3 flex flex-col items-center gap-1">
-                                   <button type="button" @click="emit('add-campsite', formData.campsite_name)" class="text-sm font-bold text-primary-700 bg-white/70 px-3 py-1 rounded-full shadow-sm border border-white/40">
+                                   <button type="button" @click="emit('add-campsite', { name: formData.campsite_name, latitude: formData.latitude, longitude: formData.longitude, altitude: formData.altitude })" class="text-sm font-bold text-primary-700 bg-white/70 px-3 py-1 rounded-full shadow-sm border border-white/40">
                                        ＋新增營區
                                    </button>
                                    <p v-if="campsiteError" class="text-xs font-bold text-red-500">{{ campsiteError }}</p>
