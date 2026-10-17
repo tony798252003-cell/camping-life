@@ -4,7 +4,6 @@ import { ArrowRight } from 'lucide-vue-next'
 import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 import StatsHeader from './StatsHeader.vue'
 import NextTripCard from './NextTripCard.vue'
-import TripMemoryWidget from './TripMemoryWidget.vue'
 
 
 const props = defineProps<{
@@ -188,9 +187,6 @@ const resetSlide = () => {
 
       </div>
 
-      <!-- Memories Widget -->
-      <TripMemoryWidget />
-      
     </div>
 
       <!-- 如果沒有下次露營，顯示空狀態引導 -->

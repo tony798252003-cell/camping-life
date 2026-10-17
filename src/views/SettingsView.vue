@@ -26,9 +26,6 @@
              <span v-else-if="currentView === 'admin'" class="flex items-center gap-2">
                <ShieldAlert class="w-5 h-5 text-red-600" /> 管理員專區
              </span>
-             <span v-else-if="currentView === 'dev-tools'" class="flex items-center gap-2">
-               <Settings class="w-5 h-5 text-purple-600" /> 開發者工具
-             </span>
            </h2>
         </div>
       </div>
@@ -113,20 +110,6 @@
                  <div class="text-left">
                     <h3 class="font-bold text-gray-900">管理員專區</h3>
                     <p class="text-xs text-gray-500">批次數據維護 (隱藏功能)</p>
-                 </div>
-              </div>
-              <ChevronRight class="w-5 h-5 text-gray-300" />
-           </button>
-
-           <!-- Dev Tools (只在開發環境顯示) -->
-           <button v-if="isDev" @click="currentView = 'dev-tools'" class="w-full flex items-center justify-between p-4 bg-white border border-purple-200 rounded-xl transition-all active:scale-[0.98] shadow-sm">
-              <div class="flex items-center gap-3">
-                 <div class="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                    <Settings class="w-5 h-5" />
-                 </div>
-                 <div class="text-left">
-                    <h3 class="font-bold text-gray-900">🛠️ 開發者工具</h3>
-                    <p class="text-xs text-gray-500">測試與除錯功能</p>
                  </div>
               </div>
               <ChevronRight class="w-5 h-5 text-gray-300" />
@@ -343,35 +326,6 @@
               </p>
               
               <div class="space-y-4">
-                 <div class="bg-white p-4 rounded-lg border border-red-200 shadow-sm">
-                    <h4 class="font-bold text-gray-800 mb-1">批次更新 GPS 與地點</h4>
-                    <p class="text-xs text-gray-500 mb-3">
-                       搜尋所有缺少經緯度的營地，透過 Google Maps API 自動填入座標，並強制標準化縣市/鄉鎮欄位。
-                    </p>
-                    
-                    <div v-if="batchProgress.total > 0" class="mb-3">
-                       <div class="flex justify-between text-xs mb-1">
-                          <span>進度: {{ batchProgress.current }} / {{ batchProgress.total }}</span>
-                          <span v-if="batchProgress.errors > 0" class="text-red-500">失敗: {{ batchProgress.errors }}</span>
-                       </div>
-                       <div class="w-full bg-gray-200 rounded-full h-2">
-                          <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" :style="{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }"></div>
-                       </div>
-                       <div class="mt-2 max-h-32 overflow-y-auto text-[10px] font-mono bg-gray-900 text-green-400 p-2 rounded">
-                          <div v-for="(log, i) in batchLogs" :key="i">{{ log }}</div>
-                       </div>
-                    </div>
-
-                    <button 
-                       @click="startBatchUpdateGPS"
-                       :disabled="isBatchProcessing"
-                       class="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                       <Loader2 v-if="isBatchProcessing" class="w-4 h-4 animate-spin" />
-                       {{ isBatchProcessing ? '處理中...' : '開始批次更新' }}
-                    </button>
-                 </div>
-                 
                  <div class="bg-white p-4 rounded-lg border border-blue-200 shadow-sm mt-4">
                     <h4 class="font-bold text-gray-800 mb-1 flex items-center gap-2">
                        ⚾ 同步/清除 CPBL 賽程
@@ -408,28 +362,6 @@
            </div>
         </div>
 
-        <!-- DEV TOOLS VIEW -->
-        <div v-else-if="currentView === 'dev-tools'" class="p-6 space-y-6">
-           <div class="bg-purple-50 border border-purple-100 rounded-xl p-4">
-              <h3 class="font-bold text-purple-800 mb-2 flex items-center gap-2">
-                 <Settings class="w-5 h-5" />
-                 🛠️ 開發者工具
-              </h3>
-              <p class="text-xs text-purple-600 mb-4">
-                 測試與除錯功能，僅在開發環境顯示。
-              </p>
-
-              <div class="space-y-4">
-                 <!-- 未來可以在這裡加入更多開發工具 -->
-                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <p class="text-xs text-gray-500 text-center">
-                       💡 更多開發工具即將推出...
-                    </p>
-                 </div>
-              </div>
-           </div>
-        </div>
-
       </div>
       
       <!-- System Asset Manager Modal -->
@@ -441,7 +373,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive, computed, onMounted } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Settings, MapPin, Navigation, LogOut, Loader2, User, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Share2, Images } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
@@ -477,12 +409,10 @@ const internalIsAdmin = ref(false)
 
 const effectiveUserId = computed(() => props.userId || internalUserId.value)
 
-type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'family' | 'admin' | 'dev-tools'
+type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'family' | 'admin'
 const currentView = ref<ViewState>('menu')
 const isAssetManagerOpen = ref(false)
 
-// Dev tools state
-const isDev = import.meta.env.DEV
 
 // Navigation
 const goBack = () => {
@@ -494,7 +424,6 @@ const handleLogout = async () => {
     router.push('/auth')
 }
 
-// ... Copying logic from SettingsModal ...
 
 const formData = ref({
   location_name: '',
@@ -841,99 +770,6 @@ const saveSettings = async () => {
   } finally {
     isSaving.value = false
   }
-}
-
-// Batch Logic
-const isBatchProcessing = ref(false)
-const batchProgress = reactive({ current: 0, total: 0, errors: 0 })
-const batchLogs = ref<string[]>([])
-const addLog = (msg: string) => {
-   batchLogs.value.unshift(`[${new Date().toLocaleTimeString()}] ${msg}`)
-}
-
-const startBatchUpdateGPS = async () => {   
-   if (!window.google || !window.google.maps || !window.google.maps.places) {
-      alert('Google Maps API 尚未載入，請稍後再試')
-      return
-   }
-
-   isBatchProcessing.value = true
-   batchLogs.value = []
-   batchProgress.current = 0
-   batchProgress.total = 0
-   batchProgress.errors = 0
-   
-   try {
-      addLog('正在搜尋缺少座標的營地...')
-      const { data: targets, error } = await supabase
-         .from('campsites')
-         .select('*')
-         .is('latitude', null)
-      
-      if (error) throw error
-      
-      const { data: targets0 } = await supabase.from('campsites').select('*').eq('latitude', 0)
-      const allTargets = [...((targets || []) as any[]), ...((targets0 || []) as any[])].filter((v,i,a) => a.findIndex((t: any) => t.id === v.id) === i)
-      
-      if (allTargets.length === 0) {
-         addLog('沒有發現缺少座標的營地。')
-         isBatchProcessing.value = false
-         return
-      }
-      // ... (Rest of batch logic simplified for brevity, assuming standard implementation) ...
-      // In a real refactor we should extract this to a composable or utility
-      addLog(`找到 ${allTargets.length} 筆資料，準備處理...`)
-      batchProgress.total = allTargets.length
-
-      // Use a dummy map element for PlacesService (required by the API)
-      const mapDiv = document.createElement('div')
-      const dummyMap = new window.google.maps.Map(mapDiv, { center: { lat: 23.5, lng: 121 }, zoom: 8 })
-      const placesService = new window.google.maps.places.PlacesService(dummyMap)
-
-      for (const site of allTargets) {
-         const query = `${site.name} 台灣露營`
-         try {
-            const result = await new Promise<any>((resolve, reject) => {
-               placesService.findPlaceFromQuery(
-                  { query, fields: ['geometry', 'name', 'formatted_address'] },
-                  (results: any, status: any) => {
-                     if (status === window.google.maps.places.PlacesServiceStatus.OK && results?.length > 0) {
-                        resolve(results[0])
-                     } else {
-                        reject(new Error(`places failed: ${status}`))
-                     }
-                  }
-               )
-            })
-
-            const lat = result.geometry.location.lat()
-            const lng = result.geometry.location.lng()
-
-            const { error: updateError } = await (supabase as any)
-               .from('campsites')
-               .update({ latitude: lat, longitude: lng })
-               .eq('id', site.id)
-
-            if (updateError) throw updateError
-
-            batchProgress.current++
-            addLog(`✅ ${site.name} → (${lat.toFixed(5)}, ${lng.toFixed(5)})`)
-         } catch (e: any) {
-            batchProgress.errors++
-            batchProgress.current++
-            addLog(`❌ ${site.name}: ${e.message}`)
-         }
-
-         // Avoid hitting Places API rate limit
-         await new Promise(r => setTimeout(r, 300))
-      }
-
-      addLog(`完成！成功 ${batchProgress.current - batchProgress.errors} 筆，失敗 ${batchProgress.errors} 筆`)
-   } catch(e: any) {
-       addLog('Error: ' + e.message)
-   } finally {
-       isBatchProcessing.value = false
-   }
 }
 
 onMounted(async () => {

@@ -41,13 +41,6 @@ const originalTripData = ref<any>(null)
 const selectedCity = ref('')
 const selectedDistrict = ref('')
 
-const selectedCityName = computed(() => TAIWAN_LOCATIONS.find(c => c.id === selectedCity.value)?.name || '')
-const selectedDistrictName = computed(() => {
-   if (!selectedCity.value) return ''
-   const city = TAIWAN_LOCATIONS.find(c => c.id === selectedCity.value)
-   return city?.districts.find(d => d.id === selectedDistrict.value)?.name || ''
-})
-
 const availableDistricts = computed(() => {
   if (!selectedCity.value) return []
   const city = TAIWAN_LOCATIONS.find(c => c.id === selectedCity.value)
@@ -152,7 +145,6 @@ const useGoogleSearch = ref(false)
 // --- UI State ---
 const isStartLocationExpanded = ref(false)
 const isEditingStartLocation = ref(false)
-const lockedCampsite = ref(false) // If true, Name/Location are locked
 const selectedTentNameLength = computed(() => {
   if (!formData.value.tent_id) return 0
   const t = tents.value.find(t => t.id === formData.value.tent_id)
@@ -164,13 +156,6 @@ const initFormData = (newTrip: any) => {
   if (newTrip) {
     const linkedCampsite = (newTrip as any).campsites
     
-    // Check if linked campsite is verified
-    if (linkedCampsite && linkedCampsite.is_verified) {
-       lockedCampsite.value = true
-    } else {
-       lockedCampsite.value = false
-    }
-
     // Construct the initial state
     const data = {
       trip_date: newTrip.trip_date,
@@ -263,7 +248,6 @@ function resetForm() {
   selectedCity.value = ''
   selectedDistrict.value = ''
   originalTripData.value = JSON.parse(JSON.stringify(emptyForm))
-  lockedCampsite.value = false
 }
 
 const refreshViewData = () => {
@@ -560,13 +544,7 @@ onMounted(async () => {
                                  />
                                </div>
                                <div v-else>
-                                    <div v-if="lockedCampsite">
-                                        <div class="text-3xl md:text-5xl font-black text-primary-900 drop-shadow-sm flex items-center justify-center gap-2">
-                                            {{ formData.campsite_name }}
-                                        </div>
-                                    </div>
                                     <input 
-                                      v-else
                                       v-model="formData.campsite_name"
                                       type="text"
                                       class="w-full text-center bg-transparent border-none p-0 text-3xl md:text-5xl font-black text-primary-900 placeholder-primary-900/40 focus:ring-0 disabled:opacity-80 disabled:cursor-not-allowed"
@@ -592,10 +570,6 @@ onMounted(async () => {
                        <!-- Subtitle Location -->
                       <div class="flex items-center justify-center gap-1.5 text-primary-700 font-bold bg-white/40 backdrop-blur-sm px-2 py-1 rounded-full">
                           <MapPin class="w-4 h-4" />
-                          <template v-if="lockedCampsite">
-                             <span class="text-xs font-bold text-primary-900">{{ selectedCityName }} {{ selectedDistrictName }}</span>
-                          </template>
-                          <template v-else>
                               <select
                                 v-model="selectedCity"
                                 class="bg-transparent border-none text-xs font-bold text-primary-800 p-0 pr-4 focus:ring-0 cursor-pointer"
@@ -615,7 +589,6 @@ onMounted(async () => {
                                   {{ district.name }}
                                 </option>
                               </select>
-                          </template>
                       </div>
                   </div>
               </div>

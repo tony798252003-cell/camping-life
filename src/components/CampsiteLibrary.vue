@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Search, MapPin, Plus, CheckCircle, Upload, XCircle, SlidersHorizontal, ChevronRight, Settings2 } from 'lucide-vue-next'
+import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight, Settings2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { Campsite } from '../types/database'
-import ImportCampsites from './ImportCampsites.vue'
 import CampsiteEditModal from './CampsiteEditModal.vue'
 import CampsiteFilterSheet, { type CampsiteFilters } from './CampsiteFilterSheet.vue'
 
@@ -17,8 +16,6 @@ const visitedIds = ref<Set<number>>(new Set()) // completed or booked campsite_i
 const hideVisited = ref(true)
 const loading = ref(false)
 const searchQuery = ref('')
-const activeTab = ref<'verified' | 'pending'>('verified')
-const isImportModalOpen = ref(false)
 const editingCampsite = ref<Campsite | null>(null)
 const isEditModalOpen = ref(false)
 const isFilterOpen = ref(false)
@@ -133,18 +130,6 @@ const fetchCampsites = async () => {
       .select('*') // This already selects all columns including new ones
       .order('created_at', { ascending: false })
 
-    if (!props.isAdmin) {
-      // Non-admins only see verified
-      query = query.eq('is_verified', true)
-    } else {
-      // Admins see based on tab
-      if (activeTab.value === 'verified') {
-        query = query.eq('is_verified', true)
-      } else {
-        query = query.eq('is_verified', false)
-      }
-    }
-
     const { data, error } = await query
     if (error) throw error
     campsites.value = data || []
@@ -229,77 +214,6 @@ const filteredCampsites = computed(() => {
   return result
 })
 
-const verifyCampsite = async (id: number) => {
-  const { useConfirm } = await import('../composables/useConfirm')
-  const { confirm: showConfirm } = useConfirm()
-  
-  const confirmed = await showConfirm({
-    title: '確定要審核通過此營地嗎？',
-    message: '審核通過後，此營地將可供所有用戶查看。',
-    confirmText: '確定審核通過',
-    cancelText: '取消',
-    type: 'info'
-  })
-  
-  if (!confirmed) return
-  
-  try {
-    const { error } = await (supabase
-      .from('campsites') as any)
-      .update({ is_verified: true })
-      .eq('id', id)
-    
-    if (error) throw error
-    // Refresh list
-    campsites.value = campsites.value.filter(c => c.id !== id)
-    alert('審核成功！')
-  } catch (e) {
-    console.error('Verify error:', e)
-    alert('操作失敗')
-  }
-}
-
-const deleteCampsite = async (id: number, isReject = false) => {
-  const count = usageCounts.value[id] || 0
-  
-  if (count > 0) {
-    alert(`此營地已被使用 ${count} 次，無法刪除！\n請先移除相關露營行程。`)
-    return
-  }
-  
-  const { useConfirm } = await import('../composables/useConfirm')
-  const { confirm: showConfirm } = useConfirm()
-  
-  const actionText = isReject ? '駁回' : '刪除'
-  
-  const confirmed = await showConfirm({
-    title: `確定要${actionText}此營地嗎？`,
-    message: isReject 
-      ? '駁回並刪除此營地資料，此動作無法復原。'
-      : '刪除後將無法復原。',
-    confirmText: `確定${actionText}`,
-    cancelText: '取消',
-    type: 'danger'
-  })
-  
-  if (!confirmed) return
-  
-  try {
-    const { error } = await supabase
-      .from('campsites')
-      .delete()
-      .eq('id', id)
-      
-    if (error) throw error
-    
-    campsites.value = campsites.value.filter(c => c.id !== id)
-    alert(`${actionText}成功`)
-  } catch (e) {
-    console.error('Delete error:', e)
-    alert(`${actionText}失敗`)
-  }
-}
-
 // Quick chip preferences
 const enabledChipKeys = ref<string[]>(QUICK_CHIPS.map(c => c.key)) // 預設全開
 const isChipConfigOpen = ref(false)
@@ -362,22 +276,6 @@ onMounted(() => {
           <Search class="w-5 h-5 text-accent-sky" />
           找營地
         </h2>
-        <!-- Admin Tabs -->
-        <div v-if="isAdmin" class="bg-gray-100 p-0.5 rounded-lg flex gap-0.5">
-          <button
-            @click="activeTab = 'verified'; fetchCampsites()"
-            class="px-3 py-1 rounded-md text-xs font-bold transition-all"
-            :class="activeTab === 'verified' ? 'bg-white text-primary-900 shadow-sm' : 'text-gray-500'"
-          >已發布</button>
-          <button
-            @click="activeTab = 'pending'; fetchCampsites()"
-            class="px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1"
-            :class="activeTab === 'pending' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500'"
-          >
-            待審核
-            <span class="w-1.5 h-1.5 rounded-full bg-orange-500" v-if="activeTab !== 'pending'"></span>
-          </button>
-        </div>
       </div>
 
       <!-- Search Bar + Filter Button -->
@@ -493,14 +391,6 @@ onMounted(() => {
               v-else-if="isAdmin"
               class="text-[10px] text-gray-300 font-medium"
             >?帳</span>
-            <template v-if="isAdmin && !site.is_verified">
-              <button @click.stop="deleteCampsite(site.id, true)" class="text-red-400 hover:text-red-600 p-1 transition-colors" title="駁回">
-                <XCircle class="w-4 h-4" />
-              </button>
-              <button @click.stop="verifyCampsite(site.id)" class="text-green-500 hover:text-green-700 p-1 transition-colors" title="通過">
-                <CheckCircle class="w-4 h-4" />
-              </button>
-            </template>
             <ChevronRight class="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
           </div>
        </div>
@@ -508,14 +398,6 @@ onMounted(() => {
 
     <!-- Admin Add Buttons (Floating) -->
     <div v-if="isAdmin" class="fixed bottom-24 right-6 flex flex-col gap-3 z-30">
-       <button 
-        @click="isImportModalOpen = true"
-        class="bg-white text-gray-600 p-3 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all border border-gray-100"
-        title="批次匯入 (Excel)"
-      >
-        <Upload class="w-6 h-6" />
-      </button>
-
       <button
         @click="handleAddNew"
         class="bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 active:scale-90 transition-all z-40 flex items-center justify-center border-4 border-surface-50 w-14 h-14"
@@ -524,13 +406,6 @@ onMounted(() => {
         <Plus class="w-8 h-8" />
       </button>
     </div>
-
-    <!-- Modals -->
-    <ImportCampsites 
-      v-if="isImportModalOpen" 
-      @close="isImportModalOpen = false"
-      @imported="fetchCampsites"
-    />
 
     <CampsiteEditModal
       v-if="isEditModalOpen && editingCampsite"
