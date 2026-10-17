@@ -1,18 +1,13 @@
-// @ts-nocheck
-export const config = {
-    runtime: 'edge',
-};
+import { requireUser } from './_lib/auth.js';
+import { withErrors } from './_lib/http.js';
 
-export default async function handler(req: Request) {
-    if (req.method !== 'POST') {
-        return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-            status: 405,
-            headers: { 'Content-Type': 'application/json' },
-        });
-    }
+export const config = { maxDuration: 60 };
+
+const handler = withErrors(async (req: Request): Promise<Response> => {
+    await requireUser(req);
 
     try {
-        const { campsiteName } = await req.json();
+        const { campsiteName } = (await req.json()) as { campsiteName?: string };
 
         if (!campsiteName) {
             return new Response(JSON.stringify({ error: 'Campsite name is required' }), {
@@ -66,4 +61,8 @@ export default async function handler(req: Request) {
             headers: { 'Content-Type': 'application/json' },
         });
     }
+});
+
+export async function POST(req: Request): Promise<Response> {
+    return handler(req);
 }
