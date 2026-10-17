@@ -20,7 +20,8 @@ export async function requireUser(
   let user: { id: string } | null
   try {
     user = await (deps.getUser ?? defaultGetUser)(match[1]!)
-  } catch {
+  } catch (err) {
+    console.error('requireUser: getUser failed', err)
     throw new HttpError(401, 'Unauthorized')
   }
   if (!user) throw new HttpError(401, 'Unauthorized')
