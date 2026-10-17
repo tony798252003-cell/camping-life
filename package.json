@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:tz": "TZ=UTC vitest run && TZ=America/Los_Angeles vitest run",
+    "typecheck": "vue-tsc -b --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.91.0",
@@ -39,6 +42,7 @@
     "typescript": "~5.9.3",
     "vite": "npm:rolldown-vite@7.2.5",
     "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^5.0.5",
     "vue-tsc": "^3.1.4",
     "xlsx": "^0.18.5"
   },

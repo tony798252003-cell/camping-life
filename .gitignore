@@ -31,3 +31,4 @@ dist-ssr
 
 # Data files
 data/
+!.env.example
