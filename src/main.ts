@@ -4,11 +4,7 @@ import App from './App.vue'
 import router from './router'
 import { supabase } from './lib/supabase'
 
-import VueKonva from 'vue-konva'
-
 const app = createApp(App)
-
-app.use(VueKonva)
 
 // Ensure Supabase session is initialized before mounting to prevent AbortErrors
 supabase.auth.getSession().then(() => {
