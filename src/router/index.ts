@@ -48,8 +48,7 @@ const routes = [
     },
     {
         path: '/builder',
-        name: 'builder',
-        component: () => import('../views/CampsiteBuilder.vue')
+        redirect: '/'
     },
     {
         path: '/auth',

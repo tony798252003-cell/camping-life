@@ -26,9 +26,6 @@
              <span v-else-if="currentView === 'admin'" class="flex items-center gap-2">
                <ShieldAlert class="w-5 h-5 text-red-600" /> 管理員專區
              </span>
-             <span v-else-if="currentView === 'dev-tools'" class="flex items-center gap-2">
-               <Settings class="w-5 h-5 text-purple-600" /> 開發者工具
-             </span>
            </h2>
         </div>
       </div>
@@ -39,20 +36,6 @@
         <!-- MENU VIEW -->
         <div v-if="currentView === 'menu'" class="p-6 space-y-3">
            
-           <!-- Family Button -->
-           <button @click="currentView = 'family'" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
-              <div class="flex items-center gap-3">
-                 <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-                    <User class="w-5 h-5" />
-                 </div>
-                 <div class="text-left">
-                    <h3 class="font-bold text-gray-900">家庭共享</h3>
-                    <p class="text-xs text-gray-500">邀請家人加入，同步行程裝備</p>
-                 </div>
-              </div>
-              <ChevronRight class="w-5 h-5 text-gray-300" />
-           </button>
-
            <button @click="currentView = 'location'" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
               <div class="flex items-center gap-3">
                  <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
@@ -118,150 +101,12 @@
               <ChevronRight class="w-5 h-5 text-gray-300" />
            </button>
 
-           <!-- Dev Tools (只在開發環境顯示) -->
-           <button v-if="isDev" @click="currentView = 'dev-tools'" class="w-full flex items-center justify-between p-4 bg-white border border-purple-200 rounded-xl transition-all active:scale-[0.98] shadow-sm">
-              <div class="flex items-center gap-3">
-                 <div class="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                    <Settings class="w-5 h-5" />
-                 </div>
-                 <div class="text-left">
-                    <h3 class="font-bold text-gray-900">🛠️ 開發者工具</h3>
-                    <p class="text-xs text-gray-500">測試與除錯功能</p>
-                 </div>
-              </div>
-              <ChevronRight class="w-5 h-5 text-gray-300" />
-           </button>
-
            <div class="h-px bg-gray-200 my-4"></div>
 
            <button @click="handleLogout" class="w-full flex items-center justify-center gap-2 p-4 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all font-bold active:scale-[0.98]">
               <LogOut class="w-5 h-5" />
               登出帳號
            </button>
-        </div>
-
-        <!-- FAMILY VIEW -->
-        <div v-else-if="currentView === 'family'" class="p-6 space-y-6">
-           <div v-if="userFamily" class="text-center space-y-6">
-              <div class="w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-full mx-auto flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-                 {{ userFamily.name.charAt(0) }}
-              </div>
-              <div>
-                 <h3 class="text-2xl font-bold text-gray-900">{{ userFamily.name }}</h3>
-                 <p class="text-gray-500 text-sm">已加入家庭共享</p>
-              </div>
-
-              <div class="bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300">
-                 <p class="text-xs text-gray-500 mb-2 uppercase tracking-wide">邀請代碼</p>
-                 <div class="text-3xl font-mono font-bold text-indigo-600 tracking-widest select-all">
-                    {{ userFamily.invite_code }}
-                 </div>
-                 <p class="text-xs text-gray-400 mt-2">將此代碼分享給您的另一半</p>
-              </div>
-
-              <button 
-                @click="shareInviteLink"
-                class="w-full py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl hover:bg-indigo-100 flex items-center justify-center gap-2 transition-colors active:scale-[0.98]"
-              >
-                 <Share2 class="w-5 h-5" />
-                 分享加入連結
-              </button>
-              
-              <div v-if="familyMembers.length > 0" class="border-t border-gray-100 pt-4 text-left">
-                 <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">家庭成員</h4>
-                 <div class="space-y-2">
-                    <div v-for="member in familyMembers" :key="member.id" class="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
-                       <div class="flex items-center gap-3 overflow-hidden">
-                          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0 overflow-hidden">
-                             <img v-if="member.avatar_url" :src="member.avatar_url" class="w-full h-full object-cover" />
-                             <span v-else>{{ member.email?.charAt(0).toUpperCase() }}</span>
-                          </div>
-                          <div class="flex flex-col min-w-0">
-                             <div class="flex items-center gap-2">
-                                <span class="text-sm font-medium text-gray-700 truncate block">{{ member.name }}</span>
-                                <span v-if="member.is_head" class="px-1.5 py-0.5 text-[10px] bg-yellow-100 text-yellow-700 rounded-full font-bold whitespace-nowrap">戶長</span>
-                             </div>
-                          </div>
-                       </div>
-                       
-                       <!-- Actions -->
-                       <div v-if="isFamilyHead && !member.is_head" class="shrink-0">
-                          <button @click="kickMember(member.id)" class="text-xs text-red-400 hover:text-red-600 px-2 py-1">移除</button>
-                       </div>
-                    </div>
-                 </div>
-              </div>
-
-              <div class="pt-4 border-t border-gray-100">
-                 <button 
-                  @click="leaveFamily"
-                  class="w-full py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm font-medium"
-                 >
-                    退出家庭
-                 </button>
-                 
-                 <div class="mt-2">
-                    <button 
-                      @click="handleManualMigration"
-                      :disabled="isProcessingFamily"
-                      class="text-xs text-gray-400 hover:text-gray-600 underline"
-                    >
-                       匯入我的舊資料
-                    </button>
-                 </div>
-              </div>
-           </div>
-
-           <div v-else class="space-y-8">
-              <!-- Create -->
-              <div class="space-y-4">
-                 <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <span class="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs">1</span>
-                    建立新家庭
-                 </h3>
-                 <div class="flex gap-2">
-                    <input 
-                      v-model="newFamilyName"
-                      type="text" 
-                      placeholder="輸入家庭名稱 (例如: 王小明的家)"
-                      class="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                    />
-                    <button 
-                      @click="createFamily"
-                      :disabled="isProcessingFamily || !newFamilyName"
-                      class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-                    >
-                      建立
-                    </button>
-                 </div>
-              </div>
-
-              <div class="h-px bg-gray-100"></div>
-
-              <!-- Join -->
-              <div class="space-y-4">
-                 <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <span class="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs">2</span>
-                    加入現有家庭
-                 </h3>
-                 <div class="flex gap-2">
-                    <input 
-                      v-model="inviteCodeInput"
-                      type="text" 
-                      placeholder="輸入 6 位數邀請碼"
-                      class="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none uppercase font-mono placeholder:font-sans"
-                      maxlength="6"
-                    />
-                    <button 
-                      @click="joinFamily"
-                      :disabled="isProcessingFamily || !inviteCodeInput"
-                      class="px-4 py-2 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-                    >
-                      加入
-                    </button>
-                 </div>
-              </div>
-           </div>
         </div>
 
         <!-- LOCATION VIEW -->
@@ -272,12 +117,7 @@
               位置設定
             </h3>
             
-            <div v-if="userFamily && !isFamilyHead" class="bg-blue-50 text-blue-800 p-3 rounded-lg text-xs flex items-start gap-2">
-               <ShieldAlert class="w-4 h-4 mt-0.5 shrink-0" />
-               <p>您已加入家庭群組，起始位置設定由<strong>戶長</strong>統一管理。如需修改請聯繫戶長。</p>
-            </div>
-
-            <div class="space-y-3" :class="{'opacity-60 pointer-events-none': userFamily && !isFamilyHead}">
+            <div class="space-y-3">
               <div>
                  <label class="block text-xs text-gray-500 mb-1">搜尋地點 (輸入地址或地標)</label>
                  <GooglePlaceSearch
@@ -343,35 +183,6 @@
               </p>
               
               <div class="space-y-4">
-                 <div class="bg-white p-4 rounded-lg border border-red-200 shadow-sm">
-                    <h4 class="font-bold text-gray-800 mb-1">批次更新 GPS 與地點</h4>
-                    <p class="text-xs text-gray-500 mb-3">
-                       搜尋所有缺少經緯度的營地，透過 Google Maps API 自動填入座標，並強制標準化縣市/鄉鎮欄位。
-                    </p>
-                    
-                    <div v-if="batchProgress.total > 0" class="mb-3">
-                       <div class="flex justify-between text-xs mb-1">
-                          <span>進度: {{ batchProgress.current }} / {{ batchProgress.total }}</span>
-                          <span v-if="batchProgress.errors > 0" class="text-red-500">失敗: {{ batchProgress.errors }}</span>
-                       </div>
-                       <div class="w-full bg-gray-200 rounded-full h-2">
-                          <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" :style="{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }"></div>
-                       </div>
-                       <div class="mt-2 max-h-32 overflow-y-auto text-[10px] font-mono bg-gray-900 text-green-400 p-2 rounded">
-                          <div v-for="(log, i) in batchLogs" :key="i">{{ log }}</div>
-                       </div>
-                    </div>
-
-                    <button 
-                       @click="startBatchUpdateGPS"
-                       :disabled="isBatchProcessing"
-                       class="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                       <Loader2 v-if="isBatchProcessing" class="w-4 h-4 animate-spin" />
-                       {{ isBatchProcessing ? '處理中...' : '開始批次更新' }}
-                    </button>
-                 </div>
-                 
                  <div class="bg-white p-4 rounded-lg border border-blue-200 shadow-sm mt-4">
                     <h4 class="font-bold text-gray-800 mb-1 flex items-center gap-2">
                        ⚾ 同步/清除 CPBL 賽程
@@ -408,57 +219,6 @@
            </div>
         </div>
 
-        <!-- DEV TOOLS VIEW -->
-        <div v-else-if="currentView === 'dev-tools'" class="p-6 space-y-6">
-           <div class="bg-purple-50 border border-purple-100 rounded-xl p-4">
-              <h3 class="font-bold text-purple-800 mb-2 flex items-center gap-2">
-                 <Settings class="w-5 h-5" />
-                 🛠️ 開發者工具
-              </h3>
-              <p class="text-xs text-purple-600 mb-4">
-                 測試與除錯功能，僅在開發環境顯示。
-              </p>
-
-              <div class="space-y-4">
-                 <!-- Reset Onboarding -->
-                 <div class="bg-white p-4 rounded-lg border border-purple-200 shadow-sm">
-                    <h4 class="font-bold text-gray-800 mb-1">🔄 重設 Onboarding</h4>
-                    <p class="text-xs text-gray-500 mb-3">
-                       清除 onboarding 完成標記、起始地點、家庭連結，並刪除所有帳篷裝備，用於測試首次登入流程。
-                    </p>
-
-                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
-                       <p class="text-xs text-yellow-800">
-                          <strong>⚠️ 注意：</strong>此操作會：
-                       </p>
-                       <ul class="text-xs text-yellow-700 mt-2 space-y-1 ml-4 list-disc">
-                          <li>清除 onboarding_completed_at</li>
-                          <li>清除起始地點 (latitude, longitude, location_name)</li>
-                          <li>清除家庭連結 (family_id)</li>
-                          <li>刪除所有帳篷裝備 (category = 'tent')</li>
-                       </ul>
-                    </div>
-
-                    <button
-                       @click="resetOnboarding"
-                       :disabled="isResettingOnboarding"
-                       class="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                       <Loader2 v-if="isResettingOnboarding" class="w-4 h-4 animate-spin" />
-                       {{ isResettingOnboarding ? '重設中...' : '重設 Onboarding' }}
-                    </button>
-                 </div>
-
-                 <!-- 未來可以在這裡加入更多開發工具 -->
-                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <p class="text-xs text-gray-500 text-center">
-                       💡 更多開發工具即將推出...
-                    </p>
-                 </div>
-              </div>
-           </div>
-        </div>
-
       </div>
       
       <!-- System Asset Manager Modal -->
@@ -470,9 +230,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { Settings, MapPin, Navigation, LogOut, Loader2, User, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Share2, Images } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { Settings, MapPin, Navigation, LogOut, Loader2, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Images } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { CampingTripWithCampsite } from '../types/database'
 import GearROIView from '../components/GearROIView.vue'
@@ -483,7 +243,6 @@ import { syncCpblScheduleForYear, clearCpblScheduleForYear } from '../services/c
 
 // Logic to fetch necessary data if not provided (for standalone view)
 const router = useRouter()
-const route = useRoute()
 
 // We need to either receive props or fetch data. 
 // Since we are moving to a view, we might not get complex props like 'trips' easily unless using a store or passing state.
@@ -506,13 +265,10 @@ const internalIsAdmin = ref(false)
 
 const effectiveUserId = computed(() => props.userId || internalUserId.value)
 
-type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'family' | 'admin' | 'dev-tools'
+type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'admin'
 const currentView = ref<ViewState>('menu')
 const isAssetManagerOpen = ref(false)
 
-// Dev tools state
-const isDev = import.meta.env.DEV
-const isResettingOnboarding = ref(false)
 
 // Navigation
 const goBack = () => {
@@ -524,7 +280,6 @@ const handleLogout = async () => {
     router.push('/auth')
 }
 
-// ... Copying logic from SettingsModal ...
 
 const formData = ref({
   location_name: '',
@@ -540,89 +295,6 @@ const handlePlaceSelected = (place: any) => {
   formData.value.location_name = place.name || place.formatted_address || ''
   formData.value.latitude = place.lat
   formData.value.longitude = place.lng
-}
-
-const shareInviteLink = async () => {
-  if (!userFamily.value) return
-  
-  const url = `${window.location.origin}?invite_code=${userFamily.value.invite_code}`
-  const text = `加入我的露營家庭「${userFamily.value.name}」！點擊連結加入：\n${url}`
-  
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: '加入露營家庭',
-        text: text
-      })
-    } catch (e) {
-      console.log('Share cancelled')
-    }
-  } else {
-    try {
-      await navigator.clipboard.writeText(text)
-      alert('已複製邀請連結！')
-    } catch (e) {
-      alert('複製失敗，請手動複製代碼')
-    }
-  }
-}
-
-// Dev Tools - Reset Onboarding
-const resetOnboarding = async () => {
-  if (!confirm('確定要重設 Onboarding 流程嗎？這將清除你的起始地點、家庭連結，並刪除所有帳篷裝備。')) {
-    return
-  }
-
-  const uid = effectiveUserId.value
-  if (!uid) {
-    alert('找不到用戶ID')
-    return
-  }
-
-  isResettingOnboarding.value = true
-  try {
-    // 1. 清除 profile 的 onboarding 相關欄位
-    console.log('[Dev Tools] Resetting profile fields...')
-    const updateResult: any = await (supabase
-      .from('profiles') as any)
-      .update({
-        onboarding_completed_at: null,
-        latitude: null,
-        longitude: null,
-        location_name: null,
-        family_id: null
-      })
-      .eq('id', uid)
-
-    if (updateResult.error) {
-      console.error('[Dev Tools] Profile update error:', updateResult.error)
-      throw updateResult.error
-    }
-
-    // 2. 刪除所有帳篷裝備
-    console.log('[Dev Tools] Deleting tent gear...')
-    const { error: gearError, count } = await supabase
-      .from('camping_gear')
-      .delete()
-      .eq('user_id', uid)
-      .eq('category', 'tent')
-
-    if (gearError) {
-      console.error('[Dev Tools] Gear deletion error:', gearError)
-    } else {
-      console.log(`[Dev Tools] Deleted ${count || 0} tent(s)`)
-    }
-
-    alert('✅ Onboarding 已重設！\n已清除：\n- onboarding_completed_at\n- 起始地點\n- 家庭連結\n- 帳篷裝備\n\n請重新整理頁面。')
-
-    // 重新整理頁面
-    window.location.reload()
-  } catch (error: any) {
-    console.error('重設 Onboarding 失敗:', error)
-    alert('❌ 重設失敗: ' + error.message)
-  } finally {
-    isResettingOnboarding.value = false
-  }
 }
 
 // CPBL Sync Logic
@@ -671,7 +343,7 @@ const fetchProfile = async () => {
   try {
     const { data } = await supabase
       .from('profiles')
-      .select('*, families(*)')
+      .select('*')
       .eq('id', uid)
       .single()
 
@@ -682,207 +354,12 @@ const fetchProfile = async () => {
         longitude: (data as any).longitude
       }
       internalIsAdmin.value = (data as any).is_admin || false
-      
-      if ((data as any).families) {
-        userFamily.value = (data as any).families
-      }
     }
   } catch (err) {
     console.error('Error fetching profile:', err)
   } finally {
     isLoadingProfile.value = false
   }
-}
-
-// Family Logic
-const userFamily = ref<any>(null)
-const inviteCodeInput = ref('')
-const newFamilyName = ref('')
-const isProcessingFamily = ref(false)
-const familyMembers = ref<any[]>([])
-
-const isFamilyHead = computed(() => {
-   return userFamily.value && userFamily.value.created_by === effectiveUserId.value
-})
-
-const fetchFamilyMembers = async () => {
-   if (!userFamily.value) return
-   try {
-      const { data, error } = await (supabase.rpc as any)('get_family_members')
-      if (error) throw error
-      familyMembers.value = ((data as any[]) || []).sort((a: any, b: any) => {
-         if (a.is_head && !b.is_head) return -1
-         if (!a.is_head && b.is_head) return 1
-         return 0
-      })
-   } catch (e) {
-      console.error('Error fetching members:', e)
-   }
-}
-
-watch(userFamily, (newVal) => {
-   if (newVal) {
-      fetchFamilyMembers()
-   } else {
-      familyMembers.value = []
-   }
-}, { immediate: true })
-
-const kickMember = async (targetId: string) => {
-   const { useConfirm } = await import('../composables/useConfirm')
-   const { confirm: showConfirm } = useConfirm()
-   
-   const confirmed = await showConfirm({
-       title: '確定要移除此成員嗎？',
-       message: '該成員將無法看到家庭行程，但其個人行程會保留。',
-       confirmText: '確定移除',
-       cancelText: '取消',
-       type: 'warning'
-   })
-   
-   if (!confirmed) return
-   
-   try {
-      const { error } = await (supabase.rpc as any)('kick_family_member', { target_user_id: targetId })
-      if (error) throw error
-      alert('已移除成員')
-      await fetchFamilyMembers()
-   } catch(e: any) {
-      alert('移除失敗: ' + e.message)
-   }
-}
-
-const leaveFamily = async () => {
-   const { useConfirm } = await import('../composables/useConfirm')
-   const { confirm: showConfirm } = useConfirm()
-   
-   const confirmed = await showConfirm({
-       title: '確定要退出家庭嗎？',
-       message: '退出後您將無法看到家庭共有行程，頁面將重新整理。',
-       confirmText: '確定退出',
-       cancelText: '取消',
-       type: 'warning'
-   })
-   
-   if (!confirmed) return
-   
-   try {
-      const { error } = await (supabase.rpc as any)('leave_family')
-      if (error) throw error
-      alert('已退出家庭，頁面將重新整理。')
-      window.location.href = '/'
-   } catch(e: any) {
-      alert('退出失敗: ' + e.message)
-   }
-}
-
-const createFamily = async () => {
-  if (!newFamilyName.value) return alert('請輸入家庭名稱')
-  if (!effectiveUserId.value) return
-
-  isProcessingFamily.value = true
-  try {
-    const list = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    let code = ""
-    for(let i=0; i<6; i++) {
-      code += list.charAt(Math.floor(Math.random() * list.length))
-    }
-
-    const { data: family, error } = await supabase
-      .from('families')
-      .insert([{
-        name: newFamilyName.value,
-        invite_code: code,
-        created_by: effectiveUserId.value
-      }] as any)
-      .select()
-      .single()
-
-    if (error) throw error
-    if (!family) throw new Error('Family creation failed')
-
-    await linkUserToFamily((family as any).id)
-    await migrateUserDataToFamily((family as any).id)
-    
-    userFamily.value = family
-    newFamilyName.value = ''
-    alert('家庭建立成功！已將既有行程匯入家庭。')
-  } catch(e: any) {
-    alert('建立失敗: ' + e.message)
-  } finally {
-    isProcessingFamily.value = false
-  }
-}
-
-const handleManualMigration = async () => {
-  if (!userFamily.value) return
-  
-  isProcessingFamily.value = true
-  try {
-    await migrateUserDataToFamily(userFamily.value.id)
-    alert('匯入完成！')
-  } catch (e) {
-    alert('匯入失敗')
-  } finally {
-    isProcessingFamily.value = false
-  }
-}
-
-const joinFamily = async () => {
-  const codeToUse = inviteCodeInput.value?.toUpperCase()
-  if (!codeToUse) return alert('請輸入邀請碼')
-  
-  isProcessingFamily.value = true
-  try {
-    const { data: families, error } = await (supabase.rpc as any)('get_family_by_invite_code', { 
-       code_input: codeToUse
-    })
-      
-    if (error) throw error
-    if (!families || (families as any[]).length === 0) throw new Error('找不到此邀請碼的家庭')
-    
-    const family = (families as any[])[0]
-    await linkUserToFamily((family as any).id)
-    await migrateUserDataToFamily((family as any).id)
-    
-    userFamily.value = family
-    inviteCodeInput.value = ''
-    alert(`成功加入 ${(family as any).name}！`)
-    window.location.reload()
-  } catch(e: any) {
-    alert('加入失敗: ' + e.message)
-  } finally {
-    isProcessingFamily.value = false
-  }
-}
-
-const linkUserToFamily = async (familyId: string) => {
-  if (!effectiveUserId.value) return
-  const { error } = await (supabase
-    .from('profiles') as any)
-    .update({ family_id: familyId })
-    .eq('id', effectiveUserId.value)
-  if (error) throw error
-}
-
-const migrateUserDataToFamily = async (familyId: string) => {
-  if (!effectiveUserId.value) return
-  
-  const { error: tripError } = await (supabase
-    .from('camping_trips') as any)
-    .update({ family_id: familyId })
-    .eq('user_id', effectiveUserId.value)
-    .is('family_id', null)
-    
-  if (tripError) console.error('Trip migration failed', tripError)
-  
-  const { error: gearError } = await (supabase
-    .from('camping_gear') as any)
-    .update({ family_id: familyId })
-    .eq('user_id', effectiveUserId.value)
-    .is('family_id', null)
-
-  if (gearError) console.error('Gear migration failed', gearError)
 }
 
 const getCurrentLocation = () => {
@@ -931,99 +408,6 @@ const saveSettings = async () => {
   }
 }
 
-// Batch Logic
-const isBatchProcessing = ref(false)
-const batchProgress = reactive({ current: 0, total: 0, errors: 0 })
-const batchLogs = ref<string[]>([])
-const addLog = (msg: string) => {
-   batchLogs.value.unshift(`[${new Date().toLocaleTimeString()}] ${msg}`)
-}
-
-const startBatchUpdateGPS = async () => {   
-   if (!window.google || !window.google.maps || !window.google.maps.places) {
-      alert('Google Maps API 尚未載入，請稍後再試')
-      return
-   }
-
-   isBatchProcessing.value = true
-   batchLogs.value = []
-   batchProgress.current = 0
-   batchProgress.total = 0
-   batchProgress.errors = 0
-   
-   try {
-      addLog('正在搜尋缺少座標的營地...')
-      const { data: targets, error } = await supabase
-         .from('campsites')
-         .select('*')
-         .is('latitude', null)
-      
-      if (error) throw error
-      
-      const { data: targets0 } = await supabase.from('campsites').select('*').eq('latitude', 0)
-      const allTargets = [...((targets || []) as any[]), ...((targets0 || []) as any[])].filter((v,i,a) => a.findIndex((t: any) => t.id === v.id) === i)
-      
-      if (allTargets.length === 0) {
-         addLog('沒有發現缺少座標的營地。')
-         isBatchProcessing.value = false
-         return
-      }
-      // ... (Rest of batch logic simplified for brevity, assuming standard implementation) ...
-      // In a real refactor we should extract this to a composable or utility
-      addLog(`找到 ${allTargets.length} 筆資料，準備處理...`)
-      batchProgress.total = allTargets.length
-
-      // Use a dummy map element for PlacesService (required by the API)
-      const mapDiv = document.createElement('div')
-      const dummyMap = new window.google.maps.Map(mapDiv, { center: { lat: 23.5, lng: 121 }, zoom: 8 })
-      const placesService = new window.google.maps.places.PlacesService(dummyMap)
-
-      for (const site of allTargets) {
-         const query = `${site.name} 台灣露營`
-         try {
-            const result = await new Promise<any>((resolve, reject) => {
-               placesService.findPlaceFromQuery(
-                  { query, fields: ['geometry', 'name', 'formatted_address'] },
-                  (results: any, status: any) => {
-                     if (status === window.google.maps.places.PlacesServiceStatus.OK && results?.length > 0) {
-                        resolve(results[0])
-                     } else {
-                        reject(new Error(`places failed: ${status}`))
-                     }
-                  }
-               )
-            })
-
-            const lat = result.geometry.location.lat()
-            const lng = result.geometry.location.lng()
-
-            const { error: updateError } = await (supabase as any)
-               .from('campsites')
-               .update({ latitude: lat, longitude: lng })
-               .eq('id', site.id)
-
-            if (updateError) throw updateError
-
-            batchProgress.current++
-            addLog(`✅ ${site.name} → (${lat.toFixed(5)}, ${lng.toFixed(5)})`)
-         } catch (e: any) {
-            batchProgress.errors++
-            batchProgress.current++
-            addLog(`❌ ${site.name}: ${e.message}`)
-         }
-
-         // Avoid hitting Places API rate limit
-         await new Promise(r => setTimeout(r, 300))
-      }
-
-      addLog(`完成！成功 ${batchProgress.current - batchProgress.errors} 筆，失敗 ${batchProgress.errors} 筆`)
-   } catch(e: any) {
-       addLog('Error: ' + e.message)
-   } finally {
-       isBatchProcessing.value = false
-   }
-}
-
 onMounted(async () => {
   // If props.userId is not provided (direct nav), try to get session
   if (!props.userId) {
@@ -1036,13 +420,6 @@ onMounted(async () => {
      }
   } else {
      fetchProfile()
-  }
-
-  // Handle URL code
-  const code = props.initialInviteCode || route.query.invite_code as string
-  if (code) {
-     inviteCodeInput.value = code
-     currentView.value = 'family'
   }
 })
 </script>

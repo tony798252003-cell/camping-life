@@ -1,20 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterView } from 'vue-router'
-import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './types/database'
+import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite, Campsite } from './types/database'
 
 // Components
 import TripModal from './components/TripModal.vue'
 import CampsiteEditModal from './components/CampsiteEditModal.vue'
 import ToastNotification from './components/ToastNotification.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
-import OnboardingWizard from './components/onboarding/OnboardingWizard.vue'
 
 // Composables
 import { useAuth } from './composables/useAuth'
 import { useUserProfile } from './composables/useUserProfile'
 import { useTrips } from './composables/useTrips'
-import { useOnboarding } from './composables/useOnboarding'
+import { useTripModal } from './composables/useTripModal'
 
 // Router
 const router = useRouter()
@@ -24,22 +23,10 @@ const route = useRoute()
 const { session, isAuthReady, initAuth, logout } = useAuth()
 const { userProfile, fetchProfile, clearProfile, familyId, isAdmin, userOrigin } = useUserProfile()
 const { trips, loading, fetchTrips, createTrip, updateTrip, deleteTrip, updateNightRush, findTripById, clearTrips } = useTrips()
-const {
-  isOnboardingOpen,
-  currentStep,
-  isSubmitting,
-  shouldShowOnboarding,
-  openOnboarding,
-  closeOnboarding,
-  nextStep,
-  previousStep,
-  goToStep,
-  completeOnboarding
-} = useOnboarding()
 
 // Modal state
-const isModalOpen = ref(false)
-const activeTrip = ref<CampingTripWithCampsite | null>(null)
+const { isOpen: isModalOpen, activeTrip, initialDate, openNew, openEdit, close: closeTripModal } = useTripModal()
+const tripModalRef = ref<InstanceType<typeof TripModal> | null>(null)
 const isCampsiteEditOpen = ref(false)
 const editingCampsiteData = ref<any>(null)
 const campsiteLibraryKey = ref(0)
@@ -70,11 +57,6 @@ const navigateTrip = (direction: 'prev' | 'next') => {
   }
 }
 
-// Onboarding computed
-const hasTent = computed(() => {
-  return trips.value.some(trip => trip.tent_id)
-})
-
 // Auto-navigate to settings if invite code exists
 watch(() => [isAuthReady.value, session.value], ([ready, sess]) => {
   if (ready && sess && inviteCode.value) {
@@ -84,18 +66,15 @@ watch(() => [isAuthReady.value, session.value], ([ready, sess]) => {
 
 // Actions
 const handleViewDetail = (trip: CampingTrip) => {
-  activeTrip.value = trip as CampingTripWithCampsite
-  isModalOpen.value = true
+  openEdit(trip as CampingTripWithCampsite)
 }
 
 const handleAdd = () => {
-  activeTrip.value = null
-  isModalOpen.value = true
+  openNew()
 }
 
 const handleEdit = (trip: CampingTrip) => {
-  activeTrip.value = trip as CampingTripWithCampsite
-  isModalOpen.value = true
+  openEdit(trip as CampingTripWithCampsite)
 }
 
 const handleDeleteTrip = async (id: number) => {
@@ -132,7 +111,7 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
       }
     }
 
-    isModalOpen.value = false
+    closeTripModal()
     activeTrip.value = null
   }
 }
@@ -149,7 +128,37 @@ const handleEditCampsite = (campsite: any) => {
   isCampsiteEditOpen.value = true
 }
 
-const handleCampsiteSaved = () => {
+// TripModal 內「＋新增營區」：在其上疊開新增模式，TripModal 不卸載、表單保留
+const handleAddCampsiteFromTrip = (prefill: { name: string; latitude?: number; longitude?: number; altitude?: number }) => {
+  // 營區圖鑑新增流程共用 draft key，清掉舊草稿才不會蓋掉預填的名稱
+  localStorage.removeItem('campsite-draft-0')
+  editingCampsiteData.value = {
+    id: 0,
+    name: prefill.name,
+    city: '',
+    district: '',
+    altitude: prefill.altitude ?? null,
+    latitude: prefill.latitude ?? null,
+    longitude: prefill.longitude ?? null,
+    phone: null,
+    tags: [],
+    amenities: { has_fridge: false, has_freezer: false, has_water_dispenser: false },
+    is_verified: false,
+    created_at: new Date().toISOString(),
+    playground_features: [],
+    water_features: [],
+    scenery_features: [],
+    spot_types: [],
+    booking_method: [],
+    booking_difficulty: 'normal',
+  }
+  isCampsiteEditOpen.value = true
+}
+
+const handleCampsiteSaved = (saved?: Campsite) => {
+  if (editingCampsiteData.value?.id === 0 && saved) {
+    tripModalRef.value?.selectCampsite(saved)
+  }
   isCampsiteEditOpen.value = false
   editingCampsiteData.value = null
   campsiteLibraryKey.value++
@@ -168,17 +177,6 @@ const handleLogout = async () => {
   await logout()
   clearTrips()
   clearProfile()
-}
-
-const handleOnboardingComplete = async () => {
-  if (!session.value) return
-
-  const success = await completeOnboarding(session.value.user.id)
-  if (success) {
-    await fetchProfile(session.value.user.id)
-    // Refetch trips because family_id may have changed (e.g., joined a family)
-    await fetchTrips(session.value.user.id, familyId())
-  }
 }
 
 onMounted(async () => {
@@ -216,11 +214,6 @@ onMounted(async () => {
      }
       await fetchProfile(userId)
       await fetchTrips(userId, familyId())
-
-      // Check if onboarding should be shown
-      if (shouldShowOnboarding(userProfile.value, hasTent.value)) {
-        openOnboarding()
-      }
     } else if (ready && !userId) {
       clearProfile()
       clearTrips()
@@ -273,15 +266,18 @@ onMounted(async () => {
   
       <!-- Modals -->
       <TripModal
+        ref="tripModalRef"
         :is-open="isModalOpen"
         :trip="activeTrip"
+        :initial-date="initialDate"
         :is-admin="userProfile?.is_admin || false"
         :user-profile="userProfile"
         :has-prev="hasPrevTrip"
         :has-next="hasNextTrip"
-        @close="isModalOpen = false"
+        @close="closeTripModal"
         @submit="handleSubmit"
         @edit-campsite="handleEditCampsite"
+        @add-campsite="handleAddCampsiteFromTrip"
         @delete="deleteTrip"
         @prev="navigateTrip('prev')"
         @next="navigateTrip('next')"
@@ -291,25 +287,11 @@ onMounted(async () => {
         v-if="isCampsiteEditOpen && editingCampsiteData"
         :is-open="isCampsiteEditOpen"
         :campsite="editingCampsiteData"
+        :is-editable="editingCampsiteData.id === 0"
         @close="isCampsiteEditOpen = false"
         @saved="handleCampsiteSaved"
       />
       
-      <!-- Onboarding Wizard -->
-      <OnboardingWizard
-        v-if="session"
-        :is-open="isOnboardingOpen"
-        :current-step="currentStep"
-        :is-submitting="isSubmitting"
-        :user-id="session.user.id"
-        :user-profile="userProfile"
-        @close="closeOnboarding"
-        @next="nextStep"
-        @previous="previousStep"
-        @go-to-step="goToStep"
-        @complete="handleOnboardingComplete"
-      />
-
       <!-- Global Components -->
       <ToastNotification />
       <ConfirmDialog />

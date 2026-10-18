@@ -7,6 +7,8 @@ import {
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
+import { canSaveTrip, CAMPSITE_REQUIRED_MESSAGE } from '../utils/tripValidation'
+import { useNotification } from '../composables/useNotification'
 
 import TripWeather from './TripWeather.vue'
 import GooglePlaceSearch from './GooglePlaceSearch.vue'
@@ -19,6 +21,7 @@ interface Props {
   userProfile?: any
   hasPrev?: boolean
   hasNext?: boolean
+  initialDate?: string | null
 }
 
 const props = defineProps<Props>()
@@ -26,6 +29,7 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'submit', data: NewCampingTrip): void
   (e: 'edit-campsite', campsite: any): void
+  (e: 'add-campsite', prefill: { name: string; latitude?: number; longitude?: number; altitude?: number }): void
   (e: 'delete', id: number): void
   (e: 'prev'): void
   (e: 'next'): void
@@ -35,18 +39,13 @@ const emit = defineEmits<{
 // Seamless editing: No explicit View/Edit mode toggle.
 // We track changes to show/hide the Save button.
 const isSubmitting = ref(false)
+const campsiteError = ref('')
+const { warning } = useNotification()
 const originalTripData = ref<any>(null)
 
 // Location selection
 const selectedCity = ref('')
 const selectedDistrict = ref('')
-
-const selectedCityName = computed(() => TAIWAN_LOCATIONS.find(c => c.id === selectedCity.value)?.name || '')
-const selectedDistrictName = computed(() => {
-   if (!selectedCity.value) return ''
-   const city = TAIWAN_LOCATIONS.find(c => c.id === selectedCity.value)
-   return city?.districts.find(d => d.id === selectedDistrict.value)?.name || ''
-})
 
 const availableDistricts = computed(() => {
   if (!selectedCity.value) return []
@@ -152,7 +151,6 @@ const useGoogleSearch = ref(false)
 // --- UI State ---
 const isStartLocationExpanded = ref(false)
 const isEditingStartLocation = ref(false)
-const lockedCampsite = ref(false) // If true, Name/Location are locked
 const selectedTentNameLength = computed(() => {
   if (!formData.value.tent_id) return 0
   const t = tents.value.find(t => t.id === formData.value.tent_id)
@@ -164,13 +162,6 @@ const initFormData = (newTrip: any) => {
   if (newTrip) {
     const linkedCampsite = (newTrip as any).campsites
     
-    // Check if linked campsite is verified
-    if (linkedCampsite && linkedCampsite.is_verified) {
-       lockedCampsite.value = true
-    } else {
-       lockedCampsite.value = false
-    }
-
     // Construct the initial state
     const data = {
       trip_date: newTrip.trip_date,
@@ -231,7 +222,7 @@ const initFormData = (newTrip: any) => {
 
 function resetForm() {
   const emptyForm = {
-    trip_date: new Date().toISOString().split('T')[0],
+    trip_date: props.initialDate || new Date().toISOString().split('T')[0],
     campsite_name: '',
     duration_days: 2,
     location: '',
@@ -263,7 +254,6 @@ function resetForm() {
   selectedCity.value = ''
   selectedDistrict.value = ''
   originalTripData.value = JSON.parse(JSON.stringify(emptyForm))
-  lockedCampsite.value = false
 }
 
 const refreshViewData = () => {
@@ -284,6 +274,8 @@ watch(() => props.isOpen, (newVal) => {
     
     // Fetch tents for selection
     fetchTents()
+    
+    campsiteError.value = ''
     
     if (props.trip) {
       initFormData(props.trip)
@@ -316,23 +308,10 @@ const handleSubmit = async () => {
 
   isSubmitting.value = true
   try {
-    // Handle new campsite logic if needed
-    if (!formData.value.campsite_id && formData.value.campsite_name) {
-       const { data: existing } = await supabase.from('campsites').select('id').eq('name', formData.value.campsite_name).single()
-       if (existing) {
-         formData.value.campsite_id = (existing as any).id
-       } else {
-         const newCampsite = {
-           name: formData.value.campsite_name,
-           latitude: formData.value.latitude,
-           longitude: formData.value.longitude,
-           altitude: formData.value.altitude || null,
-           is_verified: false,
-           city: formData.value.location ? formData.value.location.substring(0, 3) : null
-         }
-         const { data: created, error } = await supabase.from('campsites').insert([newCampsite] as any).select().single()
-         if (!error && created) formData.value.campsite_id = (created as any).id
-       }
+    if (!canSaveTrip(!props.trip, formData.value.campsite_id)) {
+      campsiteError.value = CAMPSITE_REQUIRED_MESSAGE
+      warning(CAMPSITE_REQUIRED_MESSAGE)
+      return
     }
 
     const payload = { ...formData.value }
@@ -392,9 +371,12 @@ const selectCampsite = (campsite: Campsite) => {
     selectedDistrict.value = campsite.district || ''
   }
   showCampsiteDropdown.value = false
+  campsiteError.value = ''
 }
 
 const closeDropdown = () => setTimeout(() => { showCampsiteDropdown.value = false }, 200)
+
+defineExpose({ selectCampsite })
 
 const handleGooglePlaceSelected = (place: any) => {
   formData.value.campsite_name = place.name
@@ -560,13 +542,7 @@ onMounted(async () => {
                                  />
                                </div>
                                <div v-else>
-                                    <div v-if="lockedCampsite">
-                                        <div class="text-3xl md:text-5xl font-black text-primary-900 drop-shadow-sm flex items-center justify-center gap-2">
-                                            {{ formData.campsite_name }}
-                                        </div>
-                                    </div>
                                     <input 
-                                      v-else
                                       v-model="formData.campsite_name"
                                       type="text"
                                       class="w-full text-center bg-transparent border-none p-0 text-3xl md:text-5xl font-black text-primary-900 placeholder-primary-900/40 focus:ring-0 disabled:opacity-80 disabled:cursor-not-allowed"
@@ -585,6 +561,12 @@ onMounted(async () => {
                                       </ul>
                                     </div>
                                </div>
+                               <div v-if="!trip" class="mt-3 flex flex-col items-center gap-1">
+                                   <button type="button" @click="emit('add-campsite', { name: formData.campsite_name, latitude: formData.latitude, longitude: formData.longitude, altitude: formData.altitude })" class="text-sm font-bold text-primary-700 bg-white/70 px-3 py-1 rounded-full shadow-sm border border-white/40">
+                                       ＋新增營區
+                                   </button>
+                                   <p v-if="campsiteError" class="text-xs font-bold text-red-500">{{ campsiteError }}</p>
+                               </div>
                            </div>
                       </div>
 
@@ -592,10 +574,6 @@ onMounted(async () => {
                        <!-- Subtitle Location -->
                       <div class="flex items-center justify-center gap-1.5 text-primary-700 font-bold bg-white/40 backdrop-blur-sm px-2 py-1 rounded-full">
                           <MapPin class="w-4 h-4" />
-                          <template v-if="lockedCampsite">
-                             <span class="text-xs font-bold text-primary-900">{{ selectedCityName }} {{ selectedDistrictName }}</span>
-                          </template>
-                          <template v-else>
                               <select
                                 v-model="selectedCity"
                                 class="bg-transparent border-none text-xs font-bold text-primary-800 p-0 pr-4 focus:ring-0 cursor-pointer"
@@ -615,7 +593,6 @@ onMounted(async () => {
                                   {{ district.name }}
                                 </option>
                               </select>
-                          </template>
                       </div>
                   </div>
               </div>

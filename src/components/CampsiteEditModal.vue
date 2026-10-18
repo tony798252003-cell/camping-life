@@ -274,7 +274,7 @@ const save = async () => {
 
     console.log('Update success:', data)
     clearDraft()
-    emit('saved')
+    emit('saved', data[0])
     emit('close')
   } catch (e: any) {
     console.error('Update failed:', e)
