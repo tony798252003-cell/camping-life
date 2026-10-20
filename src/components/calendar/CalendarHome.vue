@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import CalendarHeader, { type CalendarViewMode } from './CalendarHeader.vue'
 import MonthGrid from './MonthGrid.vue'
 import AgendaList from './AgendaList.vue'
+import WeekView from './WeekView.vue'
+import DayView from './DayView.vue'
 import DayListSheet from './DayListSheet.vue'
 import EventDetailSheet from './EventDetailSheet.vue'
 import CpblGameSheet from './CpblGameSheet.vue'
@@ -19,7 +21,7 @@ import { agendaRange, dayClickAction, eventsOnDay } from '../../utils/calendar/a
 import { buildMonthWeeks } from '../../utils/calendar/monthLayout'
 import type { CpblSchedule } from '../../types/database'
 import type { ViewEvent } from '../../utils/calendar/viewEvent'
-import { addDays, todayYmd } from '../../utils/dateRange'
+import { addDays, todayYmd, weekdayMon0 } from '../../utils/dateRange'
 
 // App.vue 會把 trips、session 等 props 全部丟給 router-view，這裡都不需要，不能落到根元素
 defineOptions({ inheritAttrs: false })
@@ -62,7 +64,16 @@ const shiftMonth = (n: number) => {
 const step = (n: 1 | -1) =>
   setQuery({ date: view.value === 'month' ? shiftMonth(n) : addDays(date.value, n * (view.value === 'week' ? 7 : 1)) })
 
-const title = computed(() => `${year.value}年${month.value}月`)
+const weekDays = computed(() => {
+  const mon = addDays(date.value, -weekdayMon0(date.value))
+  return Array.from({ length: 7 }, (_, i) => addDays(mon, i))
+})
+const md = (ymd: string) => `${Number(ymd.slice(5, 7))}/${Number(ymd.slice(8))}`
+const title = computed(() => {
+  if (view.value === 'week') return `${md(weekDays.value[0]!)} – ${md(weekDays.value[6]!)}`
+  if (view.value === 'day') return `${md(date.value)}（${'一二三四五六日'[weekdayMon0(date.value)]}）`
+  return `${year.value}年${month.value}月`
+})
 
 const range = computed(() => agendaRange(year.value, month.value, today.value))
 const agendaItems = computed(() => feed.value.filter((e) => e.startDate <= range.value.to && e.endDate >= range.value.from))
@@ -156,8 +167,22 @@ const onAddOnDay = (ymd: string) => {
       <MonthGrid :year="year" :month="month" :events="feed" :today="today" :selected="selectedDate" @select="onSelectDay" />
       <AgendaList :items="agendaItems" :from="range.from" :to="range.to" :highlight="highlight" @open="onOpen" />
     </template>
-    <!-- 週／日檢視：後續 task 實作；先讓 query 切得過去且不壞畫面 -->
-    <p v-else class="text-center text-sm text-primary-400 py-16">{{ view === 'week' ? '週' : '日' }}檢視即將推出</p>
+    <WeekView
+      v-else-if="view === 'week'"
+      :days="weekDays"
+      :events="feed"
+      :today="today"
+      @select-day="(d) => setQuery({ view: 'day', date: d })"
+      @open="onOpen"
+    />
+    <DayView
+      v-else
+      :date="date"
+      :events="feed"
+      :today="today"
+      @select-day="(d) => setQuery({ date: d })"
+      @open="onOpen"
+    />
 
     <DayListSheet
       :open="sheetDate !== null"
