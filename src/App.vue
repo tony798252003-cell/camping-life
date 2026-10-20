@@ -17,6 +17,7 @@ import { useTripModal } from './composables/useTripModal'
 import { useEventCategories } from './composables/useEventCategories'
 import { useCalendarEvents } from './composables/useCalendarEvents'
 import { supabase } from './lib/supabase'
+import { buildTripSavePayload } from './utils/tripPayload'
 
 // Router
 const router = useRouter()
@@ -92,17 +93,17 @@ const handleDeleteTrip = async (id: number) => {
 const handleSubmit = async (tripData: NewCampingTrip) => {
   if (!session.value) return
 
-  const dataToSave = {
-    ...tripData,
-    user_id: session.value.user.id,
-    family_id: familyId() ?? null
-  }
+  const dataToSave = buildTripSavePayload(tripData, {
+    isEdit: !!activeTrip.value,
+    userId: session.value.user.id,
+    familyId: familyId() ?? null
+  })
 
   let success = false
   if (activeTrip.value) {
     success = await updateTrip(activeTrip.value.id, dataToSave)
   } else {
-    success = await createTrip(dataToSave)
+    success = await createTrip(dataToSave as NewCampingTrip)
   }
 
   if (success) {
