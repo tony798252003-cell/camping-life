@@ -2,7 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { Plus, Trash2, Tent, X, Check, Edit2, Search, Library } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
-import type { CampingGear, NewGearItem, CampingTripWithCampsite, SystemAsset } from '../types/database'
+import type { CampingGear, CampingTripWithCampsite, SystemAsset } from '../types/database'
+import { buildNewTentPayload } from '../utils/gearPayload'
 import SystemAssetManager from './SystemAssetManager.vue'
 
 const props = defineProps<{
@@ -146,19 +147,10 @@ const saveTent = async () => {
 
     } else {
         // Insert
-        // TODO(types): M5 purchase_date 欄位不存在（camping_gear 無此欄），先轉型保留現有行為
-        const newTent = {
-            name: newTentName.value.trim(),
-            brand: newTentBrand.value.trim(),
-            base_usage_count: 0,
-            cost: 0,
-            purchase_date: (new Date().toISOString().split('T')[0] as string),
-            type: 'tent',
-            category: 'tent',
-            user_id: session.user.id,
-            image_url: newTentImage.value || ''
-        } as NewGearItem
-
+        const newTent = buildNewTentPayload(
+            { name: newTentName.value, brand: newTentBrand.value, imageUrl: newTentImage.value },
+            session.user.id
+        )
 
         const { data, error } = await supabase
             .from('camping_gear')
