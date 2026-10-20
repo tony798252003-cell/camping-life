@@ -34,7 +34,7 @@ const args = process.argv.slice(2)
 const apply = args.includes('--apply')
 const bIdx = args.indexOf('--backup')
 const backupArg = bIdx !== -1 ? args[bIdx + 1] : undefined
-const decisionsArg = args.find((a, i) => !a.startsWith('--') && i !== bIdx + 1)
+const decisionsArg = args.find((a, i) => !a.startsWith('--') && (bIdx === -1 || i !== bIdx + 1))
 
 if (!decisionsArg) {
   console.error('用法：apply.ts <decisions.json> [--apply --backup <備份目錄>]')
