@@ -1,20 +1,11 @@
 import { ref } from 'vue'
+import { isHoliday as isHolidayDate } from '../utils/holidays'
 
 // 預設起點 (桃園大園)
 export const DEFAULT_ORIGIN = {
     lat: 25.0621,
     lng: 121.1963
 }
-
-// 台灣國定假日與連假（2026年）
-const HOLIDAYS_2026 = [
-    '2026-01-01', // 元旦
-    '2026-02-27', '2026-02-28', '2026-03-01', '2026-03-02', // 春節
-    '2026-04-03', '2026-04-04', '2026-04-05', '2026-04-06', // 清明連假
-    '2026-06-19', '2026-06-20', '2026-06-21', // 端午連假
-    '2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28', // 中秋連假
-    '2026-10-09', '2026-10-10', '2026-10-11' // 國慶連假
-]
 
 // 簡易路線快取（避免短時間內重複查詢）
 interface RouteCache {
@@ -53,7 +44,7 @@ const isHoliday = (date: Date): boolean => {
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
     const dateStr = `${year}-${month}-${day}`
-    return HOLIDAYS_2026.includes(dateStr)
+    return !!isHolidayDate(dateStr)
 }
 
 // 計算兩點間的直線距離（km）
