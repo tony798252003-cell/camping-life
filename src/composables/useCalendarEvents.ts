@@ -53,8 +53,8 @@ export function useCalendarEvents() {
     async function updateEvent(id: string, updates: Partial<NewCalendarEvent>) {
         isLoading.value = true
         try {
-            const updateResult: any = await (supabase
-                .from('calendar_events') as any)
+            const updateResult: any = await supabase
+                .from('calendar_events')
                 .update(updates)
                 .eq('id', id)
                 .select()

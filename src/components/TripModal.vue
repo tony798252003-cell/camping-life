@@ -29,7 +29,7 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'submit', data: NewCampingTrip): void
   (e: 'edit-campsite', campsite: any): void
-  (e: 'add-campsite', prefill: { name: string; latitude?: number; longitude?: number; altitude?: number }): void
+  (e: 'add-campsite', prefill: { name: string; latitude?: number | null; longitude?: number | null; altitude?: number | null }): void
   (e: 'delete', id: number): void
   (e: 'prev'): void
   (e: 'next'): void
@@ -137,7 +137,7 @@ const fetchTents = async () => {
       .order('created_at', { ascending: true })
 
     if (error) throw error
-    tents.value = data || []
+    tents.value = (data || []) as CampingGear[] // TODO(types): M5 DB 欄位可空
   } catch (error) {
     console.error('Error fetching tents:', error)
   }
@@ -352,7 +352,7 @@ const searchCampsites = async (query: string) => {
     isSearchingCampsite.value = true
     try {
       const { data } = await supabase.from('campsites').select('*').ilike('name', `%${query}%`).limit(5)
-      campsiteSearchResults.value = data || []
+      campsiteSearchResults.value = (data || []) as unknown as Campsite[] // TODO(types): M5 JSONB 欄位收窄
       showCampsiteDropdown.value = true
     } catch (e) { console.error(e) } finally { isSearchingCampsite.value = false }
   }, 300)

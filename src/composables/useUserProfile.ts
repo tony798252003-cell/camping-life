@@ -62,7 +62,6 @@ export function useUserProfile() {
         try {
             const { error } = await supabase
                 .from('profiles')
-                // @ts-expect-error - Supabase type inference limitation
                 .update(updates)
                 .eq('id', userId)
 

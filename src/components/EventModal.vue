@@ -71,8 +71,8 @@ watch(() => props.isOpen, (newVal) => {
              startTime.value = start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
              endDate.value = end.toISOString().split('T')[0] || ''
              endTime.value = end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-             isAllDay.value = props.editEvent.is_all_day
-             color.value = props.editEvent.color
+             isAllDay.value = props.editEvent.is_all_day as boolean // TODO(types): M5 DB 欄位可空
+             color.value = props.editEvent.color as string // TODO(types): M5 DB 欄位可空
              // If family_id exists, it's shared. If null, it's private.
              isFamily.value = !!props.editEvent.family_id
         } else {

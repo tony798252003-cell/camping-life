@@ -13,11 +13,12 @@ const loading = ref(false)
 const isSubmitting = ref(false)
 
 // Default examples for reset
-const defaultExamples: NewGearItem[] = [
+// TODO(types): M5 purchase_date 欄位不存在（camping_gear 無此欄），先轉型保留現有行為
+const defaultExamples = [
   { name: '屋脊13', base_usage_count: 19, cost: 8992, rental_price: 1400, type: 'tent', category: 'tent', purchase_date: new Date().toISOString() },
   { name: 'CC3', base_usage_count: 12, cost: 34400, rental_price: 2700, type: 'tent', category: 'tent', purchase_date: new Date().toISOString() },
   { name: '天幕', base_usage_count: 13, cost: 4400, rental_price: 800, type: 'tarp', category: 'tarp', purchase_date: new Date().toISOString() },
-]
+] as unknown as NewGearItem[]
 
 // Fetch Data
 const fetchGear = async () => {
@@ -33,7 +34,7 @@ const fetchGear = async () => {
       .order('created_at', { ascending: true })
 
     if (error) throw error
-    items.value = data || []
+    items.value = (data || []) as CampingGear[] // TODO(types): M5 DB 欄位可空
   } catch (error) {
     console.error('Error fetching gear:', error)
     alert('無法載入裝備資料')
@@ -51,7 +52,8 @@ const addItem = async () => {
 
   isSubmitting.value = true
   try {
-    const newItem: NewGearItem = {
+    // TODO(types): M5 purchase_date 欄位不存在（camping_gear 無此欄），先轉型保留現有行為
+    const newItem = {
       name: '新裝備',
       base_usage_count: 0,
       cost: 0,
@@ -60,10 +62,10 @@ const addItem = async () => {
       category: 'other',
       purchase_date: new Date().toISOString(),
       user_id: session.user.id
-    }
+    } as NewGearItem
 
-    const { data, error } = await (supabase
-      .from('camping_gear') as any)
+    const { data, error } = await supabase
+      .from('camping_gear')
       .insert([newItem])
       .select()
       .single()
@@ -71,7 +73,7 @@ const addItem = async () => {
 
     if (error) throw error
     if (data) {
-      items.value.push(data)
+      items.value.push(data as CampingGear) // TODO(types): M5 DB 欄位可空
     }
   } catch (error) {
     console.error('Error adding item:', error)
@@ -83,8 +85,8 @@ const addItem = async () => {
 
 const updateItem = async (item: CampingGear) => {
   try {
-    const { error } = await (supabase
-      .from('camping_gear') as any)
+    const { error } = await supabase
+      .from('camping_gear')
       .update({
         name: item.name,
         base_usage_count: item.base_usage_count,
@@ -157,14 +159,14 @@ const resetData = async () => {
     }
 
     // 2. Insert defaults
-    const { data, error: insError } = await (supabase
-      .from('camping_gear') as any)
+    const { data, error: insError } = await supabase
+      .from('camping_gear')
       .insert(defaultExamples)
       .select()
 
     
     if (insError) throw insError
-    items.value = data || []
+    items.value = (data || []) as CampingGear[] // TODO(types): M5 DB 欄位可空
     
   } catch (error) {
     console.error('Error resetting data:', error)

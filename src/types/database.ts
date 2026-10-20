@@ -1,23 +1,11 @@
-// Family Interface
-export interface Family {
-    id: string
-    created_at: string
-    name: string
-    invite_code: string
-    created_by: string
-}
+// 型別由 supabase gen types 產生（src/types/supabase.ts，npm run db:types），這裡只做衍生與 JSONB 收窄
+import type { Tables, TablesInsert } from './supabase'
 
-export interface Profile {
-    id: string
-    updated_at: string | null
-    location_name: string | null
-    latitude: number | null
-    longitude: number | null
-    is_admin?: boolean // Added for Admin permissions
-    family_id?: string | null // Family Link
-    onboarding_completed_at?: string | null
-    campsite_quick_chips?: string[] | null
-}
+export type { Database, Json } from './supabase'
+
+export type Family = Tables<'families'>
+
+export type Profile = Tables<'profiles'>
 
 export interface CapacityZone {
     name: string        // 區域名稱，例如 A區、草地區，可空白
@@ -25,88 +13,24 @@ export interface CapacityZone {
     tents: number       // 該區帳數
 }
 
-export interface Campsite {
-    id: number
-    created_at: string
-    name: string
-    city: string | null
-    district: string | null
-    latitude: number | null
-    longitude: number | null
-    altitude: number | null
-    created_by: string | null
-    is_verified?: boolean // Added for verification flow
-    tags?: string[]
-    phone?: string
-    zone_config?: string
-    playground_features?: string[]
-    water_features?: string[]
-    scenery_features?: string[]
-    spot_types?: string[]
-    booking_method?: string[]
-    booking_available_until?: string | null
-    booking_timing?: string | null
-    booking_difficulty?: 'normal' | 'moderate' | 'hard'
-    recommended_spots?: string | null
-    campsite_notes?: string | null
-    booking_platform?: 'icamping' | 'campingfun' | null
-    booking_platform_url?: string | null
-    booking_last_available_date?: string | null
-    booking_scraped_at?: string | null
-    // New Features v2
-    amenities?: {
+export type Campsite = Omit<
+    Tables<'campsites'>,
+    'amenities' | 'capacity_zones' | 'booking_difficulty' | 'booking_platform'
+> & {
+    booking_difficulty: 'normal' | 'moderate' | 'hard' | null
+    booking_platform: 'icamping' | 'campingfun' | null
+    amenities: {
         has_fridge?: boolean
         has_freezer?: boolean
         has_water_dispenser?: boolean
-    }
-    check_in_time?: string
-    check_out_time?: string
-    night_rush_time?: string
-    shower_restrictions?: string
-    layout_image_url?: string
-    total_capacity?: number | null
-    capacity_zones?: CapacityZone[]
+    } | null
+    capacity_zones: CapacityZone[] | null
 }
 
-export interface CampingTrip {
-    id: number
-    created_at: string
-    trip_date: string
-    duration_days: number
-    campsite_name: string
-    location: string
-    price: number
-    notes: string | null
-    rating: number | null
-    cover_image: string | null
-    status: 'planning' | 'booked' | 'completed' | 'cancelled'
-    user_id: string | null
-    zone: string | null
-    companions: string | null
-    latitude: number | null
-    longitude: number | null
-    altitude: number | null
-    night_rush: boolean
-    start_latitude: number | null
-    start_longitude: number | null
-    start_location: string | null
-    scenery: number | null
-    cleanliness: number | null
-    road_condition: number | null
-    campsite_id: number | null
-    // Family
-    family_id?: string | null
-    // Missing fields restored below
-    entertainment: string | null
-    owner_friendliness: string | null
-    is_windy: boolean
-    is_rainy: boolean
-    is_wet_tent: boolean
-    tent_type: string | null
-    has_tarp: boolean
-    cost: number
-    tent_id: number | null
-    tarp_id: number | null
+type TripStatus = 'planning' | 'booked' | 'completed' | 'cancelled'
+
+export type CampingTrip = Omit<Tables<'camping_trips'>, 'status'> & {
+    status: TripStatus | null
 }
 
 export interface CampingTripWithCampsite extends CampingTrip {
@@ -118,202 +42,37 @@ export interface CampingTripWithCampsite extends CampingTrip {
     } | null
 }
 
-export interface NewCampingTrip {
-    trip_date: string
+// 表單必填欄位維持 App 端語意（DB 欄位皆可空，但新增行程一定帶這些）
+export type NewCampingTrip = Omit<
+    TablesInsert<'camping_trips'>,
+    'status' | 'duration_days' | 'campsite_name' | 'location' | 'price'
+> & {
+    status: TripStatus
     duration_days: number
     campsite_name: string
     location: string
     price: number
-    notes?: string
-    rating?: number
-    cover_image?: string
-    status: 'planning' | 'booked' | 'completed' | 'cancelled'
-    user_id?: string
-    zone?: string
-    companions?: string
-    latitude?: number
-    longitude?: number
-    altitude?: number
-    night_rush?: boolean
-    start_latitude?: number
-    start_longitude?: number
-    start_location?: string
-    scenery?: number
-    cleanliness?: number
-    road_condition?: number
-    campsite_id?: number
-    family_id?: string | null
-    // Missing fields restored below
-    entertainment?: string
-    owner_friendliness?: string
-    is_windy?: boolean
-    is_rainy?: boolean
-    is_wet_tent?: boolean
-    tent_type?: string
-    has_tarp?: boolean
-    cost?: number
-    tent_id?: number
-    tarp_id?: number
 }
 
-export interface GearItem {
-    id: number
-    name: string
-    category: string
-    purchase_date: string
-    brand: string | null
-    notes: string | null
-    image_url: string | null
-    weight_kg: number | null
-    is_consumable: boolean
-    status: 'active' | 'retired' | 'lost'
-    user_id: string | null
-    type?: string // Often inferred from category or distinct field
-    // Added fields for ROI
-    base_usage_count: number
-    rental_price: number
+// cost / rental_price / base_usage_count 在 DB 可空，但 ROI 計算一律當數字用（新增時都有帶 0）
+export type GearItem = Omit<Tables<'camping_gear'>, 'cost' | 'rental_price' | 'base_usage_count'> & {
     cost: number
-    family_id?: string | null
+    rental_price: number
+    base_usage_count: number
 }
 
 export type CampingGear = GearItem // Alias for consistency if needed
 
-export interface NewGearItem {
-    name: string
-    category: string
-    purchase_date: string
-    brand?: string
-    notes?: string
-    image_url?: string
-    weight_kg?: number
-    is_consumable?: boolean
-    status?: 'active' | 'retired' | 'lost'
-    user_id?: string
-    type?: string
-    base_usage_count?: number
-    rental_price?: number
-    cost?: number
-    family_id?: string | null
-}
+export type NewGearItem = TablesInsert<'camping_gear'>
 
-export interface TripPhoto {
-    id: number
-    user_id: string
-    trip_id: number
-    url: string
-    public_id: string | null
-    caption: string | null
-    width: number | null
-    height: number | null
-    created_at: string
-}
+export type TripPhoto = Tables<'trip_photos'>
 
-export interface NewTripPhoto {
-    user_id: string
-    trip_id: number
-    url: string
-    public_id?: string | null
-    caption?: string | null
-    width?: number | null
-    height?: number | null
-}
+export type NewTripPhoto = TablesInsert<'trip_photos'>
 
-export interface SystemAsset {
-    id: number
-    created_at: string
-    type: string
-    url: string
-    name: string | null
-    width: number | null
-    height: number | null
-    public_id: string | null
-    brand: string | null
-}
+export type SystemAsset = Tables<'system_assets'>
 
-export interface Database {
-    public: {
-        Tables: {
-            profiles: {
-                Row: Profile
-                Insert: Omit<Profile, 'updated_at'>
-                Update: Partial<Omit<Profile, 'id' | 'updated_at'>>
-            }
-            families: {
-                Row: Family
-                Insert: Omit<Family, 'id' | 'created_at'>
-                Update: Partial<Family>
-            }
-            campsites: {
-                Row: Campsite
-                Insert: Omit<Campsite, 'id' | 'created_at'>
-                Update: Partial<Campsite>
-            }
-            camping_trips: {
-                Row: CampingTrip
-                Insert: NewCampingTrip
-                Update: Partial<NewCampingTrip>
-            }
-            camping_gear: {
-                Row: GearItem
-                Insert: NewGearItem
-                Update: Partial<NewGearItem>
-            }
-            trip_photos: {
-                Row: TripPhoto
-                Insert: NewTripPhoto
-                Update: Partial<NewTripPhoto>
-            }
-            system_assets: {
-                Row: SystemAsset
-                Insert: Omit<SystemAsset, 'id' | 'created_at'>
-                Update: Partial<SystemAsset>
-            }
-            calendar_events: {
-                Row: CalendarEvent
-                Insert: NewCalendarEvent
-                Update: Partial<NewCalendarEvent>
-            }
-            cpbl_schedule: {
-                Row: CpblSchedule
-                Insert: Omit<CpblSchedule, 'id' | 'created_at'>
-                Update: Partial<Omit<CpblSchedule, 'id' | 'created_at'>>
-            }
-        }
-    }
-}
+export type CalendarEvent = Tables<'calendar_events'>
 
-export interface CalendarEvent {
-    id: string
-    created_at: string
-    title: string
-    description: string | null
-    start_time: string
-    end_time: string
-    is_all_day: boolean
-    event_type: string
-    color: string
-    family_id: string | null
-    created_by: string
-}
+export type NewCalendarEvent = TablesInsert<'calendar_events'>
 
-export interface NewCalendarEvent {
-    title: string
-    description?: string
-    start_time: string
-    end_time: string
-    is_all_day?: boolean
-    event_type?: string
-    color?: string
-    family_id?: string | null
-    created_by?: string
-}
-
-export interface CpblSchedule {
-    id: string
-    created_at: string
-    game_sno: number
-    game_date: string
-    home_team_name: string
-    visiting_team_name: string
-    field_abbe: string
-}
+export type CpblSchedule = Tables<'cpbl_schedule'>

@@ -169,7 +169,7 @@ const generateMonthData = (year: number, month: number) =>{
         date: new Date(e.start_time),
         color: e.color || '#3b82f6',
         data: e,
-        isAllDay: e.is_all_day
+        isAllDay: e.is_all_day as boolean // TODO(types): M5 DB 欄位可空
     }))
     
     // 3. Filter CPBL Games (Background Highlight)
@@ -387,7 +387,7 @@ const allEvents = computed(() => {
         date: new Date(e.start_time),
         color: e.color || '#3b82f6',
         data: e,
-        isAllDay: e.is_all_day
+        isAllDay: e.is_all_day as boolean // TODO(types): M5 DB 欄位可空
     }))
 
     // 3. Combine
