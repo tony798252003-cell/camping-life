@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useNewItemSheet } from '../composables/useNewItemSheet'
 import NextTripCard from '../components/home/NextTripCard.vue'
 import GlanceCalendar from '../components/home/GlanceCalendar.vue'
-import TodayList from '../components/home/TodayList.vue'
+import AgendaList from '../components/home/AgendaList.vue'
 import EventDetailSheet from '../components/calendar/EventDetailSheet.vue'
 import CpblGameSheet from '../components/calendar/CpblGameSheet.vue'
 import { useCalendarFeed } from '../composables/useCalendarFeed'
 import { useCalendarEvents } from '../composables/useCalendarEvents'
+import { eventsOnDay } from '../utils/calendar/agendaRange'
 import { useEventCategories } from '../composables/useEventCategories'
 import { useEventOpener } from '../composables/useEventOpener'
 import { useToday } from '../composables/useToday'
 import { useUserProfile } from '../composables/useUserProfile'
 import { buildMonthWeeks } from '../utils/calendar/monthLayout'
-import { dayAgenda, weekRow } from '../utils/calendar/glance'
+import { dayLabel, weekAgenda, weekRow } from '../utils/calendar/glance'
 import { addDays } from '../utils/dateRange'
 import { isHoliday } from '../utils/holidays'
 
@@ -23,7 +25,7 @@ defineOptions({ inheritAttrs: false })
 const STORAGE_KEY = 'home.glanceExpanded'
 const router = useRouter()
 const today = useToday()
-const { feed, selectedDate, loadGames } = useCalendarFeed()
+const { feed, loadGames } = useCalendarFeed()
 const { fetchEvents } = useCalendarEvents()
 const { load: loadCategories } = useEventCategories()
 const { showCpbl } = useUserProfile()
@@ -73,22 +75,24 @@ onMounted(() => {
   fetchEvents()
 })
 
-// 今天；今天沒事才補明天
-const holidayLabel = (base: string, ymd: string) => {
-  const h = isHoliday(ymd)
-  return h ? `${base}・${h.name}` : base
-}
+// 點速覽的日期只選取、不跳頁；清單改顯示那天（null = 本週）
+const selected = ref<string | null>(null)
+const newItem = useNewItemSheet()
+const label = (d: string) => dayLabel(d, today.value, isHoliday(d)?.name)
 const sections = computed(() => {
-  const t = dayAgenda(today.value, feed.value)
-  if (t.length) return [{ label: holidayLabel('今天', today.value), day: today.value, items: t }]
-  const tomorrowYmd = addDays(today.value, 1)
-  const n = dayAgenda(tomorrowYmd, feed.value)
-  return n.length ? [{ label: holidayLabel('明天', tomorrowYmd), day: tomorrowYmd, items: n }] : []
+  if (selected.value) {
+    const d = selected.value
+    return [{ label: label(d), day: d, items: eventsOnDay(d, feed.value) }]
+  }
+  return weekAgenda(today.value, feed.value).map((s) => ({ ...s, label: label(s.day) }))
 })
+// 再點同一天 = 取消選取
+const onSelect = (d: string) => {
+  selected.value = selected.value === d ? null : d
+}
 
-const goCalendar = (date?: string) => {
-  if (date) selectedDate.value = date
-  router.push({ path: '/calendar', query: date ? { view: 'month', date } : {} })
+const goCalendar = () => {
+  router.push({ path: '/calendar' })
 }
 </script>
 
@@ -100,10 +104,11 @@ const goCalendar = (date?: string) => {
       :today="today"
       :expanded="expanded"
       @toggle="toggle"
-      @select="goCalendar"
-      @open-calendar="goCalendar()"
+      :selected="selected"
+      @select="onSelect"
+      @open-calendar="goCalendar"
     />
-    <TodayList :sections="sections" @open="onOpen" />
+    <AgendaList :sections="sections" :selected="selected" @open="onOpen" @clear="selected = null" @add="newItem.open(selected)" />
     <router-link to="/stats" class="self-center min-h-[44px] flex items-center text-[13px] font-bold text-primary-600">露營統計 ›</router-link>
 
     <EventDetailSheet :event-id="detailEventId" @close="detailEventId = null" />

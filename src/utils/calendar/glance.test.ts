@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { ViewEvent } from './viewEvent'
-import { cellTint, dayAgenda, displayTitle, timeLabel, weekRow } from './glance'
+import { cellTint, dayAgenda, dayLabel, displayTitle, timeLabel, weekAgenda, weekRow } from './glance'
 
 const ev = (o: Partial<ViewEvent> & { key: string }): ViewEvent => ({
   source: 'event', sourceId: o.key, title: o.key, color: '#10b981', categoryId: null,
@@ -58,5 +58,37 @@ describe('displayTitle', () => {
   it('去掉賽程標題的 ⚾ 前綴，其他標題不動', () => {
     expect(displayTitle(ev({ key: 'g', title: '⚾ 樂天桃猿 vs 統一獅' }))).toBe('樂天桃猿 vs 統一獅')
     expect(displayTitle(ev({ key: 'g', title: '瑜珈課' }))).toBe('瑜珈課')
+  })
+})
+
+describe('weekAgenda', () => {
+  it('只留有事件的日子，依週一到週日排序', () => {
+    // 首頁清單不顯示空白日；順序錯了會讓「週日的事」排在「週三的事」前面
+    const w = weekAgenda('2026-10-21', [ev({ key: 'sun', startDate: '2026-10-25', endDate: '2026-10-25' }), ev({ key: 'wed' })])
+    expect(w.map((s) => s.day)).toEqual(['2026-10-21', '2026-10-25'])
+  })
+  it('不含本週以外的事件，多天事件在每個涵蓋日都出現', () => {
+    // 下週一不能混進來；露營跨週六日兩天都要列，才看得到「今天仍在露營」
+    const w = weekAgenda('2026-10-21', [
+      ev({ key: 'next', startDate: '2026-10-26', endDate: '2026-10-26' }),
+      ev({ key: 'camp', startDate: '2026-10-24', endDate: '2026-10-25' }),
+    ])
+    expect(w.map((s) => s.day)).toEqual(['2026-10-24', '2026-10-25'])
+  })
+  it('一天超過三筆也不截斷', () => {
+    // 本週清單是完整行程，不像舊的今天清單只取 3 筆
+    const evs = ['a', 'b', 'c', 'd'].map((key) => ev({ key }))
+    expect(weekAgenda('2026-10-21', evs)[0]!.items).toHaveLength(4)
+  })
+  it('整週沒事回空陣列', () => {
+    expect(weekAgenda('2026-10-21', [])).toEqual([])
+  })
+})
+
+describe('dayLabel', () => {
+  it('今天加「今天」、假日加名稱', () => {
+    expect(dayLabel('2026-10-21', '2026-10-21')).toBe('10/21（三）今天')
+    expect(dayLabel('2026-10-28', '2026-10-21')).toBe('10/28（三）')
+    expect(dayLabel('2026-10-10', '2026-10-21', '國慶日')).toBe('10/10（六）・國慶日')
   })
 })

@@ -7,7 +7,7 @@ import { cellTint, weekRow } from '../../utils/calendar/glance'
 import { eventsOnDay } from '../../utils/calendar/agendaRange'
 import { weekdayMon0 } from '../../utils/dateRange'
 
-const props = defineProps<{ events: ViewEvent[]; today: string; expanded: boolean }>()
+const props = defineProps<{ events: ViewEvent[]; today: string; expanded: boolean; selected: string | null }>()
 const emit = defineEmits<{
   (e: 'toggle'): void
   (e: 'select', ymd: string): void
@@ -56,9 +56,10 @@ const cellStyle = (d: string) => {
             v-if="d"
             type="button"
             class="h-11 rounded-[10px] flex items-center justify-center text-[13px] font-bold active:scale-95 transition-transform"
-            :class="d === today ? 'bg-primary-600 text-white' : 'text-primary-900'"
+            :class="[d === today ? 'bg-primary-600 text-white' : 'text-primary-900', d === selected ? 'outline outline-2 outline-offset-1 outline-primary-900' : '']"
             :style="cellStyle(d)"
             :aria-label="ariaLabel(d)"
+            :aria-pressed="d === selected"
             @click="emit('select', d)"
           >{{ Number(d.slice(8)) }}</button>
           <span v-else></span>

@@ -29,3 +29,17 @@ export const dayAgenda = (day: string, events: ViewEvent[], limit = 3): ViewEven
 
 // 賽程標題帶 ⚾ 前綴（資料層規格），畫面上不用 emoji 當圖示
 export const displayTitle = (e: ViewEvent) => e.title.replace(/^⚾\s*/, '')
+
+// 本週行程：週一到週日逐日分組，只留有事件的日子；每天順序與月列表相同（eventsOnDay），不截斷
+export function weekAgenda(today: string, events: ViewEvent[]): { day: string; items: ViewEvent[] }[] {
+  return weekRow(today)
+    .map((day) => ({ day, items: eventsOnDay(day, events) }))
+    .filter((s) => s.items.length > 0)
+}
+
+const WEEK = ['一', '二', '三', '四', '五', '六', '日']
+// 日標題：「10/21（三）今天・國慶日」
+export function dayLabel(day: string, today: string, holidayName?: string | null): string {
+  const base = `${Number(day.slice(5, 7))}/${Number(day.slice(8))}（${WEEK[weekdayMon0(day)]}）`
+  return `${base}${day === today ? '今天' : ''}${holidayName ? `・${holidayName}` : ''}`
+}
