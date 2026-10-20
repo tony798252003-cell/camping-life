@@ -14,6 +14,8 @@ const freeText = ref('')
 const results = ref<DiscoverResult[]>([])
 const excludedCount = ref(0)
 const nextPageToken = ref<string | null>(null)
+// 產生 nextPageToken 的那次搜尋條件；「再找更多」必須沿用，不能讀會被編輯的畫面條件
+const lastCriteria = ref<ReturnType<typeof criteria> | null>(null)
 const moreUsed = ref(false) // 「再找更多」最多一次
 const searched = ref(false)
 const draftedPlaceIds = ref<string[]>([])
@@ -86,7 +88,9 @@ async function search() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const r = await apiPost<DiscoverResponse>('/api/campsite-discover', criteria())
+    const used = criteria()
+    const r = await apiPost<DiscoverResponse>('/api/campsite-discover', used)
+    lastCriteria.value = used
     results.value = r.results
     excludedCount.value = r.excludedCount
     nextPageToken.value = r.nextPageToken ?? null
@@ -100,11 +104,11 @@ async function search() {
 }
 
 async function loadMore() {
-  if (!nextPageToken.value || moreUsed.value || loadingMore.value) return
+  if (!nextPageToken.value || !lastCriteria.value || moreUsed.value || loadingMore.value) return
   loadingMore.value = true
   errorMsg.value = ''
   try {
-    const r = await apiPost<DiscoverResponse>('/api/campsite-discover', { ...criteria(), pageToken: nextPageToken.value })
+    const r = await apiPost<DiscoverResponse>('/api/campsite-discover', { ...lastCriteria.value, pageToken: nextPageToken.value })
     const seen = new Set(results.value.map((x) => x.placeId))
     results.value = [...results.value, ...r.results.filter((x) => !seen.has(x.placeId))]
     excludedCount.value += r.excludedCount
