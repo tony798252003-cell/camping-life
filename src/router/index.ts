@@ -10,7 +10,7 @@ const routes = [
             {
                 path: '',
                 name: 'home',
-                component: () => import('../components/calendar/CalendarHome.vue')
+                component: () => import('../views/HomeView.vue')
             },
             {
                 path: 'list',
@@ -19,7 +19,8 @@ const routes = [
             },
             {
                 path: 'calendar',
-                redirect: '/'
+                name: 'calendar',
+                component: () => import('../components/calendar/CalendarHome.vue')
             },
             {
                 path: 'library',

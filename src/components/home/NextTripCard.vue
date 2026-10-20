@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Moon, Navigation, Snowflake, Droplets, Car, Plus } from 'lucide-vue-next'
+import { Moon, Navigation, Snowflake, Droplets, Plus } from 'lucide-vue-next'
 import { useTrips } from '../../composables/useTrips'
 import { useTripModal } from '../../composables/useTripModal'
 import { useTripWeather, type WeatherDay } from '../../composables/useTripWeather'
@@ -10,7 +10,6 @@ import { pickNextTrip, tripStart } from '../../utils/nextTrip'
 import { diffDays, tripRange, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
 import { isHoliday } from '../../utils/holidays'
-import { getSmartWeatherIcon } from '../../utils/weatherHelpers'
 
 const WEEK = ['一', '二', '三', '四', '五', '六', '日']
 const LOW_TEMP_C = 10
@@ -43,18 +42,19 @@ const md = (ymd: string) => `${Number(ymd.slice(5, 7))}/${Number(ymd.slice(8))}�
 const dateText = computed(() => (range.value ? `${md(range.value.start)}–${md(range.value.end)}` : ''))
 const nightsText = computed(() => `${trip.value?.night_rush ? '夜衝＋' : ''}${days.value}天${days.value - 1}夜`)
 
+// 右側大數字：未出發 = 倒數天數；進行中 = 第幾天；今晚夜衝 = 「今晚」
 const countdown = computed(() => {
   const t = trip.value
-  if (!t || !range.value) return ''
+  if (!t || !range.value) return { big: '', unit: '', tag: '' }
   const start = tripStart(t)
-  if (t.night_rush && t.trip_date > today.value && start <= today.value) return '今晚夜衝出發'
-  if (start > today.value) return `還有 ${diffDays(today.value, start)} 天`
-  return `進行中 第 ${diffDays(range.value.start, today.value) + 1} 天`
+  if (t.night_rush && t.trip_date > today.value && start <= today.value) return { big: '今晚', unit: '', tag: '夜衝出發' }
+  if (start > today.value) return { big: String(diffDays(today.value, start)), unit: '天', tag: '' }
+  return { big: `第 ${diffDays(range.value.start, today.value) + 1}`, unit: '天', tag: '進行中' }
 })
 
-const statusPill = computed(() => {
+const statusText = computed(() => {
   const s = trip.value?.status
-  return s === 'planning' ? '規劃中' : s === 'booked' ? '已訂位' : null
+  return s === 'planning' ? '規劃中' : s === 'booked' ? '已訂位' : '—'
 })
 
 // 溫度已是海拔校正後的數字；夜間（20:00–06:00）最低溫低於 10°C 時標出
@@ -95,7 +95,15 @@ const travelText = computed(() => {
   if (travelSec.value == null) return null
   const h = Math.floor(travelSec.value / 3600)
   const m = Math.round((travelSec.value % 3600) / 60)
-  return h > 0 ? `約 ${h} 小時 ${m} 分` : `約 ${m} 分鐘`
+  return h > 0 ? `${h}h${String(m).padStart(2, '0')}m` : `${m}m`
+})
+// 天氣格：取行程第一天（預報已依海拔校正）
+const weatherText = computed(() => {
+  if (!coords.value) return '—'
+  const d = weatherDays.value[0]
+  if (d) return `${d.summary.temp_min}–${d.summary.temp_max}°C`
+  if (weatherLoading.value) return '載入中'
+  return forecastClosed.value ? '未開放' : '—'
 })
 const holidayJam = computed(() => !!trip.value && !!isHoliday(tripStart(trip.value)))
 
@@ -124,74 +132,74 @@ const navUrl = computed(() => {
 </script>
 
 <template>
-  <div class="px-4 pt-3 pb-2">
-    <div
-      v-if="trip"
-      role="button"
-      tabindex="0"
-      data-testid="pinned-trip"
-      class="rounded-2xl bg-white p-3 shadow-sm text-left cursor-pointer min-h-[160px]"
-      :class="trip.status === 'planning' ? 'border border-dashed border-primary-300 opacity-90' : 'border border-primary-100'"
-      @click="openEdit(trip)"
-      @keydown.enter="openEdit(trip)"
-    >
-      <div class="flex items-start gap-3">
-        <img v-if="trip.tent?.image_url" :src="trip.tent.image_url" :alt="trip.tent.name" class="w-12 h-12 rounded-xl object-cover shrink-0" />
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <h2 class="text-base font-bold text-primary-900 truncate">{{ name }}</h2>
-            <span v-if="statusPill" class="text-[10px] px-2 py-0.5 rounded-full bg-primary-50 text-primary-600 shrink-0">{{ statusPill }}</span>
-          </div>
-          <p v-if="trip.status === 'planning'" class="text-[10px] text-primary-400">還沒訂位</p>
-          <p class="text-xs text-primary-600 mt-0.5">
-            {{ dateText }}　<span class="inline-flex items-center gap-0.5"><Moon v-if="trip.night_rush" class="w-3 h-3" />{{ nightsText }}</span>
+  <div
+    v-if="trip"
+    role="button"
+    tabindex="0"
+    data-testid="next-trip"
+    class="rounded-[30px] bg-white/85 p-4 text-left cursor-pointer shadow-[0_8px_24px_-12px_rgba(14,165,233,0.35)] flex flex-col gap-2.5"
+    :class="trip.status === 'planning' ? 'border border-dashed border-primary-300' : 'border border-white/70'"
+    @click="openEdit(trip)"
+    @keydown.enter="openEdit(trip)"
+  >
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex items-start gap-3 min-w-0">
+        <img v-if="trip.tent?.image_url" :src="trip.tent.image_url" :alt="trip.tent.name" class="w-12 h-12 rounded-[14px] object-cover shrink-0" />
+        <div class="min-w-0 flex flex-col gap-0.5">
+          <span class="text-[11px] font-bold text-primary-700">下一趟露營<template v-if="countdown.tag">・{{ countdown.tag }}</template></span>
+          <h2 class="text-xl font-black text-primary-900 truncate">{{ name }}</h2>
+          <p class="text-[13px] font-semibold text-slate-600">
+            {{ dateText }}
+            <span class="inline-flex items-center gap-0.5 text-slate-400"><Moon v-if="trip.night_rush" class="w-3 h-3" />{{ nightsText }}</span>
           </p>
-        </div>
-        <div class="text-right shrink-0">
-          <p class="text-sm font-bold text-accent-orange">{{ countdown }}</p>
-          <a
-            v-if="navUrl"
-            :href="navUrl"
-            target="_blank"
-            rel="noopener"
-            aria-label="導航"
-            class="mt-1 inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-primary-900 text-white"
-            @click.stop
-          ><Navigation class="w-3 h-3" />導航</a>
         </div>
       </div>
-
-      <template v-if="coords">
-        <div v-if="weatherDays.length" class="mt-2 flex gap-2 overflow-x-auto">
-          <div v-for="d in weatherDays" :key="d.date" class="shrink-0 rounded-xl bg-primary-50 px-2 py-1 text-center min-w-[64px]">
-            <p class="text-[10px] text-primary-400">{{ d.dateLabel }}</p>
-            <component :is="getSmartWeatherIcon(d.summary.code, d.summary.max_pop)" class="w-4 h-4 mx-auto text-primary-600" />
-            <p class="text-xs font-bold text-primary-900">{{ d.summary.temp_min }}°–{{ d.summary.temp_max }}°</p>
-            <p class="text-[10px] text-primary-400">{{ d.summary.max_pop }}%</p>
-            <p v-if="isCold(d)" class="text-[10px] text-sky-600 flex items-center justify-center gap-0.5"><Snowflake class="w-3 h-3" />夜 {{ nightLow(d) }}°</p>
-          </div>
-        </div>
-        <p v-else-if="forecastClosed" class="mt-2 text-xs text-primary-400">預報尚未開放</p>
-        <p v-else-if="weatherLoading" class="mt-2 text-xs text-primary-400">天氣載入中…</p>
-        <p v-if="altitudeCorrected" class="mt-1 text-[10px] text-primary-400">已依海拔校正（營區 {{ siteAltitude?.toLocaleString() }} m）</p>
-
-        <div class="mt-2 space-y-0.5 text-xs text-primary-600">
-          <p v-if="travelText" class="flex items-center gap-1">
-            <Car class="w-3 h-3" />車程 {{ travelText }}
-            <span v-if="holidayJam" class="text-accent-orange">連假，可能塞車</span>
-          </p>
-          <p v-if="departText">{{ departText }}</p>
-          <p v-if="packRisk" class="flex items-center gap-1 text-orange-600"><Droplets class="w-3 h-3" />收帳日：{{ packRisk.label }}</p>
-        </div>
-      </template>
+      <div class="flex items-baseline gap-1 shrink-0">
+        <span class="font-black leading-none text-accent-sky" :class="countdown.unit === '天' && !countdown.tag ? 'text-[52px]' : 'text-[30px]'">{{ countdown.big }}</span>
+        <span class="text-[13px] font-bold text-primary-600">{{ countdown.unit }}</span>
+      </div>
     </div>
 
-    <button
-      v-else
-      class="w-full rounded-2xl border border-dashed border-primary-200 py-4 text-sm text-primary-400 flex items-center justify-center gap-1"
-      @click="openNew()"
-    >
-      還沒有排下一趟 → <Plus class="w-4 h-4" />新增露營
-    </button>
+    <div class="grid grid-cols-3 gap-2">
+      <div class="bg-primary-50 rounded-[14px] p-2 text-center">
+        <div class="text-[11px] font-semibold text-slate-500">天氣</div>
+        <div class="text-[13px] font-extrabold text-primary-900">{{ weatherText }}</div>
+      </div>
+      <div class="bg-primary-50 rounded-[14px] p-2 text-center">
+        <div class="text-[11px] font-semibold text-slate-500">車程</div>
+        <div class="text-[13px] font-extrabold text-primary-900">{{ travelText ?? '—' }}</div>
+      </div>
+      <div class="bg-primary-50 rounded-[14px] p-2 text-center">
+        <div class="text-[11px] font-semibold text-slate-500">狀態</div>
+        <div class="text-[13px] font-extrabold" :class="trip.status === 'booked' ? 'text-green-800' : 'text-primary-900'">{{ statusText }}</div>
+      </div>
+    </div>
+
+    <div v-if="coords" class="flex items-end justify-between gap-2">
+      <div class="space-y-0.5 text-[11px] text-slate-500 min-w-0">
+        <p v-if="departText">{{ departText }}</p>
+        <p v-if="holidayJam" class="text-accent-orange">連假，可能塞車</p>
+        <p v-if="weatherDays[0] && isCold(weatherDays[0])" class="flex items-center gap-1 text-primary-600"><Snowflake class="w-3 h-3" />夜間低溫 {{ nightLow(weatherDays[0]) }}°</p>
+        <p v-if="packRisk" class="flex items-center gap-1 text-orange-600"><Droplets class="w-3 h-3" />收帳日：{{ packRisk.label }}</p>
+        <p v-if="altitudeCorrected">已依海拔校正（營區 {{ siteAltitude?.toLocaleString() }} m）</p>
+      </div>
+      <a
+        v-if="navUrl"
+        :href="navUrl"
+        target="_blank"
+        rel="noopener"
+        aria-label="導航"
+        class="shrink-0 inline-flex items-center justify-center gap-1 min-h-[44px] px-4 rounded-[14px] bg-primary-900 text-white text-[13px] font-bold"
+        @click.stop
+      ><Navigation class="w-4 h-4" />導航</a>
+    </div>
   </div>
+
+  <button
+    v-else
+    class="w-full min-h-[56px] rounded-[30px] border border-dashed border-primary-200 bg-white/60 text-[13px] font-semibold text-primary-600 flex items-center justify-center gap-1"
+    @click="openNew()"
+  >
+    還沒有排下一趟 <Plus class="w-4 h-4" />新增露營
+  </button>
 </template>

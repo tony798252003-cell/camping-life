@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { useRouter, useRoute } from 'vue-router'
-import { Calendar as CalendarIcon, Tent, MapPin, ChartColumn, Plus } from 'lucide-vue-next'
+import { House, Calendar as CalendarIcon, Tent, BookOpen, Settings } from 'lucide-vue-next'
 import NewItemSheet from '../components/calendar/NewItemSheet.vue'
 import EventEditorSheet from '../components/calendar/EventEditorSheet.vue'
-import { useCalendarFeed } from '../composables/useCalendarFeed'
 import { useEventEditor } from '../composables/useEventEditor'
 import { useNewItemSheet } from '../composables/useNewItemSheet'
 import { useTripModal } from '../composables/useTripModal'
@@ -16,7 +15,6 @@ defineProps<{
   session: any
 }>()
 
-const { selectedDate } = useCalendarFeed()
 const newItem = useNewItemSheet()
 const { openNew } = useTripModal()
 const eventEditor = useEventEditor()
@@ -26,6 +24,14 @@ const onPick = (kind: 'event' | 'trip' | 'campsite', date?: string) => {
   if (kind === 'trip') openNew(date)
   else if (kind === 'event') eventEditor.openNew(date)
 }
+
+const TABS = [
+  { name: 'home', path: '/', label: '首頁', icon: House },
+  { name: 'calendar', path: '/calendar', label: '行事曆', icon: CalendarIcon },
+  { name: 'list', path: '/list', label: '行程', icon: Tent },
+  { name: 'library', path: '/library', label: '圖鑑', icon: BookOpen },
+  { name: 'settings', path: '/settings', label: '設定', icon: Settings },
+]
 
 // Navigation helpers
 const go = (path: string) => router.push(path)
@@ -73,51 +79,18 @@ const go = (path: string) => router.push(path)
     </main>
 
     <!-- Bottom Navigation -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-primary-100 px-6 py-3 flex justify-between items-center z-40 pb-safe shadow-[0_-4px_20px_-1px_rgba(14,165,233,0.1)]">
-        <button
-          @click="go('/')"
-          class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-          :class="route.name === 'home' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
-        >
-          <CalendarIcon class="w-6 h-6" :class="{'fill-primary-100': route.name === 'home'}" />
-          <span class="text-[10px] font-medium mb-1">行事曆</span>
-        </button>
-
-        <button
-          @click="go('/list')"
-          class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-          :class="route.name === 'list' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
-        >
-          <Tent class="w-6 h-6" />
-          <span class="text-[10px] font-medium mb-1">露營</span>
-        </button>
-
-        <!-- FAB (Add) - Central Orange Button -->
-        <button
-          @click="newItem.open(selectedDate)"
-          aria-label="新增"
-          class="btn-cta flex flex-col items-center justify-center -mt-10 rounded-full w-14 h-14 shadow-lg shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300 border-4 border-surface-50 z-50 bg-accent-orange text-white"
-        >
-          <Plus class="w-7 h-7" />
-        </button>
-
-        <button
-          @click="go('/library')"
-          class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-          :class="route.name === 'library' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
-        >
-          <MapPin class="w-6 h-6" />
-          <span class="text-[10px] font-medium mb-1">營地</span>
-        </button>
-
-        <button
-          @click="go('/stats')"
-          class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-          :class="route.name === 'stats' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
-        >
-          <ChartColumn class="w-6 h-6" />
-          <span class="text-[10px] font-medium mb-1">統計</span>
-        </button>
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-primary-100 grid grid-cols-5 items-center z-40 pb-safe h-[76px]">
+      <button
+        v-for="t in TABS"
+        :key="t.path"
+        type="button"
+        class="flex flex-col items-center justify-center gap-1 min-h-[48px] text-[11px] font-bold transition-colors"
+        :class="route.name === t.name ? 'text-primary-600' : 'text-slate-400'"
+        :aria-current="route.name === t.name ? 'page' : undefined"
+        @click="go(t.path)"
+      >
+        <component :is="t.icon" class="w-[22px] h-[22px]" />{{ t.label }}
+      </button>
     </nav>
 
     <EventEditorSheet />
@@ -127,6 +100,6 @@ const go = (path: string) => router.push(path)
 
 <style scoped>
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 20px);
+  padding-bottom: env(safe-area-inset-bottom, 8px);
 }
 </style>

@@ -12,31 +12,26 @@ import CpblGameSheet from './CpblGameSheet.vue'
 import { useCalendarFeed } from '../../composables/useCalendarFeed'
 import { useCalendarEvents } from '../../composables/useCalendarEvents'
 import { useEventCategories } from '../../composables/useEventCategories'
-import { useEventEditor } from '../../composables/useEventEditor'
 import { useNewItemSheet } from '../../composables/useNewItemSheet'
-import { useTripModal } from '../../composables/useTripModal'
-import { useTrips } from '../../composables/useTrips'
+import { useEventOpener } from '../../composables/useEventOpener'
 import { useUserProfile } from '../../composables/useUserProfile'
 import { agendaRange, dayClickAction, eventsOnDay } from '../../utils/calendar/agendaRange'
 import { buildMonthWeeks } from '../../utils/calendar/monthLayout'
-import type { CpblSchedule } from '../../types/database'
-import type { ViewEvent } from '../../utils/calendar/viewEvent'
 import { addDays, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
+import { Plus } from 'lucide-vue-next'
 
 // App.vue 會把 trips、session 等 props 全部丟給 router-view，這裡都不需要，不能落到根元素
 defineOptions({ inheritAttrs: false })
 
 const route = useRoute()
 const router = useRouter()
-const { feed, hiddenCategoryIds, selectedDate, games, loadGames } = useCalendarFeed()
+const { feed, hiddenCategoryIds, selectedDate, loadGames } = useCalendarFeed()
 const { fetchEvents } = useCalendarEvents()
 const { categories, load: loadCategories } = useEventCategories()
 const { showCpbl } = useUserProfile()
-const { findTripById } = useTrips()
-const { openEdit } = useTripModal()
 const newItem = useNewItemSheet()
-const eventEditor = useEventEditor()
+const { detailEventId, gameSheet, onOpen, onAddGame } = useEventOpener()
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/
 const today = useToday()
@@ -73,7 +68,7 @@ const md = (ymd: string) => `${Number(ymd.slice(5, 7))}/${Number(ymd.slice(8))}`
 const title = computed(() => {
   if (view.value === 'week') return `${md(weekDays.value[0]!)} – ${md(weekDays.value[6]!)}`
   if (view.value === 'day') return `${md(date.value)}（${'一二三四五六日'[weekdayMon0(date.value)]}）`
-  return `${year.value}年${month.value}月`
+  return `${year.value} 年 ${month.value} 月`
 })
 
 const range = computed(() => agendaRange(year.value, month.value, today.value))
@@ -96,11 +91,6 @@ watch(
   },
   { immediate: true },
 )
-
-onMounted(() => {
-  loadCategories()
-  fetchEvents()
-})
 
 const toggleCategory = (id: string) => {
   const next = new Set(hiddenCategoryIds.value)
@@ -125,23 +115,18 @@ const onSelectDay = async (ymd: string) => {
   highlightTimer = setTimeout(() => (highlight.value = undefined), 1500)
 }
 
-const detailEventId = ref<string | null>(null)
-const gameSheet = ref<CpblSchedule | null>(null)
+// 從首頁點某天進來（?date=）：該天有事件就捲到列表對應的日子並標示
+onMounted(async () => {
+  loadCategories()
+  fetchEvents()
+  const q = route.query.date
+  if (typeof q !== 'string' || !YMD.test(q) || dayClickAction(q, range.value, feed.value) !== 'scroll') return
+  await nextTick()
+  document.querySelector(`[data-day="${q}"]`)?.scrollIntoView({ block: 'start' })
+  highlight.value = q
+  highlightTimer = setTimeout(() => (highlight.value = undefined), 1500)
+})
 
-const onOpen = (ev: ViewEvent) => {
-  if (ev.source === 'trip') {
-    const trip = findTripById(Number(ev.sourceId))
-    if (trip) openEdit(trip)
-  } else if (ev.source === 'event') {
-    detailEventId.value = String(ev.sourceId)
-  } else {
-    gameSheet.value = games.value.find((g) => g.id === ev.sourceId) ?? null
-  }
-}
-const onAddGame = (g: CpblSchedule) => {
-  gameSheet.value = null
-  eventEditor.openWithGame(g)
-}
 const onAddOnDay = (ymd: string) => {
   sheetDate.value = null
   newItem.open(ymd)
@@ -149,7 +134,7 @@ const onAddOnDay = (ymd: string) => {
 </script>
 
 <template>
-  <div class="min-h-full">
+  <div class="min-h-full relative">
     <CalendarHeader
       :title="title"
       :view="view"
@@ -193,5 +178,12 @@ const onAddOnDay = (ymd: string) => {
     />
     <EventDetailSheet :event-id="detailEventId" @close="detailEventId = null" />
     <CpblGameSheet :game="gameSheet" @close="gameSheet = null" @add="onAddGame" />
+
+    <button
+      type="button"
+      aria-label="新增"
+      class="fixed right-5 bottom-24 z-30 w-14 h-14 rounded-[20px] bg-accent-sky text-white flex items-center justify-center shadow-[0_10px_20px_-8px_rgba(2,132,199,0.7)] active:scale-95 transition-transform"
+      @click="newItem.open(selectedDate)"
+    ><Plus class="w-7 h-7" /></button>
   </div>
 </template>

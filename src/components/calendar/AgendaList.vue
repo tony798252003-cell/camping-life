@@ -4,7 +4,6 @@ import type { ViewEvent } from '../../utils/calendar/viewEvent'
 import { eachDay, diffDays, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
 import { eventsOnDay } from '../../utils/calendar/agendaRange'
-import PinnedTripCard from './PinnedTripCard.vue'
 import { useEventCategories } from '../../composables/useEventCategories'
 
 const props = defineProps<{ items: ViewEvent[]; from: string; to: string; highlight?: string }>()
@@ -37,7 +36,6 @@ const dayNo = (e: ViewEvent, day: string) =>
 
 <template>
   <div class="pb-6">
-    <PinnedTripCard />
     <div class="px-4">
     <p v-if="groups.length === 0" class="text-center text-sm text-primary-400 py-8">這段期間沒有事件</p>
     <section v-for="g in groups" :key="g.day" :data-day="g.day" class="scroll-mt-40 mb-3">
