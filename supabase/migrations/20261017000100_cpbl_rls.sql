@@ -3,7 +3,7 @@ drop policy if exists "Enable write access for authenticated users" on public.cp
 drop policy if exists "Enable read access for all users" on public.cpbl_schedule;
 create policy "authenticated read" on public.cpbl_schedule for select to authenticated using (true);
 
--- TODO(Task 1.1): drop public.exec_sql if baseline confirms it exists and is executable by anon/authenticated
+-- baseline 已確認 public.exec_sql 不存在，沒有需要 drop 的東西
 
 -- rollback:
 -- drop policy if exists "authenticated read" on public.cpbl_schedule;
