@@ -1,8 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-vue-next'
 import { useNotification } from '../composables/useNotification'
 
 const { notifications, remove } = useNotification()
+// 有底部分頁列的頁面要讓開（76px，見 MainLayout）；登入頁沒有分頁列
+const route = useRoute()
+const bottom = computed(() =>
+  route.name === 'auth' ? 'calc(16px + env(safe-area-inset-bottom, 0px))' : 'calc(76px + env(safe-area-inset-bottom, 0px) + 8px)',
+)
 
 const getIcon = (type: string) => {
   switch (type) {
@@ -33,13 +40,19 @@ const getIconColorClass = (type: string) => {
 </script>
 
 <template>
-  <div class="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-md pointer-events-none">
+  <div
+    class="fixed left-4 right-4 mx-auto z-[100] flex flex-col gap-2 max-w-[420px] pointer-events-none"
+    :style="{ bottom }"
+    aria-live="polite"
+  >
     <TransitionGroup name="toast">
       <div
         v-for="notification in notifications"
         :key="notification.id"
-        class="pointer-events-auto flex items-start gap-3 p-4 rounded-xl border shadow-lg backdrop-blur-sm transition-all"
+        role="status"
+        class="pointer-events-auto flex items-start gap-3 p-4 rounded-xl border shadow-lg backdrop-blur-sm transition-all cursor-pointer"
         :class="getColorClasses(notification.type)"
+        @click="remove(notification.id)"
       >
         <component 
           :is="getIcon(notification.type)" 
@@ -47,12 +60,14 @@ const getIconColorClass = (type: string) => {
           :class="getIconColorClass(notification.type)"
         />
         
-        <p class="flex-1 text-sm font-medium leading-snug">
+        <p class="flex-1 text-[14px] font-medium leading-snug">
           {{ notification.message }}
         </p>
         
         <button 
-          @click="remove(notification.id)"
+          type="button"
+          aria-label="關閉"
+          @click.stop="remove(notification.id)"
           class="flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity"
         >
           <X class="w-4 h-4" />
@@ -70,15 +85,33 @@ const getIconColorClass = (type: string) => {
 
 .toast-enter-from {
   opacity: 0;
-  transform: translateX(100px);
+  transform: translateY(24px);
 }
 
 .toast-leave-to {
   opacity: 0;
-  transform: translateY(-20px);
+  transform: translateY(12px);
+}
+
+.toast-leave-active {
+  position: absolute;
+  left: 0;
+  right: 0;
 }
 
 .toast-move {
   transition: transform 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-enter-active,
+  .toast-leave-active,
+  .toast-move {
+    transition: opacity 0.01s;
+  }
+  .toast-enter-from,
+  .toast-leave-to {
+    transform: none;
+  }
 }
 </style>
