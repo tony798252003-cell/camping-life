@@ -1,20 +1,8 @@
 // Google Places API (New) 伺服器端包裝。key 只放 X-Goog-Api-Key header（規格 §7.2）。
 import { HttpError } from './http.js'
+import type { BusinessStatus, PlaceLite } from '../../src/types/campsiteDraft.js'
 
-export type BusinessStatus = 'OPERATIONAL' | 'CLOSED_TEMPORARILY' | 'CLOSED_PERMANENTLY'
-
-export interface PlaceLite {
-  placeId: string
-  name: string
-  address: string
-  lat: number
-  lng: number
-  rating?: number
-  ratingCount?: number
-  mapsUrl?: string
-  businessStatus?: BusinessStatus
-  typeLabel?: string
-}
+export type { BusinessStatus, PlaceLite }
 
 export interface PlaceDetail extends PlaceLite {
   addressComponents: Array<{ longText: string; types: string[] }>

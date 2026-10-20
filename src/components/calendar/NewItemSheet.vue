@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { CalendarPlus, Tent } from 'lucide-vue-next'
+import { CalendarPlus, Tent, MapPin } from 'lucide-vue-next'
 
-// 「新增營區」選項由 Task 4.5 加回
 defineProps<{ open: boolean; date?: string }>()
 const emit = defineEmits<{
   (e: 'pick', kind: 'event' | 'trip' | 'campsite', date?: string): void
@@ -30,6 +29,13 @@ const emit = defineEmits<{
         >
           <Tent class="w-6 h-6 text-emerald-600" />
           <span class="text-[15px] font-bold text-primary-900">露營</span>
+        </button>
+        <button
+          class="w-full flex items-center gap-3 px-4 min-h-[56px] rounded-[18px] active:bg-primary-100 text-left"
+          @click="emit('pick', 'campsite', date)"
+        >
+          <MapPin class="w-6 h-6 text-primary-600" />
+          <span class="text-[15px] font-bold text-primary-900">新增營區</span>
         </button>
       </div>
     </div>

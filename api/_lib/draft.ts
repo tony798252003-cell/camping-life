@@ -3,38 +3,14 @@ import { cleanCampsiteName } from '../../src/utils/campsiteName.js'
 import { distanceMeters, isNameSimilar } from '../../src/utils/campsiteMatch.js'
 import { parseTaiwanLocation } from '../../src/utils/googleMaps.js'
 import type { FieldSource } from '../../src/types/database.js'
+import type { BusinessStatusValue, CampsiteDraft, DraftField } from '../../src/types/campsiteDraft.js'
 import { HttpError, json } from './http.js'
 import { isAllowedMapsHost, parseMapsUrl, resolveShortUrl } from './mapsUrl.js'
 import { mergeGemini, researchCampsite } from './gemini.js'
 import { placeDetails, textSearch, type PlaceDetail, type PlaceLite } from './places.js'
 
-export interface DraftField<T> {
-  value: T | null
-  source: FieldSource['source']
-  confidence: FieldSource['confidence']
-  urls: string[]
-  needsReview: boolean
-}
+export type { DraftField, CampsiteDraft }
 
-type BusinessStatusValue = 'open' | 'temporarily_closed' | 'closed'
-
-export interface CampsiteDraft {
-  placeId: string
-  rawName: string
-  fields: {
-    name: DraftField<string>
-    city: DraftField<string>
-    district: DraftField<string>
-    address: DraftField<string>
-    latitude: DraftField<number>
-    longitude: DraftField<number>
-    altitude: DraftField<number>
-    phone: DraftField<string>
-    google_maps_url: DraftField<string>
-    business_status: DraftField<BusinessStatusValue>
-  } & Record<string, DraftField<any>> // Gemini 填的欄位（Task 4.4）
-  warnings: string[]
-}
 
 const STATUS_MAP: Record<NonNullable<PlaceDetail['businessStatus']>, BusinessStatusValue> = {
   OPERATIONAL: 'open',

@@ -23,6 +23,7 @@ const onPick = (kind: 'event' | 'trip' | 'campsite', date?: string) => {
   newItem.close()
   if (kind === 'trip') openNew(date)
   else if (kind === 'event') eventEditor.openNew(date)
+  else router.push({ name: 'library-new' })
 }
 
 const TABS = [

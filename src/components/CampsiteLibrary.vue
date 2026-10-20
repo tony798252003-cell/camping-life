@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight, Settings2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { Campsite } from '../types/database'
@@ -10,12 +11,15 @@ const props = defineProps<{
   isAdmin: boolean
 }>()
 
+const route = useRoute()
+const router = useRouter()
 const campsites = ref<Campsite[]>([])
 const usageCounts = ref<Record<number, number>>({}) // campsite_id -> count
 const visitedIds = ref<Set<number>>(new Set()) // completed or booked campsite_ids
 const hideVisited = ref(true)
 const loading = ref(false)
-const searchQuery = ref('')
+// 新增營區流程的「查看」會帶 ?q= 過來
+const searchQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const editingCampsite = ref<Campsite | null>(null)
 const isEditModalOpen = ref(false)
 const isFilterOpen = ref(false)
@@ -398,9 +402,17 @@ onMounted(() => {
        </div>
     </div>
 
-    <!-- Admin Add Buttons (Floating) -->
-    <div v-if="isAdmin" class="fixed bottom-24 right-6 flex flex-col gap-3 z-30">
+    <!-- Add Buttons (Floating) -->
+    <div class="fixed bottom-24 right-6 flex flex-col gap-3 z-30">
       <button
+        @click="router.push({ name: 'library-new' })"
+        class="bg-emerald-600 text-white rounded-full shadow-lg active:scale-90 transition-all z-40 flex items-center justify-center border-4 border-surface-50 w-14 h-14"
+        title="從 Google 地圖新增營區"
+      >
+        <MapPin class="w-7 h-7" />
+      </button>
+      <button
+        v-if="isAdmin"
         @click="handleAddNew"
         class="bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 active:scale-90 transition-all z-40 flex items-center justify-center border-4 border-surface-50 w-14 h-14"
         title="新增營地 (管理員)"
