@@ -74,10 +74,15 @@ watch(bySystemKey, (m) => {
 })
 
 // 結束日期早於開始日期：自動改成開始日期，只在表單上提示（規格 §5.5）
+// selfClamp：改 endDate 會再觸發本 watcher，要略過那一次，否則提示會被立刻清掉
+let selfClamp = false
 watch([startDate, endDate], ([s, e], [, oldE]) => {
   if (s && e && e < s) {
+    selfClamp = true
     endDate.value = s
     clamped.value = true
+  } else if (selfClamp) {
+    selfClamp = false
   } else if (e !== oldE) {
     clamped.value = false
   }
