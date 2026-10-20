@@ -15,7 +15,7 @@ const results = ref<DiscoverResult[]>([])
 const excludedCount = ref(0)
 const nextPageToken = ref<string | null>(null)
 // 產生 nextPageToken 的那次搜尋條件；「再找更多」必須沿用，不能讀會被編輯的畫面條件
-const lastCriteria = ref<ReturnType<typeof criteria> | null>(null)
+const lastCriteria = ref<Record<string, unknown> | null>(null)
 const moreUsed = ref(false) // 「再找更多」最多一次
 const searched = ref(false)
 const draftedPlaceIds = ref<string[]>([])
