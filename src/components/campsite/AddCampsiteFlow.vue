@@ -427,6 +427,7 @@ onBeforeUnmount(() => {
         <p class="text-[13px] text-slate-500">{{ rows.address?.value ?? '' }}</p>
         <p class="mt-1 text-[12px] text-slate-500">很多營區的設施只在 FB 粉專，查不到的欄位請自己確認</p>
         <p v-if="draft.warnings.includes('gemini_failed')" class="mt-1 text-[12px] text-amber-700">AI 查詢沒有成功，其他欄位請手動補。</p>
+        <p v-if="draft.aiMode === 'ungrounded'" class="mt-1 text-[12px] font-bold text-amber-700">AI 未上網查證，以下資料僅供參考，請逐項確認</p>
         <p v-if="unconfirmed > 0" class="mt-1 text-[12px] font-bold text-amber-700">有 {{ unconfirmed }} 個欄位請確認</p>
       </div>
       <div class="flex-1 overflow-y-auto px-4 pb-4 space-y-2">

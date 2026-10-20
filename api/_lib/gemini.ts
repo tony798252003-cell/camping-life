@@ -41,13 +41,21 @@ const TAG_OPTIONS: Record<string, readonly string[]> = {
 const TEXT_FIELDS = ['shower_restrictions', 'night_rush_time', 'booking_timing', 'check_in_time', 'check_out_time', 'phone', 'ai_summary']
 const AMENITY_KEYS = ['has_fridge', 'has_freezer', 'has_water_dispenser']
 
-export function buildPrompt(input: { name: string; address: string; mapsUrl: string }): string {
+export function buildPrompt(input: { name: string; address: string; mapsUrl: string }, grounded = true): string {
   const tags = Object.entries(TAG_OPTIONS)
     .map(([k, v]) => `- ${k}（陣列，只能從這些挑）：${v.join('、')}`)
     .join('\n')
+  const intro = grounded
+    ? [
+        `請用 Google 搜尋，查台灣露營區「${input.name}」（地址：${input.address}；地圖：${input.mapsUrl}）的資訊。`,
+        '只根據搜尋結果回答；查不到就回 confidence:"none" 且 value:null，不要猜，也不要用 false 或空陣列代替「不知道」。',
+      ]
+    : [
+        `你無法上網。請只憑你已知的資料，回答台灣露營區「${input.name}」（地址：${input.address}；地圖：${input.mapsUrl}）的資訊。`,
+        '不確定就回 confidence:"none" 且 value:null，寧可留空也不要猜或編造，也不要用 false 或空陣列代替「不知道」；sources 一律給空陣列。',
+      ]
   return [
-    `請用 Google 搜尋，查台灣露營區「${input.name}」（地址：${input.address}；地圖：${input.mapsUrl}）的資訊。`,
-    '只根據搜尋結果回答；查不到就回 confidence:"none" 且 value:null，不要猜，也不要用 false 或空陣列代替「不知道」。',
+    ...intro,
     '只輸出一個 JSON 物件（不要 markdown、不要說明文字）。每個欄位的格式：{"value":..., "confidence":"high"|"low"|"none", "sources":["網址"]}。',
     '欄位：',
     tags,
@@ -93,9 +101,15 @@ export function parseGeminiJson(text: string): Record<string, unknown> {
   return obj as Record<string, unknown>
 }
 
-export async function researchCampsite(
+export type AiMode = 'grounded' | 'ungrounded'
+
+// 搜尋 grounding 不可用（免費額度沒有 Search）：429／RESOURCE_EXHAUSTED，或 400/403 明講 google_search 工具不能用
+class GroundingUnavailable extends Error {}
+
+async function callGemini(
   input: { name: string; address: string; mapsUrl: string },
-  fetchImpl: typeof fetch = fetch,
+  grounded: boolean,
+  fetchImpl: typeof fetch,
 ): Promise<Record<string, GeminiFieldResult>> {
   const model = process.env.GEMINI_MODEL
   if (!model) throw new Error('GEMINI_MODEL is not set')
@@ -108,15 +122,23 @@ export async function researchCampsite(
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: buildPrompt(input) }] }],
-        tools: [{ google_search: {} }],
+        contents: [{ role: 'user', parts: [{ text: buildPrompt(input, grounded) }] }],
+        ...(grounded ? { tools: [{ google_search: {} }] } : {}),
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
   } catch (e) {
     throw new HttpError(502, `gemini request failed: ${e instanceof Error ? e.name : 'error'}`)
   }
-  if (!res.ok) throw new HttpError(502, `gemini: HTTP ${res.status}`)
+  if (!res.ok) {
+    if (grounded) {
+      const body = typeof res.text === 'function' ? await res.text().catch(() => '') : ''
+      const quota = res.status === 429 || body.includes('RESOURCE_EXHAUSTED')
+      const toolOff = (res.status === 400 || res.status === 403) && /google_search|grounding|search/i.test(body)
+      if (quota || toolOff) throw new GroundingUnavailable(`gemini: HTTP ${res.status}`)
+    }
+    throw new HttpError(502, `gemini: HTTP ${res.status}`)
+  }
   const data = (await res.json().catch(() => {
     throw new HttpError(502, 'gemini: invalid JSON')
   })) as {
@@ -136,11 +158,39 @@ export async function researchCampsite(
   for (const [k, raw] of Object.entries(parsed)) {
     const f = guardField(raw)
     if (!f) continue
+    if (!grounded) {
+      // 沒上網：不可能有可信來源，信心最多 low
+      out[k] = { value: f.value, confidence: f.confidence === 'none' ? 'none' : 'low', sources: [] }
+      continue
+    }
     // grounding 來源合併進有值的欄位；查無資料的欄位不掛來源
     const sources = f.value === null || f.confidence === 'none' ? f.sources : [...new Set([...f.sources, ...grounding])]
     out[k] = { ...f, sources }
   }
   return out
+}
+
+// 只跑有搜尋的版本（grounded）
+export function researchCampsite(
+  input: { name: string; address: string; mapsUrl: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<Record<string, GeminiFieldResult>> {
+  return callGemini(input, true, fetchImpl)
+}
+
+// 先試 grounded；額度或工具不可用就退回不搜尋重試一次。GEMINI_GROUNDING=off 直接跳過 grounded。
+export async function researchCampsiteAuto(
+  input: { name: string; address: string; mapsUrl: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ fields: Record<string, GeminiFieldResult>; aiMode: AiMode }> {
+  if (process.env.GEMINI_GROUNDING?.toLowerCase() !== 'off') {
+    try {
+      return { fields: await callGemini(input, true, fetchImpl), aiMode: 'grounded' }
+    } catch (e) {
+      if (!(e instanceof GroundingUnavailable)) throw e
+    }
+  }
+  return { fields: await callGemini(input, false, fetchImpl), aiMode: 'ungrounded' }
 }
 
 // 把 Gemini 的值整理成可寫入的型別；不合格的回 null（= 查無資料，不填假值）

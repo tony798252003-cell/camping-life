@@ -6,7 +6,7 @@ import type { FieldSource } from '../../src/types/database.js'
 import type { BusinessStatusValue, CampsiteDraft, DraftField } from '../../src/types/campsiteDraft.js'
 import { HttpError, json } from './http.js'
 import { isAllowedMapsHost, parseMapsUrl, resolveShortUrl } from './mapsUrl.js'
-import { mergeGemini, researchCampsite } from './gemini.js'
+import { mergeGemini, researchCampsiteAuto } from './gemini.js'
 import { placeDetails, textSearch, type PlaceDetail, type PlaceLite } from './places.js'
 
 export type { DraftField, CampsiteDraft }
@@ -185,8 +185,8 @@ export async function handleCampsiteDraft(req: Request, deps: { fetchImpl?: type
   }
   if (body.skipAi === true) return json(200, draft)
   try {
-    const g = await researchCampsite(info, deps.fetchImpl)
-    return json(200, mergeGemini(draft, g))
+    const { fields, aiMode } = await researchCampsiteAuto(info, deps.fetchImpl)
+    return json(200, { ...mergeGemini(draft, fields), aiMode })
   } catch (e) {
     // Gemini 失敗或逾時：保留 Places 草稿，前端提示手動補
     console.error('gemini failed', e instanceof Error ? e.message : e)

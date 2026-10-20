@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mergeGemini, researchCampsite, HIGH_RISK_FIELDS } from './gemini.js'
+import { mergeGemini, researchCampsite, researchCampsiteAuto, HIGH_RISK_FIELDS } from './gemini.js'
 import { placeToDraft, fetchElevations, resolveMapsUrl, handleCampsiteDraft } from './draft.js'
 import type { PlaceDetail } from './places.js'
 import { HttpError } from './http.js'
@@ -381,5 +381,105 @@ describe('handleCampsiteDraft + Gemini', () => {
     })
     expect(res.status).toBe(200)
     expect(called).toBe(false)
+  })
+})
+
+describe('Gemini 無搜尋 fallback', () => {
+  const post = (b: unknown) => new Request('http://x/api/campsite-draft', { method: 'POST', body: JSON.stringify(b) })
+  const info = { name: '雲頂', address: 'a', mapsUrl: 'https://maps.google.com/?cid=1' }
+  const answer = JSON.stringify({
+    water_features: { value: ['溪流'], confidence: 'high', sources: ['https://fake.example'] },
+    check_in_time: { value: '14:00', confidence: 'high', sources: [] },
+    spot_types: { value: null, confidence: 'none', sources: [] },
+  })
+  const okRes = (grounding: string[] = []) => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      candidates: [{ content: { parts: [{ text: answer }] }, groundingMetadata: { groundingChunks: grounding.map((uri) => ({ web: { uri } })) } }],
+    }),
+  })
+  const errRes = (status: number, body: string) => ({ ok: false, status, text: async () => body })
+  // 依序回應，並記錄每次是否帶 tools
+  const seq = (...rs: unknown[]) => {
+    const calls: Array<{ tools: unknown }> = []
+    const f = (async (_u: string, init: RequestInit) => {
+      calls.push({ tools: JSON.parse(String(init.body)).tools })
+      return rs[Math.min(calls.length - 1, rs.length - 1)]
+    }) as unknown as typeof fetch
+    return { f, calls }
+  }
+  const env = (grounding?: string) => {
+    process.env.GEMINI_MODEL = 'm'
+    process.env.GEMINI_API_KEY = 'k'
+    if (grounding === undefined) delete process.env.GEMINI_GROUNDING
+    else process.env.GEMINI_GROUNDING = grounding
+  }
+
+  // 為什麼：有搜尋時結果要維持原本的可信度與來源，fallback 不能影響付費 key
+  it('grounded 成功 → aiMode grounded、保留來源、只打一次', async () => {
+    env()
+    const { f, calls } = seq(okRes(['https://g.example']))
+    const r = await researchCampsiteAuto(info, f)
+    expect(r.aiMode).toBe('grounded')
+    expect(r.fields.water_features.sources).toContain('https://g.example')
+    expect(calls).toHaveLength(1)
+    expect(calls[0].tools).toEqual([{ google_search: {} }])
+  })
+
+  // 為什麼：免費 key 沒有 Search，但沒搜尋的 AI 資料不可信，必須全標低信心、要確認、不掛來源
+  it('grounded 429 → 第二次不帶 tools，aiMode ungrounded，全部 low＋needsReview＋無 urls', async () => {
+    env()
+    const { f, calls } = seq(errRes(429, '{"error":{"status":"RESOURCE_EXHAUSTED"}}'), okRes(['https://g.example']))
+    const r = await researchCampsiteAuto(info, f)
+    expect(calls).toHaveLength(2)
+    expect(calls[1].tools).toBeUndefined()
+    expect(r.aiMode).toBe('ungrounded')
+    const d = mergeGemini(placeToDraft(detail(), 1), r.fields)
+    for (const k of ['water_features', 'check_in_time']) {
+      expect(d.fields[k]).toMatchObject({ source: 'gemini', confidence: 'low', needsReview: true, urls: [] })
+    }
+    expect(d.fields.spot_types.confidence).toBe('none')
+  })
+
+  it('400 明講 google_search 不可用也會退回不搜尋', async () => {
+    env()
+    const { f, calls } = seq(errRes(400, 'google_search tool is not supported'), okRes())
+    expect((await researchCampsiteAuto(info, f)).aiMode).toBe('ungrounded')
+    expect(calls).toHaveLength(2)
+  })
+
+  // 為什麼：其他錯誤（金鑰錯、伺服器掛）重試也沒用，維持原本降級成 Places 草稿
+  it('非 429 錯誤 → 不重試，handler 回 gemini_failed', async () => {
+    env()
+    const { f, calls } = seq(errRes(500, 'boom'))
+    await expect(researchCampsiteAuto(info, f)).rejects.toMatchObject({ status: 502 })
+    expect(calls).toHaveLength(1)
+    const raw = { id: 'pid1', displayName: { text: 'x' }, formattedAddress: 'a', location: { latitude: 1, longitude: 2 }, addressComponents: [], googleMapsUri: 'https://maps.google.com/?cid=1' }
+    const f2 = (async (u: string) =>
+      String(u).includes('generativelanguage') ? errRes(500, 'boom') : { ok: true, status: 200, json: async () => (String(u).includes('open-meteo') ? { elevation: [1] } : raw) }) as unknown as typeof fetch
+    const body = (await (await handleCampsiteDraft(post({ placeId: 'pid1' }), { fetchImpl: f2 })).json()) as { warnings: string[] }
+    expect(body.warnings).toContain('gemini_failed')
+  })
+
+  // 為什麼：知道沒有 Search 額度時，省掉每次必失敗的第一次呼叫
+  it('GEMINI_GROUNDING=off → 只打一次且不帶 tools', async () => {
+    env('off')
+    const { f, calls } = seq(okRes())
+    const r = await researchCampsiteAuto(info, f)
+    expect(calls).toHaveLength(1)
+    expect(calls[0].tools).toBeUndefined()
+    expect(r.aiMode).toBe('ungrounded')
+    delete process.env.GEMINI_GROUNDING
+  })
+
+  it('handler 回應帶 aiMode', async () => {
+    env('off')
+    const raw = { id: 'pid1', displayName: { text: 'x' }, formattedAddress: 'a', location: { latitude: 1, longitude: 2 }, addressComponents: [], googleMapsUri: 'https://maps.google.com/?cid=1' }
+    const f = (async (u: string) =>
+      String(u).includes('generativelanguage') ? okRes() : { ok: true, status: 200, json: async () => (String(u).includes('open-meteo') ? { elevation: [1] } : raw) }) as unknown as typeof fetch
+    const body = (await (await handleCampsiteDraft(post({ placeId: 'pid1' }), { fetchImpl: f })).json()) as { aiMode: string }
+    expect(body.aiMode).toBe('ungrounded')
+    delete process.env.GEMINI_GROUNDING
   })
 })
