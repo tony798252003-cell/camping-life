@@ -6,7 +6,7 @@ import { useTripModal } from '../../composables/useTripModal'
 import { useTripWeather, type WeatherDay } from '../../composables/useTripWeather'
 import { estimateTripDuration } from '../../composables/useTravelTime'
 import { useUserProfile } from '../../composables/useUserProfile'
-import { browseableTrips, defaultTripIndex, tripStart } from '../../utils/nextTrip'
+import { browseableTrips, defaultTripIndex, pickNextTrip, tripStart } from '../../utils/nextTrip'
 import { diffDays, tripRange, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
 import { COLD_NIGHT_C, summarizeTripWeather } from '../../utils/tripWeatherSummary'
@@ -33,6 +33,7 @@ const hasNext = computed(() => index.value < list.value.length - 1)
 const go = (delta: number) => {
   browsedId.value = list.value[index.value + delta]?.id ?? null
 }
+const hasUpcoming = computed(() => pickNextTrip(list.value, today.value) !== null)
 const isDefault = computed(() => index.value === defaultIndex.value)
 
 // 營區的 google_place_id 欄位尚未進入產生的型別（M4 加入），先用寬鬆型別讀取
@@ -162,7 +163,7 @@ const navUrl = computed(() => {
         type="button"
         class="min-h-[44px] px-3 rounded-[12px] text-[13px] font-extrabold text-primary-700"
         @click="browsedId = null"
-      >回到下一趟</button>
+      >{{ hasUpcoming ? '回到下一趟' : '回到最近一趟' }}</button>
       <button
         type="button"
         aria-label="上一趟"
@@ -209,7 +210,7 @@ const navUrl = computed(() => {
       </div>
       <div class="flex items-baseline gap-1 shrink-0">
         <span class="font-black leading-none" :class="[isPast ? 'text-slate-600' : 'text-accent-sky', countdown.large ? 'text-[52px]' : 'text-[30px]']">{{ countdown.big }}</span>
-        <span class="text-[13px] font-bold text-primary-600">{{ countdown.unit }}</span>
+        <span class="text-[13px] font-bold" :class="isPast ? 'text-slate-600' : 'text-primary-600'">{{ countdown.unit }}</span>
       </div>
     </div>
 

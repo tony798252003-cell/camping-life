@@ -1,4 +1,4 @@
-import { ref, computed, watch, type Ref } from 'vue'
+import { ref, computed, watch, onScopeDispose, type Ref } from 'vue'
 import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
 import { correctTemp, isAltitudeCorrected } from '../utils/altitudeTemp'
 import { analyzePackUpWeather, type PackUpPrediction } from '../utils/weatherAnalysis'
@@ -352,12 +352,16 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
     })
 
     // Auto fetch with delay to improve initial page load
+    // 連續切換行程時只留最後一次，避免重複請求
+    let fetchTimer: ReturnType<typeof setTimeout> | undefined
     watch(trip, () => {
         // Delay weather fetch by 1.5s to prioritize basic content rendering
-        setTimeout(() => {
+        clearTimeout(fetchTimer)
+        fetchTimer = setTimeout(() => {
             fetchWeather()
         }, 1500)
     }, { immediate: true, deep: true })
+    onScopeDispose(() => clearTimeout(fetchTimer))
 
     return {
         weatherDays,
