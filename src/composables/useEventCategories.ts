@@ -42,7 +42,10 @@ export function useEventCategories() {
 
   const update = async (id: string, patch: { name?: string; color?: string; sort_order?: number }) => {
     await categoryQueries.update(id, patch)
-    categories.value = categories.value.map((c) => (c.id === id ? { ...c, ...patch } : c))
+    // 改 sort_order 後必須重排，否則畫面順序不會變（與 DB 的 sort_order, created_at 排序一致）
+    categories.value = categories.value
+      .map((c) => (c.id === id ? { ...c, ...patch } : c))
+      .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at))
   }
 
   const remove = async (id: string) => {
