@@ -20,6 +20,10 @@ export async function syncCpblScheduleForYear(year: number): Promise<void> {
     }
 }
 
+export async function resyncCpblYear(year: number): Promise<{ upserted: number; deleted: number }> {
+    return apiPost<{ upserted: number; deleted: number }>('/api/cpbl-sync', { year, resyncYear: true })
+}
+
 export async function getCpblSchedule(startDate?: string, endDate?: string): Promise<CpblSchedule[]> {
     let query = supabase.from('cpbl_schedule').select('*')
     if (startDate) {

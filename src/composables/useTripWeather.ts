@@ -1,5 +1,6 @@
-import { ref, computed, watch, type Ref } from 'vue'
+import { ref, computed, watch, onScopeDispose, type Ref } from 'vue'
 import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
+import { correctTemp, isAltitudeCorrected } from '../utils/altitudeTemp'
 import { analyzePackUpWeather, type PackUpPrediction } from '../utils/weatherAnalysis'
 
 export interface WeatherHour {
@@ -40,6 +41,9 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
     const packingStatus = ref<PackUpPrediction | null>(null)
     const loading = ref(false)
     const error = ref<string | null>(null)
+    // 海拔校正（規格 §5.11）：siteAltitude 是營區海拔，altitudeCorrected 表示畫面上的溫度已校正
+    const altitudeCorrected = ref(false)
+    const siteAltitude = ref<number | null>(null)
 
     const isPastTrip = computed(() => {
         if (!trip.value?.trip_date) return false
@@ -77,7 +81,7 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
         return `${y}-${m}-${day}`
     }
 
-    const processWeatherData = (data: any) => {
+    const processWeatherData = (data: any, siteAlt: number | null = null) => {
         if (!trip.value?.trip_date) return
         const t = trip.value as any // Access loose props
 
@@ -113,8 +117,16 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
         const daysMap = new Map<string, { hours: WeatherHour[], date: Date }>()
         if (!data || !data.hourly || !data.hourly.time) return
 
-        // 1. Pack Up Prediction
-        const rawHourly = data.hourly
+        // 海拔校正：以 forecast 回應的 elevation（預報實際使用的海拔）為基準，不加 &elevation= 參數
+        const gridElevation: number | null = typeof data.elevation === 'number' ? data.elevation : null
+        siteAltitude.value = siteAlt
+        altitudeCorrected.value = isAltitudeCorrected(siteAlt, gridElevation)
+        const fix = (c: number) => correctTemp(c, siteAlt, gridElevation)
+
+        // 1. Pack Up Prediction（夜溫也用校正值）
+        const rawHourly = altitudeCorrected.value
+            ? { ...data.hourly, temperature_2m: (data.hourly.temperature_2m ?? []).map((c: number) => fix(c)) }
+            : data.hourly
         packingStatus.value = analyzePackUpWeather(rawHourly, tripEndStr)
 
         // 2. Build Hourly Data
@@ -162,7 +174,7 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
             const hourItem: WeatherHour = {
                 time: String(rawHour).padStart(2, '0') + ':00',
                 timestamp: index,
-                temp: data.hourly.temperature_2m?.[index] ?? 0,
+                temp: fix(data.hourly.temperature_2m?.[index] ?? 0),
                 code: data.hourly.weather_code?.[index] ?? 0,
                 pop: data.hourly.precipitation_probability?.[index] ?? 0,
                 rain: data.hourly.precipitation?.[index] ?? 0,
@@ -238,6 +250,8 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
         weatherDays.value = []
         tripSummary.value = null
         packingStatus.value = null
+        altitudeCorrected.value = false
+        siteAltitude.value = null
         error.value = null
         loading.value = false // Default to false, set true if fetching
 
@@ -267,7 +281,7 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
         loading.value = true
 
         try {
-            let elevation = tr.campsites?.altitude ?? tr.altitude
+            let elevation: number | null = tr.campsites?.altitude ?? tr.altitude ?? null
 
             // Auto-fetch elevation if missing
             if (!elevation) {
@@ -288,7 +302,7 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
             if (cached) {
                 const { timestamp, data } = JSON.parse(cached)
                 if (Date.now() - timestamp < 60 * 60 * 1000) { // 1 hour
-                    processWeatherData(data)
+                    processWeatherData(data, elevation || null)
                     loading.value = false
                     return
                 }
@@ -299,7 +313,7 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
             if (!data.hourly) throw new Error('API Error')
 
             localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data }))
-            processWeatherData(data)
+            processWeatherData(data, elevation || null)
         } catch (e) {
             console.error(e)
             error.value = 'fetch_error'
@@ -338,17 +352,23 @@ export function useTripWeather(trip: Ref<CampingTripWithCampsite | CampingTrip |
     })
 
     // Auto fetch with delay to improve initial page load
+    // 連續切換行程時只留最後一次，避免重複請求
+    let fetchTimer: ReturnType<typeof setTimeout> | undefined
     watch(trip, () => {
         // Delay weather fetch by 1.5s to prioritize basic content rendering
-        setTimeout(() => {
+        clearTimeout(fetchTimer)
+        fetchTimer = setTimeout(() => {
             fetchWeather()
         }, 1500)
     }, { immediate: true, deep: true })
+    onScopeDispose(() => clearTimeout(fetchTimer))
 
     return {
         weatherDays,
         tripSummary,
         packingStatus,
+        altitudeCorrected,
+        siteAltitude,
         loading,
         error,
         isPastTrip,

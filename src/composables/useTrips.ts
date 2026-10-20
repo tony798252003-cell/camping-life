@@ -3,13 +3,15 @@ import { tripQueries } from '../services/supabaseQueries'
 import type { CampingTripWithCampsite, NewCampingTrip } from '../types/database'
 import { useNotification } from './useNotification'
 
+// 模組層級 ref（singleton）：App.vue 與行事曆共用同一份行程，登出時 reset()
+const trips = ref<CampingTripWithCampsite[]>([])
+const loading = ref(true) // Start with true to prevent empty state flash
+
 /**
  * Trip data management
  * Handles CRUD operations for camping trips
  */
 export function useTrips() {
-    const trips = ref<CampingTripWithCampsite[]>([])
-    const loading = ref(true) // Start with true to prevent empty state flash
     const { success, error: notifyError } = useNotification()
 
     /**
@@ -129,6 +131,7 @@ export function useTrips() {
         deleteTrip,
         updateNightRush,
         findTripById,
-        clearTrips
+        clearTrips,
+        reset: clearTrips
     }
 }

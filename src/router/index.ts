@@ -1,12 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
-import HomeView from '../components/HomeView.vue'
-import TripListView from '../components/TripListView.vue'
-import CalendarView from '../components/CalendarView.vue'
-import CampsiteLibrary from '../components/CampsiteLibrary.vue'
-import LoginView from '../components/LoginView.vue'
-import SettingsView from '../views/SettingsView.vue'
-import StatsView from '../views/StatsView.vue'
 import { supabase } from '../lib/supabase'
 
 const routes = [
@@ -17,34 +10,34 @@ const routes = [
             {
                 path: '',
                 name: 'home',
-                component: HomeView
+                component: () => import('../views/HomeView.vue')
             },
             {
                 path: 'list',
                 name: 'list',
-                component: TripListView
+                component: () => import('../components/TripListView.vue')
             },
             {
                 path: 'calendar',
                 name: 'calendar',
-                component: CalendarView
+                component: () => import('../components/calendar/CalendarHome.vue')
             },
             {
                 path: 'library',
                 name: 'library',
-                component: CampsiteLibrary
+                component: () => import('../components/CampsiteLibrary.vue')
+            },
+            {
+                path: 'settings',
+                name: 'settings',
+                component: () => import('../views/SettingsView.vue')
             },
             {
                 path: 'stats',
                 name: 'stats',
-                component: StatsView
+                component: () => import('../views/StatsView.vue')
             }
         ]
-    },
-    {
-        path: '/settings',
-        name: 'settings',
-        component: SettingsView
     },
     {
         path: '/builder',
@@ -53,7 +46,7 @@ const routes = [
     {
         path: '/auth',
         name: 'auth',
-        component: LoginView
+        component: () => import('../components/LoginView.vue')
     }
 ]
 

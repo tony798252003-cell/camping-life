@@ -79,8 +79,8 @@ const fetchTents = async () => {
 
 // Fetch System Assets
 const fetchSystemImages = async () => {
-    const { data } = await (supabase
-        .from('system_assets') as any)
+    const { data } = await supabase
+        .from('system_assets')
         .select('*')
         .eq('type', 'tent_image')
         .order('created_at', { ascending: false })
@@ -125,8 +125,8 @@ const saveTent = async () => {
   try {
     if (isEditMode.value && editingTentId.value) {
         // Update
-        const { error } = await (supabase
-            .from('camping_gear') as any)
+        const { error } = await supabase
+            .from('camping_gear')
             .update({
                 name: newTentName.value.trim(),
                 brand: newTentBrand.value.trim(),
@@ -146,7 +146,8 @@ const saveTent = async () => {
 
     } else {
         // Insert
-        const newTent: NewGearItem = {
+        // TODO(types): M5 purchase_date 欄位不存在（camping_gear 無此欄），先轉型保留現有行為
+        const newTent = {
             name: newTentName.value.trim(),
             brand: newTentBrand.value.trim(),
             base_usage_count: 0,
@@ -156,18 +157,18 @@ const saveTent = async () => {
             category: 'tent',
             user_id: session.user.id,
             image_url: newTentImage.value || ''
-        }
+        } as NewGearItem
 
 
-        const { data, error } = await (supabase
-            .from('camping_gear') as any)
+        const { data, error } = await supabase
+            .from('camping_gear')
             .insert([newTent])
             .select()
             .single()
 
         if (error) throw error
         if (data) {
-            tents.value.push(data)
+            tents.value.push(data as CampingGear) // TODO(types): M5 DB 欄位可空
         }
     }
 

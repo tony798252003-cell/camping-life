@@ -132,7 +132,7 @@ const fetchCampsites = async () => {
 
     const { data, error } = await query
     if (error) throw error
-    campsites.value = data || []
+    campsites.value = (data || []) as unknown as Campsite[] // TODO(types): M5 JSONB 欄位收窄
 
     // Fetch usage counts + visited/booked ids
     const { data: tripData, error: tripError } = await supabase

@@ -14,6 +14,9 @@ import { useAuth } from './composables/useAuth'
 import { useUserProfile } from './composables/useUserProfile'
 import { useTrips } from './composables/useTrips'
 import { useTripModal } from './composables/useTripModal'
+import { useEventCategories } from './composables/useEventCategories'
+import { useCalendarEvents } from './composables/useCalendarEvents'
+import { supabase } from './lib/supabase'
 
 // Router
 const router = useRouter()
@@ -23,6 +26,8 @@ const route = useRoute()
 const { session, isAuthReady, initAuth, logout } = useAuth()
 const { userProfile, fetchProfile, clearProfile, familyId, isAdmin, userOrigin } = useUserProfile()
 const { trips, loading, fetchTrips, createTrip, updateTrip, deleteTrip, updateNightRush, findTripById, clearTrips } = useTrips()
+const categoriesStore = useEventCategories()
+const calendarEventsStore = useCalendarEvents()
 
 // Modal state
 const { isOpen: isModalOpen, activeTrip, initialDate, openNew, openEdit, close: closeTripModal } = useTripModal()
@@ -129,7 +134,7 @@ const handleEditCampsite = (campsite: any) => {
 }
 
 // TripModal 內「＋新增營區」：在其上疊開新增模式，TripModal 不卸載、表單保留
-const handleAddCampsiteFromTrip = (prefill: { name: string; latitude?: number; longitude?: number; altitude?: number }) => {
+const handleAddCampsiteFromTrip = (prefill: { name: string; latitude?: number | null; longitude?: number | null; altitude?: number | null }) => {
   // 營區圖鑑新增流程共用 draft key，清掉舊草稿才不會蓋掉預填的名稱
   localStorage.removeItem('campsite-draft-0')
   editingCampsiteData.value = {
@@ -198,6 +203,16 @@ onMounted(async () => {
     inviteCode.value = code
     localStorage.setItem('pending_invite_code', code)
   }
+
+  // 登出（含 SettingsView 直接呼叫 signOut）一律清掉所有 singleton 狀態，避免下一位使用者看到舊資料
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') {
+      clearTrips()
+      clearProfile()
+      categoriesStore.reset()
+      calendarEventsStore.reset()
+    }
+  })
 
   // Initialize auth - this will set up listeners
   await initAuth()

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:tz": "TZ=UTC vitest run && TZ=America/Los_Angeles vitest run",
-    "typecheck": "vue-tsc -b --noEmit"
+    "typecheck": "vue-tsc -b --noEmit",
+    "db:types": "env $(grep ^SUPABASE_ACCESS_TOKEN .env.local) npx --yes supabase gen types typescript --project-id juvuegdvuyaodsjkqqta --schema public > src/types/supabase.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.91.0",

@@ -1,12 +1,9 @@
 <template>
-  <div class="min-h-screen bg-surface-50 pb-safe font-sans">
+  <div class="font-sans">
       <!-- Header -->
-      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-50">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30">
         <div class="flex items-center gap-2">
            <button v-if="currentView !== 'menu'" @click="currentView = 'menu'" class="p-1 rounded-full hover:bg-gray-100 text-gray-500 transition-colors mr-1">
-              <ChevronLeft class="w-6 h-6" />
-           </button>
-           <button v-else @click="goBack" class="p-1 rounded-full hover:bg-gray-100 text-gray-500 transition-colors mr-1">
               <ChevronLeft class="w-6 h-6" />
            </button>
            
@@ -23,6 +20,9 @@
               <span v-else-if="currentView === 'advanced-gear'" class="flex items-center gap-2">
                 <TentIcon class="w-5 h-5 text-orange-600" /> 進階裝備設定
               </span>
+             <span v-else-if="currentView === 'categories'" class="flex items-center gap-2">
+               <Tags class="w-5 h-5 text-blue-600" /> 分類管理
+             </span>
              <span v-else-if="currentView === 'admin'" class="flex items-center gap-2">
                <ShieldAlert class="w-5 h-5 text-red-600" /> 管理員專區
              </span>
@@ -57,6 +57,19 @@
                  <div class="text-left">
                     <h3 class="font-bold text-gray-900">帳篷管理</h3>
                     <p class="text-xs text-gray-500">管理帳篷名稱</p>
+                 </div>
+              </div>
+              <ChevronRight class="w-5 h-5 text-gray-300" />
+           </button>
+
+           <button @click="currentView = 'categories'" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
+              <div class="flex items-center gap-3">
+                 <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                    <Tags class="w-5 h-5" />
+                 </div>
+                 <div class="text-left">
+                    <h3 class="font-bold text-gray-900">分類管理</h3>
+                    <p class="text-xs text-gray-500">行事曆事件分類與顏色</p>
                  </div>
               </div>
               <ChevronRight class="w-5 h-5 text-gray-300" />
@@ -166,6 +179,9 @@
           <TentManagement :trips="trips" />
         </div>
 
+        <!-- CATEGORIES VIEW -->
+        <CategorySettings v-else-if="currentView === 'categories'" />
+
         <!-- ADVANCED GEAR VIEW (Admin Only) -->
         <div v-else-if="currentView === 'advanced-gear'" class="h-full">
           <GearROIView :trips="trips" />
@@ -185,7 +201,7 @@
               <div class="space-y-4">
                  <div class="bg-white p-4 rounded-lg border border-blue-200 shadow-sm mt-4">
                     <h4 class="font-bold text-gray-800 mb-1 flex items-center gap-2">
-                       ⚾ 同步 CPBL 賽程
+                       同步 CPBL 賽程
                     </h4>
                     <p class="text-xs text-gray-500 mb-3">
                        從中華職棒官網抓取指定年度的賽程並寫入資料庫，供前台行事曆與新增行程時使用。此操作需要一些時間。
@@ -203,6 +219,13 @@
                         >
                            <Loader2 v-if="isSyncingCpbl" class="w-4 h-4 animate-spin" />
                            {{ isSyncingCpbl ? '同步中...' : '開始同步賽程' }}
+                        </button>
+                        <button
+                           @click="handleResyncCpbl"
+                           :disabled="isSyncingCpbl"
+                           class="w-full justify-center py-2 bg-white border border-blue-600 text-blue-700 font-bold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                           重新同步整年
                         </button>
                     </div>
                  </div>
@@ -223,14 +246,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Settings, MapPin, Navigation, LogOut, Loader2, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Images } from 'lucide-vue-next'
+import { Settings, MapPin, Navigation, LogOut, Loader2, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Images, Tags } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { CampingTripWithCampsite } from '../types/database'
 import GearROIView from '../components/GearROIView.vue'
 import TentManagement from '../components/TentManagement.vue'
 import GooglePlaceSearch from '../components/GooglePlaceSearch.vue'
+import CategorySettings from '../components/settings/CategorySettings.vue'
 import SystemAssetManager from '../components/SystemAssetManager.vue'
-import { syncCpblScheduleForYear } from '../services/cpblService'
+import { syncCpblScheduleForYear, resyncCpblYear } from '../services/cpblService'
+import { useConfirm } from '../composables/useConfirm'
+import { useNotification } from '../composables/useNotification'
 
 // Logic to fetch necessary data if not provided (for standalone view)
 const router = useRouter()
@@ -256,15 +282,10 @@ const internalIsAdmin = ref(false)
 
 const effectiveUserId = computed(() => props.userId || internalUserId.value)
 
-type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'admin'
+type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'categories' | 'admin'
 const currentView = ref<ViewState>('menu')
 const isAssetManagerOpen = ref(false)
 
-
-// Navigation
-const goBack = () => {
-    router.back()
-}
 
 const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -303,6 +324,28 @@ const handleSyncCpbl = async () => {
   } catch (error: any) {
     console.error('CPBL 同步失敗:', error)
     alert('❌ 同步失敗: ' + error.message)
+  } finally {
+    isSyncingCpbl.value = false
+  }
+}
+
+const { confirm: confirmDialog } = useConfirm()
+const { success: notifySuccess, error: notifyError } = useNotification()
+
+const handleResyncCpbl = async () => {
+  const ok = await confirmDialog({
+    title: `重新同步 ${syncYear.value} 年`,
+    message: '會刪除官方已取消或改期的舊比賽，已加入你行事曆的比賽不受影響。',
+    type: 'warning',
+  })
+  if (!ok) return
+  isSyncingCpbl.value = true
+  try {
+    const { upserted, deleted } = await resyncCpblYear(syncYear.value)
+    notifySuccess(`新增/更新 ${upserted} 場、移除 ${deleted} 場`)
+  } catch (error: any) {
+    console.error('CPBL 重新同步失敗:', error)
+    notifyError('重新同步失敗，未刪除任何比賽：' + error.message)
   } finally {
     isSyncingCpbl.value = false
   }

@@ -62,8 +62,8 @@ const overallUploading = ref(false)
 const fetchAssets = async () => {
     loadingAssets.value = true
     try {
-        const { data, error } = await (supabase
-            .from('system_assets') as any)
+        const { data, error } = await supabase
+            .from('system_assets')
             .select('*')
             .eq('type', activeCategory.value)
             .order('created_at', { ascending: false })
@@ -128,8 +128,8 @@ const updateAsset = async () => {
     
     isUpdating.value = true
     try {
-        const { error } = await (supabase
-            .from('system_assets') as any)
+        const { error } = await supabase
+            .from('system_assets')
             .update({
                 name: editingAsset.value.name,
                 brand: editingAsset.value.brand // Update brand
@@ -206,7 +206,7 @@ const uploadAll = async () => {
             if (result) {
                 // Save to DB
                 // Cast to any to bypass strict type check for now
-                const { error } = await (supabase.from('system_assets') as any).insert([{
+                const { error } = await supabase.from('system_assets').insert([{
                     type: activeCategory.value,
                     url: result.secure_url,
                     public_id: result.public_id,

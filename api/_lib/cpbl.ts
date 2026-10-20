@@ -73,3 +73,38 @@ export async function fetchCpblMonth(
   }
   return records
 }
+
+export type StoredGame = { id: string; game_sno: number; game_date: string }
+
+// 回傳「existing 中、(game_sno, game_date) 不在官方資料、而且沒被使用者事件綁定」的 id
+export function staleGameIds(existing: StoredGame[], official: CpblRecord[], boundIds: Set<string>): string[] {
+  const keep = new Set(official.map((r) => `${r.game_sno}|${r.game_date}`))
+  return existing
+    .filter((g) => !keep.has(`${g.game_sno}|${g.game_date}`) && !boundIds.has(g.id))
+    .map((g) => g.id)
+}
+
+export type ResyncDb = {
+  upsert(records: CpblRecord[]): Promise<void>
+  listExisting(year: number): Promise<StoredGame[]>
+  listBoundIds(): Promise<string[]>
+  deleteByIds(ids: string[]): Promise<void>
+}
+
+// 逐月抓取；任何一個月失敗就整個中止（不寫、不刪）。官方全年為空視為異常，也不刪任何列。
+export async function resyncYear(
+  year: number,
+  deps: { fetchMonth: typeof fetchCpblMonth; db: ResyncDb },
+): Promise<{ upserted: number; deleted: number }> {
+  const official: CpblRecord[] = []
+  for (let month = 1; month <= 12; month++) {
+    official.push(...(await deps.fetchMonth(year, month)))
+  }
+  if (official.length === 0) return { upserted: 0, deleted: 0 }
+
+  await deps.db.upsert(official)
+  const [existing, bound] = await Promise.all([deps.db.listExisting(year), deps.db.listBoundIds()])
+  const ids = staleGameIds(existing, official, new Set(bound))
+  if (ids.length > 0) await deps.db.deleteByIds(ids)
+  return { upserted: official.length, deleted: ids.length }
+}
