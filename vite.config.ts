@@ -42,12 +42,5 @@ export default defineConfig({
   ],
   server: {
     port: 3000,
-    proxy: {
-      '/api/cpbl': {
-        target: 'https://cpbl.com.tw',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/cpbl/, '')
-      }
-    }
   },
 })

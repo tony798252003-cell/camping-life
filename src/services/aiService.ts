@@ -1,3 +1,5 @@
+import { apiPost } from './api';
+
 export interface CampsiteInfo {
     location?: string;
     altitude?: number;
@@ -8,17 +10,7 @@ export interface CampsiteInfo {
 
 export async function fetchCampsiteInfo(campsiteName: string): Promise<CampsiteInfo> {
     try {
-        const response = await fetch('/api/camping-info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ campsiteName })
-        });
-
-        if (response.ok) {
-            return await response.json();
-        }
-
-        throw new Error(`API returned ${response.status}`);
+        return await apiPost<CampsiteInfo>('/api/camping-info', { campsiteName });
     } catch (error) {
         console.error('AI Service Error:', error);
         throw error;
