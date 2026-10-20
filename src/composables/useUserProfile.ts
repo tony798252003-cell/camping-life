@@ -1,21 +1,26 @@
 import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
+import { profileQueries } from '../services/db/profile'
 import type { Profile } from '../types/database'
+import { useNotification } from './useNotification'
+
+// 模組層級 ref（singleton）：登出時 reset()
+const userProfile = ref<{
+    latitude: number
+    longitude: number
+    location_name: string
+    is_admin: boolean
+    family_id?: string | null
+} | null>(null)
+const showCpbl = ref(false)
+const loading = ref(false)
 
 /**
  * User profile state management
  * Handles user profile data and family information
  */
 export function useUserProfile() {
-    const userProfile = ref<{
-        latitude: number
-        longitude: number
-        location_name: string
-        is_admin: boolean
-        family_id?: string | null
-    } | null>(null)
-
-    const loading = ref(false)
+    const { error: notifyError } = useNotification()
 
     /**
      * Fetch user profile from database
@@ -27,7 +32,7 @@ export function useUserProfile() {
 
             const { data, error } = await supabase
                 .from('profiles')
-                .select('latitude, longitude, location_name, is_admin, family_id')
+                .select('latitude, longitude, location_name, is_admin, family_id, show_cpbl')
                 .eq('id', userId)
                 .single()
 
@@ -45,6 +50,7 @@ export function useUserProfile() {
                     is_admin: profileData.is_admin || false,
                     family_id: profileData.family_id
                 }
+                showCpbl.value = !!profileData.show_cpbl
             }
         } catch (e: any) {
             if (e.name === 'AbortError' || e.message?.includes('AbortError')) return
@@ -82,11 +88,31 @@ export function useUserProfile() {
      */
     const clearProfile = () => {
         userProfile.value = null
+        showCpbl.value = false
+    }
+
+    /**
+     * 樂觀更新中職開關，失敗時復原並提示
+     */
+    const setShowCpbl = async (v: boolean) => {
+        const { data } = await supabase.auth.getUser()
+        const userId = data.user?.id
+        if (!userId) return
+        const prev = showCpbl.value
+        showCpbl.value = v
+        try {
+            await profileQueries.setShowCpbl(userId, v)
+        } catch (e) {
+            console.error('[useUserProfile] setShowCpbl error:', e)
+            showCpbl.value = prev
+            notifyError('更新失敗，請檢查網路')
+        }
     }
 
     return {
         // State
         userProfile,
+        showCpbl,
         loading,
 
         // Computed getters
@@ -101,6 +127,8 @@ export function useUserProfile() {
         // Methods
         fetchProfile,
         updateProfile,
-        clearProfile
+        clearProfile,
+        reset: clearProfile,
+        setShowCpbl
     }
 }

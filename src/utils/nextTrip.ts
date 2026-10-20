@@ -4,7 +4,7 @@ export interface TripLike {
   id: number
   trip_date: string
   duration_days: number | null
-  status: string
+  status: string | null
   night_rush: boolean | null
   merged_into_id?: number | null
 }
