@@ -973,7 +973,7 @@ onMounted(async () => {
   <!-- 新增營區：全螢幕 sheet，不換路由，TripModal 已填的表單不會遺失 -->
   <Teleport to="body">
     <div v-if="showAddCampsite" class="fixed inset-0 z-[70] bg-surface-50 overflow-y-auto">
-      <AddCampsiteFlow @saved="handleCampsiteCreated" @cancel="showAddCampsite = false" />
+      <AddCampsiteFlow embedded @saved="handleCampsiteCreated" @cancel="showAddCampsite = false" />
     </div>
   </Teleport>
 </template>

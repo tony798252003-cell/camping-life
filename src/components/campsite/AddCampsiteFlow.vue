@@ -12,7 +12,7 @@ import type { CampsiteDraft, DraftField } from '../../types/campsiteDraft'
 import type { PlaceLite } from '../../types/campsiteDraft'
 import DraftFieldRow from './DraftFieldRow.vue'
 
-const props = defineProps<{ initialPlaceId?: string; initialName?: string }>()
+const props = defineProps<{ initialPlaceId?: string; initialName?: string; embedded?: boolean }>()
 const emit = defineEmits<{
   (e: 'saved', campsite: Campsite): void
   (e: 'cancel'): void
@@ -354,7 +354,7 @@ onBeforeUnmount(() => {
           <p class="text-[14px] font-bold text-amber-900 flex items-center gap-1"><AlertTriangle class="w-4 h-4" />可能已經收錄</p>
           <p v-for="m in dupMatches" :key="m.campsite.id" class="text-[14px] text-amber-900">
             {{ m.campsite.name }}<span v-if="m.distanceM != null" class="text-[12px] text-amber-700">（相距約 {{ Math.round(m.distanceM) }} m）</span>
-            <button class="ml-2 underline font-bold min-h-[32px]" @click="viewExisting(m.campsite.name)">查看</button>
+            <button v-if="!embedded" class="ml-2 underline font-bold min-h-[32px]" @click="viewExisting(m.campsite.name)">查看</button>
           </p>
           <button class="min-h-[44px] px-4 rounded-[14px] bg-white border border-amber-300 text-[13px] font-bold text-amber-900" @click="dupDismissed = true">仍要新增</button>
         </div>
@@ -407,7 +407,7 @@ onBeforeUnmount(() => {
       <div class="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
         <div v-if="alreadyExists" class="rounded-[14px] bg-red-50 border border-red-200 p-3 text-[14px] text-red-800">
           這個地點已經收錄了。
-          <button class="underline font-bold min-h-[32px]" @click="viewExisting(String(rows.name?.value ?? ''))">前往圖鑑查看</button>
+          <button v-if="!embedded" class="underline font-bold min-h-[32px]" @click="viewExisting(String(rows.name?.value ?? ''))">前往圖鑑查看</button>
         </div>
         <DraftFieldRow
           v-for="r in visibleRows" :key="r.key"
