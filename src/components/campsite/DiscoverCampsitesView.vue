@@ -53,8 +53,15 @@ function onCityChange() {
   district.value = ''
 }
 
+// 與 api/_lib/discover.ts 的 MAX_KEYWORDS 一致；超過會被 API 回 400
+const MAX_KEYWORDS = 8
+
 function toggleKeyword(k: string) {
-  keywords.value = keywords.value.includes(k) ? keywords.value.filter((x) => x !== k) : [...keywords.value, k]
+  if (keywords.value.includes(k)) {
+    keywords.value = keywords.value.filter((x) => x !== k)
+  } else if (keywords.value.length < MAX_KEYWORDS) {
+    keywords.value = [...keywords.value, k]
+  }
 }
 
 interface DiscoverResponse {
@@ -166,7 +173,7 @@ onMounted(() => {
         </div>
 
         <div>
-          <div class="mb-1 text-xs font-semibold text-gray-500">設施關鍵字（只影響搜尋結果，不保證有）</div>
+          <div class="mb-1 text-xs font-semibold text-gray-500">設施關鍵字（只影響搜尋結果，不保證有；最多選 {{ MAX_KEYWORDS }} 個）</div>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="k in FACILITY_CHIPS"
