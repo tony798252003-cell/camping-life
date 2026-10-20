@@ -15,6 +15,7 @@ import { useUserProfile } from '../composables/useUserProfile'
 import { buildMonthWeeks } from '../utils/calendar/monthLayout'
 import { dayAgenda, weekRow } from '../utils/calendar/glance'
 import { addDays } from '../utils/dateRange'
+import { isHoliday } from '../utils/holidays'
 
 // App.vue 會把 trips、session 等 props 全部丟給 router-view，這裡都不需要
 defineOptions({ inheritAttrs: false })
@@ -51,7 +52,9 @@ const loadRange = computed(() => {
     ? buildMonthWeeks(Number(today.value.slice(0, 4)), Number(today.value.slice(5, 7))).flat()
     : weekRow(today.value)
   const tomorrow = addDays(today.value, 1)
-  return { from: [days[0]!, today.value].sort()[0]!, to: [days[days.length - 1]!, tomorrow].sort().reverse()[0]! }
+  const first = days[0]!
+  const last = days[days.length - 1]!
+  return { from: first < today.value ? first : today.value, to: last > tomorrow ? last : tomorrow }
 })
 watch(
   [loadRange, showCpbl],
@@ -71,12 +74,16 @@ onMounted(() => {
 })
 
 // 今天；今天沒事才補明天
+const holidayLabel = (base: string, ymd: string) => {
+  const h = isHoliday(ymd)
+  return h ? `${base}・${h.name}` : base
+}
 const sections = computed(() => {
   const t = dayAgenda(today.value, feed.value)
-  if (t.length) return [{ label: '今天', day: today.value, items: t }]
+  if (t.length) return [{ label: holidayLabel('今天', today.value), day: today.value, items: t }]
   const tomorrowYmd = addDays(today.value, 1)
   const n = dayAgenda(tomorrowYmd, feed.value)
-  return n.length ? [{ label: '明天', day: tomorrowYmd, items: n }] : []
+  return n.length ? [{ label: holidayLabel('明天', tomorrowYmd), day: tomorrowYmd, items: n }] : []
 })
 
 const goCalendar = (date?: string) => {

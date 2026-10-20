@@ -8,7 +8,7 @@ const emit = defineEmits<{ (e: 'open', ev: ViewEvent): void }>()
 
 <template>
   <section class="flex flex-col gap-2">
-    <p v-if="sections.length === 0" class="text-[13px] text-slate-400 px-1">今明兩天沒有安排</p>
+    <p v-if="sections.length === 0" class="text-[13px] text-slate-500 px-1">今明兩天沒有安排</p>
     <template v-for="s in sections" :key="s.day">
       <span class="text-[13px] font-extrabold text-primary-700 px-1">{{ s.label }}</span>
       <button

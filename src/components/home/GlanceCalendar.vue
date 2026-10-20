@@ -4,6 +4,8 @@ import { ChevronRight } from 'lucide-vue-next'
 import type { ViewEvent } from '../../utils/calendar/viewEvent'
 import { buildMonthWeeks } from '../../utils/calendar/monthLayout'
 import { cellTint, weekRow } from '../../utils/calendar/glance'
+import { eventsOnDay } from '../../utils/calendar/agendaRange'
+import { weekdayMon0 } from '../../utils/dateRange'
 
 const props = defineProps<{ events: ViewEvent[]; today: string; expanded: boolean }>()
 const emit = defineEmits<{
@@ -20,6 +22,12 @@ const rows = computed<(string | null)[][]>(() => {
   // 月檢視：非本月的日期留空白（鄰月事件不在速覽範圍）
   return buildMonthWeeks(y, month.value).map((w) => w.map((d) => (Number(d.slice(5, 7)) === month.value ? d : null)))
 })
+
+const WEEKDAY = ['一', '二', '三', '四', '五', '六', '日']
+const ariaLabel = (d: string) => {
+  const n = eventsOnDay(d, props.events).length
+  return `${Number(d.slice(5, 7))} 月 ${Number(d.slice(8))} 日 週${WEEKDAY[weekdayMon0(d)]}，${n} 個事件`
+}
 
 const cellStyle = (d: string) => {
   if (d === props.today) return undefined // 今天一律實心天藍，不套分類色
@@ -41,16 +49,16 @@ const cellStyle = (d: string) => {
     </div>
 
     <div class="grid grid-cols-7 gap-1 text-center">
-      <span v-for="h in HEAD" :key="h" class="text-[11px] font-semibold text-slate-400">{{ h }}</span>
+      <span v-for="h in HEAD" :key="h" class="text-[11px] font-semibold text-slate-500">{{ h }}</span>
       <template v-for="(r, i) in rows" :key="i">
         <template v-for="(d, j) in r" :key="`${i}-${j}`">
           <button
             v-if="d"
             type="button"
             class="h-11 rounded-[10px] flex items-center justify-center text-[13px] font-bold active:scale-95 transition-transform"
-            :class="d === today ? 'bg-accent-sky text-white' : 'text-primary-900'"
+            :class="d === today ? 'bg-primary-600 text-white' : 'text-primary-900'"
             :style="cellStyle(d)"
-            :aria-label="d"
+            :aria-label="ariaLabel(d)"
             @click="emit('select', d)"
           >{{ Number(d.slice(8)) }}</button>
           <span v-else></span>

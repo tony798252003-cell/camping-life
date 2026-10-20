@@ -29,7 +29,7 @@ const time = (e: ViewEvent) =>
         <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4"></div>
         <h3 class="text-[15px] font-extrabold text-primary-900 mb-3">{{ label() }}</h3>
 
-        <p v-if="items.length === 0" class="text-[13px] text-slate-400 py-6 text-center">這天沒有事件</p>
+        <p v-if="items.length === 0" class="text-[13px] text-slate-500 py-6 text-center">這天沒有事件</p>
         <ul v-else class="space-y-2 mb-3">
           <li v-for="e in items" :key="e.key">
             <button

@@ -41,7 +41,7 @@ const nightRushFirst = (b: WeekBar) => !!b.event.nightRushDate && !b.continuesBe
 
 <template>
   <section class="mx-3 bg-white rounded-[24px] px-1.5 pt-2 pb-2.5 select-none">
-    <div class="grid grid-cols-7 text-center text-[11px] font-bold text-slate-400 pt-1 pb-1.5">
+    <div class="grid grid-cols-7 text-center text-[11px] font-bold text-slate-500 pt-1 pb-1.5">
       <span v-for="h in HEAD" :key="h">{{ h }}</span>
     </div>
     <div v-for="w in weeks" :key="w.days[0]" class="relative grid grid-cols-7">
@@ -60,7 +60,7 @@ const nightRushFirst = (b: WeekBar) => !!b.event.nightRushDate && !b.continuesBe
       >
         <span
           class="inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold leading-none"
-          :class="d === today ? 'bg-accent-sky text-white' : isHoliday(d) ? 'text-red-500' : 'text-primary-900'"
+          :class="d === today ? 'bg-primary-600 text-white' : isHoliday(d) ? 'text-red-500' : 'text-primary-900'"
         >{{ Number(d.slice(8)) }}</span>
         <!-- 預留 2 條 bar 的高度（絕對定位），圓點在其下 -->
         <span class="mt-[16px] flex gap-[3px] h-[5px] items-center">

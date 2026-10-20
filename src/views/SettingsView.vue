@@ -1,12 +1,9 @@
 <template>
-  <div class="min-h-screen bg-surface-50 pb-safe font-sans">
+  <div class="font-sans">
       <!-- Header -->
-      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-50">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-30">
         <div class="flex items-center gap-2">
            <button v-if="currentView !== 'menu'" @click="currentView = 'menu'" class="p-1 rounded-full hover:bg-gray-100 text-gray-500 transition-colors mr-1">
-              <ChevronLeft class="w-6 h-6" />
-           </button>
-           <button v-else @click="goBack" class="p-1 rounded-full hover:bg-gray-100 text-gray-500 transition-colors mr-1">
               <ChevronLeft class="w-6 h-6" />
            </button>
            
@@ -204,7 +201,7 @@
               <div class="space-y-4">
                  <div class="bg-white p-4 rounded-lg border border-blue-200 shadow-sm mt-4">
                     <h4 class="font-bold text-gray-800 mb-1 flex items-center gap-2">
-                       ⚾ 同步 CPBL 賽程
+                       同步 CPBL 賽程
                     </h4>
                     <p class="text-xs text-gray-500 mb-3">
                        從中華職棒官網抓取指定年度的賽程並寫入資料庫，供前台行事曆與新增行程時使用。此操作需要一些時間。
@@ -289,11 +286,6 @@ type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'categories' |
 const currentView = ref<ViewState>('menu')
 const isAssetManagerOpen = ref(false)
 
-
-// Navigation
-const goBack = () => {
-    router.back()
-}
 
 const handleLogout = async () => {
     await supabase.auth.signOut()

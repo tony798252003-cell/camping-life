@@ -85,7 +85,7 @@ const go = (path: string) => router.push(path)
         :key="t.path"
         type="button"
         class="flex flex-col items-center justify-center gap-1 min-h-[48px] text-[11px] font-bold transition-colors"
-        :class="route.name === t.name ? 'text-primary-600' : 'text-slate-400'"
+        :class="route.name === t.name ? 'text-primary-600' : 'text-slate-500'"
         :aria-current="route.name === t.name ? 'page' : undefined"
         @click="go(t.path)"
       >

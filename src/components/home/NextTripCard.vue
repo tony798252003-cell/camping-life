@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Moon, Navigation, Snowflake, Droplets, Plus } from 'lucide-vue-next'
+import { Moon, Navigation, Snowflake, Droplets, Plus, Umbrella } from 'lucide-vue-next'
 import { useTrips } from '../../composables/useTrips'
 import { useTripModal } from '../../composables/useTripModal'
 import { useTripWeather, type WeatherDay } from '../../composables/useTripWeather'
@@ -9,10 +9,10 @@ import { useUserProfile } from '../../composables/useUserProfile'
 import { pickNextTrip, tripStart } from '../../utils/nextTrip'
 import { diffDays, tripRange, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
+import { COLD_NIGHT_C, summarizeTripWeather } from '../../utils/tripWeatherSummary'
 import { isHoliday } from '../../utils/holidays'
 
 const WEEK = ['一', '二', '三', '四', '五', '六', '日']
-const LOW_TEMP_C = 10
 
 const { trips } = useTrips()
 const { openEdit, openNew } = useTripModal()
@@ -64,10 +64,6 @@ const nightLow = (d: WeatherDay) => {
     .map((h) => h.temp)
   return temps.length ? Math.round(Math.min(...temps)) : null
 }
-const isCold = (d: WeatherDay) => {
-  const n = nightLow(d)
-  return n != null && n < LOW_TEMP_C
-}
 const forecastClosed = computed(
   () => !!trip.value && !!coords.value && weatherDays.value.length === 0 && !weatherLoading.value && diffDays(today.value, trip.value.trip_date) > 16,
 )
@@ -97,11 +93,16 @@ const travelText = computed(() => {
   const m = Math.round((travelSec.value % 3600) / 60)
   return h > 0 ? `${h}h${String(m).padStart(2, '0')}m` : `${m}m`
 })
-// 天氣格：取行程第一天（預報已依海拔校正）
+// 天氣格：整趟行程的最低–最高溫（預報已依海拔校正）
+const weatherSummary = computed(() =>
+  summarizeTripWeather(
+    weatherDays.value.map((d) => ({ tempMin: d.summary.temp_min, tempMax: d.summary.temp_max, maxPop: d.summary.max_pop, nightLow: nightLow(d) })),
+  ),
+)
 const weatherText = computed(() => {
   if (!coords.value) return '—'
-  const d = weatherDays.value[0]
-  if (d) return `${d.summary.temp_min}–${d.summary.temp_max}°C`
+  const w = weatherSummary.value
+  if (w) return `${w.min}–${w.max}°C`
   if (weatherLoading.value) return '載入中'
   return forecastClosed.value ? '未開放' : '—'
 })
@@ -150,7 +151,7 @@ const navUrl = computed(() => {
           <h2 class="text-xl font-black text-primary-900 truncate">{{ name }}</h2>
           <p class="text-[13px] font-semibold text-slate-600">
             {{ dateText }}
-            <span class="inline-flex items-center gap-0.5 text-slate-400"><Moon v-if="trip.night_rush" class="w-3 h-3" />{{ nightsText }}</span>
+            <span class="inline-flex items-center gap-0.5 text-slate-500"><Moon v-if="trip.night_rush" class="w-3 h-3" />{{ nightsText }}</span>
           </p>
         </div>
       </div>
@@ -164,6 +165,9 @@ const navUrl = computed(() => {
       <div class="bg-primary-50 rounded-[14px] p-2 text-center">
         <div class="text-[11px] font-semibold text-slate-500">天氣</div>
         <div class="text-[13px] font-extrabold text-primary-900">{{ weatherText }}</div>
+        <div v-if="weatherSummary && (weatherSummary.cold || weatherSummary.rainy)" class="flex items-center justify-center gap-1 text-[11px] font-bold text-orange-600">
+          <Snowflake v-if="weatherSummary.cold" class="w-3 h-3" aria-label="夜間低溫" /><Umbrella v-if="weatherSummary.rainy" class="w-3 h-3" aria-label="可能降雨" />
+        </div>
       </div>
       <div class="bg-primary-50 rounded-[14px] p-2 text-center">
         <div class="text-[11px] font-semibold text-slate-500">車程</div>
@@ -179,7 +183,8 @@ const navUrl = computed(() => {
       <div class="space-y-0.5 text-[11px] text-slate-500 min-w-0">
         <p v-if="departText">{{ departText }}</p>
         <p v-if="holidayJam" class="text-accent-orange">連假，可能塞車</p>
-        <p v-if="weatherDays[0] && isCold(weatherDays[0])" class="flex items-center gap-1 text-primary-600"><Snowflake class="w-3 h-3" />夜間低溫 {{ nightLow(weatherDays[0]) }}°</p>
+        <p v-if="weatherSummary?.cold" class="flex items-center gap-1 text-primary-600"><Snowflake class="w-3 h-3" />有夜間低於 {{ COLD_NIGHT_C }}°C</p>
+        <p v-if="weatherSummary?.rainy" class="flex items-center gap-1 text-primary-600"><Umbrella class="w-3 h-3" />可能降雨</p>
         <p v-if="packRisk" class="flex items-center gap-1 text-orange-600"><Droplets class="w-3 h-3" />收帳日：{{ packRisk.label }}</p>
         <p v-if="altitudeCorrected">已依海拔校正（營區 {{ siteAltitude?.toLocaleString() }} m）</p>
       </div>

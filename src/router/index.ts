@@ -28,16 +28,16 @@ const routes = [
                 component: () => import('../components/CampsiteLibrary.vue')
             },
             {
+                path: 'settings',
+                name: 'settings',
+                component: () => import('../views/SettingsView.vue')
+            },
+            {
                 path: 'stats',
                 name: 'stats',
                 component: () => import('../views/StatsView.vue')
             }
         ]
-    },
-    {
-        path: '/settings',
-        name: 'settings',
-        component: () => import('../views/SettingsView.vue')
     },
     {
         path: '/builder',

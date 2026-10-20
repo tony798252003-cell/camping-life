@@ -60,10 +60,10 @@ onBeforeUnmount(() => clearInterval(timer))
           :aria-label="d"
           @click="emit('select-day', d)"
         >
-          <span class="text-[11px] font-bold text-slate-400">{{ HEAD[i] }}</span>
+          <span class="text-[11px] font-bold text-slate-500">{{ HEAD[i] }}</span>
           <span
             class="inline-flex items-center justify-center w-7 h-7 rounded-full text-[13px] font-bold"
-            :class="d === today ? 'bg-accent-sky text-white' : 'text-primary-900'"
+            :class="d === today ? 'bg-primary-600 text-white' : 'text-primary-900'"
           >{{ Number(d.slice(8)) }}</span>
         </button>
       </div>
@@ -71,7 +71,7 @@ onBeforeUnmount(() => clearInterval(timer))
 
     <!-- 全天區 -->
     <div v-if="allDay.rows > 0" class="flex border-t border-primary-100 py-0.5">
-      <span class="w-9 shrink-0 text-[10px] text-primary-400 pt-0.5">全天</span>
+      <span class="w-9 shrink-0 text-[10px] text-slate-500 pt-0.5">全天</span>
       <div class="relative flex-1" :style="{ height: `${shownRows * ROW_H}px` }">
         <button
           v-for="i in visibleItems"
@@ -103,7 +103,7 @@ onBeforeUnmount(() => clearInterval(timer))
           <span
             v-for="h in hours"
             :key="h"
-            class="absolute right-1 text-[10px] text-primary-400 -translate-y-1/2"
+            class="absolute right-1 text-[10px] text-slate-500 -translate-y-1/2"
             :style="{ top: `${h * HOUR_H}px` }"
           >{{ h === 0 ? '' : String(h).padStart(2, '0') }}</span>
         </div>

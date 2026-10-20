@@ -4,6 +4,7 @@ import type { ViewEvent } from '../../utils/calendar/viewEvent'
 import { eachDay, diffDays, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
 import { eventsOnDay } from '../../utils/calendar/agendaRange'
+import { isHoliday } from '../../utils/holidays'
 import { displayTitle } from '../../utils/calendar/glance'
 import { useEventCategories } from '../../composables/useEventCategories'
 
@@ -37,13 +38,13 @@ const dayNo = (e: ViewEvent, day: string) =>
 
 <template>
   <div class="px-4 pt-3.5 pb-28">
-    <p v-if="groups.length === 0" class="text-center text-[13px] text-slate-400 py-8">這段期間沒有事件</p>
+    <p v-if="groups.length === 0" class="text-center text-[13px] text-slate-500 py-8">這段期間沒有事件</p>
     <section v-for="g in groups" :key="g.day" :data-day="g.day" class="scroll-mt-40 mb-3">
       <h3
         class="text-[13px] font-extrabold px-2 py-1 rounded-[10px] inline-block transition-colors duration-300"
-        :class="[g.day === highlight ? 'bg-accent-sky text-white' : 'text-primary-700']"
+        :class="[g.day === highlight ? 'bg-primary-600 text-white' : 'text-primary-700']"
       >
-        {{ dayLabel(g.day) }}<span v-if="g.day === today" class="ml-1">今天</span>
+        {{ dayLabel(g.day) }}<span v-if="g.day === today" class="ml-1">今天</span><span v-if="isHoliday(g.day)" class="ml-1">{{ isHoliday(g.day)!.name }}</span>
       </h3>
       <ul class="mt-1.5 space-y-2">
         <li v-for="e in g.events" :key="e.key + g.day">
@@ -56,7 +57,7 @@ const dayNo = (e: ViewEvent, day: string) =>
             <span class="flex flex-col min-w-0 flex-1">
               <span class="text-[15px] font-bold text-primary-900 truncate">
                 {{ displayTitle(e) }}
-                <span v-if="e.tripStatus === 'planning'" class="text-[11px] font-semibold text-slate-400 ml-1">規劃中</span>
+                <span v-if="e.tripStatus === 'planning'" class="text-[11px] font-semibold text-slate-500 ml-1">規劃中</span>
               </span>
               <span class="text-[11px] font-semibold text-slate-500 truncate">
                 {{ time(e) }}<template v-if="dayNo(e, g.day)"> · {{ dayNo(e, g.day) }}</template><template v-if="e.source === 'cpbl' || catName(e.categoryId)"> · {{ e.source === 'cpbl' ? '桃猿賽程' : catName(e.categoryId) }}</template>

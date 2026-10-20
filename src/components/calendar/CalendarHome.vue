@@ -182,7 +182,7 @@ const onAddOnDay = (ymd: string) => {
     <button
       type="button"
       aria-label="新增"
-      class="fixed right-5 bottom-24 z-30 w-14 h-14 rounded-[20px] bg-accent-sky text-white flex items-center justify-center shadow-[0_10px_20px_-8px_rgba(2,132,199,0.7)] active:scale-95 transition-transform"
+      class="fixed right-5 bottom-24 z-30 w-14 h-14 rounded-[20px] bg-primary-600 text-white flex items-center justify-center shadow-[0_10px_20px_-8px_rgba(2,132,199,0.7)] active:scale-95 transition-transform"
       @click="newItem.open(selectedDate)"
     ><Plus class="w-7 h-7" /></button>
   </div>
