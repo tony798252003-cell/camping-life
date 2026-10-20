@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Moon, Navigation, Snowflake, Droplets, Plus, Umbrella } from 'lucide-vue-next'
+import { Moon, Navigation, Tent, Snowflake, Droplets, Plus, Umbrella } from 'lucide-vue-next'
 import { useTrips } from '../../composables/useTrips'
 import { useTripModal } from '../../composables/useTripModal'
 import { useTripWeather, type WeatherDay } from '../../composables/useTripWeather'
@@ -145,7 +145,14 @@ const navUrl = computed(() => {
   >
     <div class="flex items-start justify-between gap-3">
       <div class="flex items-start gap-3 min-w-0">
-        <img v-if="trip.tent?.image_url" :src="trip.tent.image_url" :alt="trip.tent.name" class="w-12 h-12 rounded-[14px] object-cover shrink-0" />
+        <!-- 裝備格：帳篷圖（沒有就放帳篷圖示），下方帳篷名稱 -->
+        <div class="w-16 shrink-0 flex flex-col items-center gap-1" data-testid="tent-slot">
+          <div class="w-16 h-16 rounded-[16px] bg-primary-50 border border-primary-100 overflow-hidden flex items-center justify-center">
+            <img v-if="trip.tent?.image_url" :src="trip.tent.image_url" :alt="trip.tent.name" class="w-full h-full object-contain p-1" />
+            <Tent v-else class="w-8 h-8 text-primary-300" aria-label="尚未選帳篷" />
+          </div>
+          <span v-if="trip.tent?.name" class="w-full text-[10px] font-bold text-slate-500 text-center truncate">{{ trip.tent.name }}</span>
+        </div>
         <div class="min-w-0 flex flex-col gap-0.5">
           <span class="text-[11px] font-bold text-primary-700">下一趟露營<template v-if="countdown.tag">・{{ countdown.tag }}</template></span>
           <h2 class="text-xl font-black text-primary-900 truncate">{{ name }}</h2>
