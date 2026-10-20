@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { useRouter, useRoute } from 'vue-router'
-import { Home, Calendar as CalendarIcon, List as ListIcon, Search, Plus } from 'lucide-vue-next'
+import { Calendar as CalendarIcon, Tent, MapPin, ChartColumn, Plus } from 'lucide-vue-next'
+import NewItemSheet from '../components/calendar/NewItemSheet.vue'
+import { useCalendarFeed } from '../composables/useCalendarFeed'
+import { useNewItemSheet } from '../composables/useNewItemSheet'
+import { useTripModal } from '../composables/useTripModal'
 
 const router = useRouter()
 const route = useRoute()
@@ -9,6 +13,19 @@ const route = useRoute()
 defineProps<{
   session: any
 }>()
+
+const emit = defineEmits<{ (e: 'new-event', date?: string): void }>()
+
+const { selectedDate } = useCalendarFeed()
+const newItem = useNewItemSheet()
+const { openNew } = useTripModal()
+
+const onPick = (kind: 'event' | 'trip' | 'campsite', date?: string) => {
+  newItem.close()
+  if (kind === 'trip') openNew(date)
+  // TODO(Task 3.9)：改成開 EventEditorSheet；目前只 emit，Task 3.9 必須移除此佔位
+  else if (kind === 'event') emit('new-event', date)
+}
 
 // Navigation helpers
 const go = (path: string) => router.push(path)
@@ -27,7 +44,7 @@ const go = (path: string) => router.push(path)
       <div class="flex items-center gap-3 z-10 relative"> 
          <div v-if="session?.user" class="flex items-center gap-3">
             <!-- Name (Left of Avatar) -->
-            <span class="font-display font-bold text-primary-900 text-base md:text-lg tracking-tight">
+            <span class="font-bold text-primary-900 text-base md:text-lg tracking-tight">
                 Hi, {{ session.user.user_metadata?.full_name || session.user.email?.split('@')[0] }}
             </span>
 
@@ -47,7 +64,7 @@ const go = (path: string) => router.push(path)
     <!-- Main Content Slot -->
     <!-- We use router-view here for child routes (Home, List, etc) -->
     <!-- We propagate all props/attrs to the child view -->
-    <main class="flex-1 overflow-y-auto" :class="route.name === 'calendar' ? 'pb-0' : 'pb-24'">
+    <main class="flex-1 overflow-y-auto pb-24">
         <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
                  <component :is="Component" v-bind="$attrs" />
@@ -57,50 +74,53 @@ const go = (path: string) => router.push(path)
 
     <!-- Bottom Navigation -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-primary-100 px-6 py-3 flex justify-between items-center z-40 pb-safe shadow-[0_-4px_20px_-1px_rgba(14,165,233,0.1)]">
-        <button 
+        <button
           @click="go('/')"
           class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
           :class="route.name === 'home' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
         >
-          <Home class="w-6 h-6" :class="{'fill-primary-100': route.name === 'home'}" />
-          <span class="text-[10px] font-medium mb-1">首頁</span>
+          <CalendarIcon class="w-6 h-6" :class="{'fill-primary-100': route.name === 'home'}" />
+          <span class="text-[10px] font-medium mb-1">行事曆</span>
         </button>
-  
-        <button 
+
+        <button
           @click="go('/list')"
           class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
           :class="route.name === 'list' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
         >
-          <ListIcon class="w-6 h-6" />
-          <span class="text-[10px] font-medium mb-1">足跡</span>
+          <Tent class="w-6 h-6" />
+          <span class="text-[10px] font-medium mb-1">露營</span>
         </button>
-  
+
         <!-- FAB (Add) - Central Orange Button -->
-        <button 
-          @click="$emit('add')"
+        <button
+          @click="newItem.open(selectedDate)"
+          aria-label="新增"
           class="btn-cta flex flex-col items-center justify-center -mt-10 rounded-full w-14 h-14 shadow-lg shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300 border-4 border-surface-50 z-50 bg-accent-orange text-white"
         >
           <Plus class="w-7 h-7" />
         </button>
-  
-        <button 
-          @click="go('/calendar')"
-          class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
-          :class="route.name === 'calendar' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
-        >
-          <CalendarIcon class="w-6 h-6" :class="{'fill-primary-100': route.name === 'calendar'}" />
-          <span class="text-[10px] font-medium mb-1">行事曆</span>
-        </button>
 
-        <button 
+        <button
           @click="go('/library')"
           class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
           :class="route.name === 'library' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
         >
-          <Search class="w-6 h-6" :class="{'fill-primary-100': route.name === 'library'}" />
-          <span class="text-[10px] font-medium mb-1">找營地</span>
+          <MapPin class="w-6 h-6" />
+          <span class="text-[10px] font-medium mb-1">營地</span>
+        </button>
+
+        <button
+          @click="go('/stats')"
+          class="flex flex-col items-center gap-1 transition-all duration-300 w-16"
+          :class="route.name === 'stats' ? 'text-primary-600 scale-105' : 'text-primary-400 hover:text-primary-600'"
+        >
+          <ChartColumn class="w-6 h-6" />
+          <span class="text-[10px] font-medium mb-1">統計</span>
         </button>
     </nav>
+
+    <NewItemSheet :open="newItem.isOpen.value" :date="newItem.date.value" @pick="onPick" @close="newItem.close()" />
   </div>
 </template>
 

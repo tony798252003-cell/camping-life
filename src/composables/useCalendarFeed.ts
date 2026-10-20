@@ -22,6 +22,8 @@ function readHidden(): Set<string> {
 
 const hiddenCategoryIds = ref<Set<string>>(readHidden())
 const games = ref<CpblSchedule[]>([])
+// 月曆上最後點選的日期（YYYY-MM-DD）；FAB 新增時當預設日期
+const selectedDate = ref<string | null>(null)
 
 export function useCalendarFeed() {
   const { events } = useCalendarEvents()
@@ -45,7 +47,7 @@ export function useCalendarFeed() {
     games.value = await getCpblSchedule(fromYmd, toYmd)
   }
 
-  return { feed, hiddenCategoryIds, loadGames }
+  return { feed, hiddenCategoryIds, selectedDate, loadGames }
 }
 
 // 篩選變更後寫回 localStorage；寫入失敗（無痕、被封鎖）不影響畫面
