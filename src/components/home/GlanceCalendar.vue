@@ -37,6 +37,15 @@ const cellStyle = (d: string) => {
 </script>
 
 <template>
+  <div class="flex flex-col gap-2">
+  <div class="flex items-center justify-between px-1">
+    <h2 class="text-xs font-bold uppercase tracking-widest text-slate-500">行事曆</h2>
+    <button
+      type="button"
+      class="-my-3 min-h-[44px] flex items-center gap-0.5 text-[13px] font-bold text-primary-600"
+      @click="emit('open-calendar')"
+    >完整行事曆<ChevronRight class="w-4 h-4" /></button>
+  </div>
   <section class="bg-white/90 rounded-[28px] px-4 py-3.5">
     <div class="flex items-center justify-between mb-1.5">
       <span class="text-[15px] font-extrabold text-primary-900">{{ expanded ? `${month} 月` : '這週' }}</span>
@@ -66,11 +75,6 @@ const cellStyle = (d: string) => {
         </template>
       </template>
     </div>
-
-    <button
-      type="button"
-      class="mt-1 w-full min-h-[44px] flex items-center justify-end gap-0.5 text-[13px] font-bold text-primary-600"
-      @click="emit('open-calendar')"
-    >完整行事曆<ChevronRight class="w-4 h-4" /></button>
   </section>
+  </div>
 </template>

@@ -9,12 +9,12 @@ const emit = defineEmits<{ (e: 'open', ev: ViewEvent): void; (e: 'clear'): void;
 
 <template>
   <section class="flex flex-col gap-2">
-    <div class="flex items-center justify-between px-1">
-      <h2 class="text-[15px] font-extrabold text-primary-900">{{ selected ? sections[0]?.label : '本週行程' }}</h2>
+    <div class="flex items-center justify-between px-1 min-h-[16px]">
+      <h2 class="text-xs font-bold uppercase tracking-widest text-slate-500">{{ selected ? sections[0]?.label : '本週行程' }}</h2>
       <button
         v-if="selected"
         type="button"
-        class="min-h-[44px] px-3 rounded-[12px] bg-primary-100 text-primary-700 text-[13px] font-extrabold"
+        class="-my-3 min-h-[44px] px-3 rounded-[12px] bg-primary-100 text-primary-700 text-[13px] font-extrabold"
         @click="emit('clear')"
       >回到本週</button>
     </div>

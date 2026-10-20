@@ -97,7 +97,7 @@ const goCalendar = () => {
 </script>
 
 <template>
-  <div class="px-4 pt-2 pb-6 flex flex-col gap-3.5">
+  <div class="px-4 pt-2 pb-6 flex flex-col gap-4">
     <NextTripCard />
     <GlanceCalendar
       :events="feed"
