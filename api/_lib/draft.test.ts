@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { mergeGemini, researchCampsite, HIGH_RISK_FIELDS } from './gemini.js'
 import { placeToDraft, fetchElevations, resolveMapsUrl, handleCampsiteDraft } from './draft.js'
 import type { PlaceDetail } from './places.js'
 import { HttpError } from './http.js'
@@ -186,5 +187,137 @@ describe('handleCampsiteDraft', () => {
     expect(body.placeId).toBe('pid1')
     expect(body.fields.altitude.value).toBe(850)
     await expect(handleCampsiteDraft(post({}), { fetchImpl: f })).rejects.toMatchObject({ status: 400 })
+  })
+})
+
+// 為什麼：營位類型和訂位規則一旦錯了，要到現場才會發現（規格 §5.7）
+describe('mergeGemini', () => {
+  const base = () => placeToDraft(detail(), 1200)
+  const hi = (value: unknown, sources = ['https://x']) => ({ value, confidence: 'high' as const, sources })
+
+  it('高風險欄位即使 high 且有來源也要 needsReview — AI 錯了到現場才發現', () => {
+    const d = mergeGemini(base(), { spot_types: hi(['雨棚']) })
+    expect(d.fields.spot_types).toMatchObject({ value: ['雨棚'], source: 'gemini', needsReview: true, urls: ['https://x'] })
+  })
+
+  it('check_in_time 即使 high 且有來源也 needsReview — 平日假日常不同', () => {
+    expect(mergeGemini(base(), { check_in_time: hi('14:00') }).fields.check_in_time.needsReview).toBe(true)
+    expect(HIGH_RISK_FIELDS).toContain('amenities')
+  })
+
+  it('一般欄位 high＋有來源才免檢查；沒來源就 needsReview — 無法查證的 AI 內容不能當事實', () => {
+    expect(mergeGemini(base(), { water_features: hi(['溪流']) }).fields.water_features.needsReview).toBe(false)
+    expect(mergeGemini(base(), { water_features: hi(['溪流'], []) }).fields.water_features.needsReview).toBe(true)
+  })
+
+  it('不在選項清單的標籤被濾掉 — 否則篩選器會出現無法選取的值', () => {
+    const d = mergeGemini(base(), { scenery_features: hi(['雲海', '超美夕陽']) })
+    expect(d.fields.scenery_features.value).toEqual(['雲海'])
+  })
+
+  it('濾完變空陣列視為查無資料 — 不能把「不知道」存成「沒有」', () => {
+    const f = mergeGemini(base(), { scenery_features: hi(['超美夕陽']) }).fields.scenery_features
+    expect(f).toMatchObject({ value: null, confidence: 'none', needsReview: true })
+  })
+
+  it('Places 已有 phone 時 Gemini 的 phone 不覆蓋 — Google 結構化資料較可信', () => {
+    const d = mergeGemini(base(), { phone: hi('0999') })
+    expect(d.fields.phone).toMatchObject({ value: '03 123 4567', source: 'places' })
+  })
+
+  it('confidence none → value null、needsReview true', () => {
+    const d = mergeGemini(base(), { night_rush_time: { value: '21:00', confidence: 'none', sources: [] } })
+    expect(d.fields.night_rush_time).toMatchObject({ value: null, needsReview: true })
+  })
+
+  it('ai_summary 寫進 campsite_notes 且一律 needsReview — 規格 §5.7', () => {
+    const d = mergeGemini(base(), { ai_summary: hi('- 山路：查無資料') })
+    expect(d.fields.campsite_notes).toMatchObject({ value: '- 山路：查無資料', needsReview: true })
+  })
+
+  it('amenities 只保留布林欄位 — 防止模型塞入未知結構', () => {
+    const d = mergeGemini(base(), { amenities: hi({ has_fridge: true, has_pool: true, has_freezer: 'yes' }) })
+    expect(d.fields.amenities.value).toEqual({ has_fridge: true })
+  })
+})
+
+describe('researchCampsite', () => {
+  const input = { name: '雲頂', address: 'a', mapsUrl: 'https://maps.google.com/?cid=1' }
+  const okFetch = (text: string, uris: string[] = []) =>
+    (async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [
+          { content: { parts: [{ text }] }, groundingMetadata: { groundingChunks: uris.map((uri) => ({ web: { uri } })) } },
+        ],
+      }),
+    })) as unknown as typeof fetch
+
+  it('沒設 GEMINI_MODEL 直接 throw — 不寫死模型名，設定錯誤要大聲失敗', async () => {
+    delete process.env.GEMINI_MODEL
+    process.env.GEMINI_API_KEY = 'k'
+    await expect(researchCampsite(input, okFetch('{}'))).rejects.toThrow('GEMINI_MODEL')
+  })
+
+  it('key 放 header、啟用 google_search、grounding 來源合併進有值欄位 — key 不能出現在網址', async () => {
+    process.env.GEMINI_MODEL = 'm1'
+    process.env.GEMINI_API_KEY = 'secret'
+    let seen: { url: string; init: RequestInit } | undefined
+    const f = (async (url: string, init: RequestInit) => {
+      seen = { url, init }
+      return okFetch('```json\n{"water_features":{"value":["溪流"],"confidence":"high","sources":["https://a"]},"spot_types":{"value":null,"confidence":"none","sources":[]}}\n```', ['https://g'])('')
+    }) as unknown as typeof fetch
+    const r = await researchCampsite(input, f)
+    expect(seen?.url).toContain('/m1:generateContent')
+    expect(seen?.url).not.toContain('secret')
+    expect((seen?.init.headers as Record<string, string>)['x-goog-api-key']).toBe('secret')
+    expect(JSON.parse(String(seen?.init.body)).tools).toEqual([{ google_search: {} }])
+    expect(r.water_features.sources).toEqual(['https://a', 'https://g'])
+    expect(r.spot_types.sources).toEqual([])
+  })
+
+  it('回傳不是 JSON 時 throw — 交給呼叫端降級成 Places 草稿', async () => {
+    process.env.GEMINI_MODEL = 'm1'
+    await expect(researchCampsite(input, okFetch('抱歉查不到'))).rejects.toThrow()
+  })
+})
+
+describe('handleCampsiteDraft + Gemini', () => {
+  const post = (b: unknown) => new Request('http://x/api/campsite-draft', { method: 'POST', body: JSON.stringify(b) })
+  const rawDetail = {
+    id: 'pid1',
+    displayName: { text: '雲頂露營區' },
+    formattedAddress: 'a',
+    location: { latitude: 24.6, longitude: 121.2 },
+    addressComponents: [],
+    googleMapsUri: 'https://maps.google.com/?cid=1',
+  }
+  const mk = (gemini: () => Promise<unknown>) =>
+    (async (u: string) => {
+      if (String(u).includes('generativelanguage')) return gemini()
+      if (String(u).includes('open-meteo')) return { ok: true, status: 200, json: async () => ({ elevation: [100] }) }
+      return { ok: true, status: 200, json: async () => rawDetail }
+    }) as unknown as typeof fetch
+
+  it('Gemini 失敗仍回 200 且 warnings 含 gemini_failed — Places 資料不能因 AI 掛掉而丟失', async () => {
+    process.env.GEMINI_MODEL = 'm1'
+    process.env.GEMINI_API_KEY = 'k'
+    const res = await handleCampsiteDraft(post({ placeId: 'pid1' }), {
+      fetchImpl: mk(async () => { throw new Error('timeout') }),
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { warnings: string[]; fields: { altitude: { value: number } } }
+    expect(body.warnings).toContain('gemini_failed')
+    expect(body.fields.altitude.value).toBe(100)
+  })
+
+  it('skipAi 完全不呼叫 Gemini — 山上訊號差時要能先存基本資料', async () => {
+    let called = false
+    const res = await handleCampsiteDraft(post({ placeId: 'pid1', skipAi: true }), {
+      fetchImpl: mk(async () => { called = true; return {} }),
+    })
+    expect(res.status).toBe(200)
+    expect(called).toBe(false)
   })
 })

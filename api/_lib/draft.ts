@@ -5,6 +5,7 @@ import { parseTaiwanLocation } from '../../src/utils/googleMaps.js'
 import type { FieldSource } from '../../src/types/database.js'
 import { HttpError, json } from './http.js'
 import { isAllowedMapsHost, parseMapsUrl, resolveShortUrl } from './mapsUrl.js'
+import { mergeGemini, researchCampsite } from './gemini.js'
 import { placeDetails, textSearch, type PlaceDetail, type PlaceLite } from './places.js'
 
 export interface DraftField<T> {
@@ -31,7 +32,7 @@ export interface CampsiteDraft {
     phone: DraftField<string>
     google_maps_url: DraftField<string>
     business_status: DraftField<BusinessStatusValue>
-  }
+  } & Record<string, DraftField<any>> // Gemini 填的欄位（Task 4.4）
   warnings: string[]
 }
 
@@ -179,5 +180,17 @@ export async function handleCampsiteDraft(req: Request, deps: { fetchImpl?: type
   }
   const detail = await placeDetails(body.placeId, deps.fetchImpl)
   const [altitude] = await fetchElevations([{ lat: detail.lat, lng: detail.lng }], deps.fetchImpl)
-  return json(200, placeToDraft(detail, altitude ?? null))
+  const draft = placeToDraft(detail, altitude ?? null)
+  if (body.skipAi === true) return json(200, draft)
+  try {
+    const g = await researchCampsite(
+      { name: draft.fields.name.value ?? detail.name, address: detail.address, mapsUrl: detail.mapsUrl },
+      deps.fetchImpl,
+    )
+    return json(200, mergeGemini(draft, g))
+  } catch (e) {
+    // Gemini 失敗或逾時：保留 Places 草稿，前端提示手動補
+    console.error('gemini failed', e instanceof Error ? e.message : e)
+    return json(200, { ...draft, warnings: [...draft.warnings, 'gemini_failed'] })
+  }
 }
