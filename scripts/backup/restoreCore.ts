@@ -8,8 +8,9 @@ export const RESTORE_ORDER = [
   'camping_gear',
   'profiles',
   'system_assets',
-  'calendar_events',
+  'event_categories',
   'cpbl_schedule',
+  'calendar_events',
   'families',
 ]
 

@@ -28,6 +28,14 @@ describe('RESTORE_ORDER', () => {
     expect(i('campsites')).toBeLessThan(i('camping_trips'))
     expect(i('camping_trips')).toBeLessThan(i('trip_photos'))
   })
+
+  // 為什麼：calendar_events 有外鍵指向這兩張表，順序錯了還原時整批事件會失敗
+  it('event_categories、cpbl_schedule 在 calendar_events 之前', () => {
+    const i = (t: string) => RESTORE_ORDER.indexOf(t)
+    expect(i('event_categories')).toBeGreaterThanOrEqual(0)
+    expect(i('event_categories')).toBeLessThan(i('calendar_events'))
+    expect(i('cpbl_schedule')).toBeLessThan(i('calendar_events'))
+  })
 })
 
 // 為什麼：id 是 GENERATED ALWAYS identity 時 PostgREST 無法插入明確 id，只能產生 OVERRIDING SYSTEM VALUE 的 SQL 讓使用者手動貼上；跳脫錯誤會毀資料

@@ -32,3 +32,5 @@ dist-ssr
 # Data files
 data/
 !.env.example
+
+supabase/.temp/
