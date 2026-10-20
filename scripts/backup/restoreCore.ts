@@ -2,6 +2,7 @@ export type Row = Record<string, unknown> & { id: unknown }
 
 /** 父表在前；還原時依此順序逐表處理 */
 export const RESTORE_ORDER = [
+  'families',
   'campsites',
   'camping_trips',
   'trip_photos',
@@ -11,7 +12,6 @@ export const RESTORE_ORDER = [
   'event_categories',
   'cpbl_schedule',
   'calendar_events',
-  'families',
 ]
 
 // 遞迴排序物件鍵，讓 jsonb 鍵順序不同的值序列化後相同

@@ -34,7 +34,19 @@ describe('RESTORE_ORDER', () => {
     const i = (t: string) => RESTORE_ORDER.indexOf(t)
     expect(i('event_categories')).toBeGreaterThanOrEqual(0)
     expect(i('event_categories')).toBeLessThan(i('calendar_events'))
+    expect(i('cpbl_schedule')).toBeGreaterThanOrEqual(0)
     expect(i('cpbl_schedule')).toBeLessThan(i('calendar_events'))
+  })
+})
+
+// 為什麼：profiles、calendar_events、camping_trips、camping_gear 都有 family_id 外鍵指向 families，families 排後面會讓這些表還原失敗
+describe('RESTORE_ORDER families', () => {
+  it('families 在所有帶 family_id 外鍵的子表之前', () => {
+    const i = (t: string) => RESTORE_ORDER.indexOf(t)
+    expect(i('families')).toBeGreaterThanOrEqual(0)
+    for (const child of ['profiles', 'calendar_events', 'camping_trips', 'camping_gear']) {
+      expect(i('families')).toBeLessThan(i(child))
+    }
   })
 })
 

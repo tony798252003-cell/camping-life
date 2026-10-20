@@ -72,6 +72,9 @@ export type NewTripPhoto = TablesInsert<'trip_photos'>
 export type SystemAsset = Tables<'system_assets'>
 
 export type CalendarEvent = Tables<'calendar_events'>
+export type CalendarEventRow = Tables<'calendar_events'>
+
+export type EventCategory = Tables<'event_categories'>
 
 export type NewCalendarEvent = TablesInsert<'calendar_events'>
 

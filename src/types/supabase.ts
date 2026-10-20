@@ -16,45 +16,74 @@ export type Database = {
     Tables: {
       calendar_events: {
         Row: {
+          category_id: string | null
           color: string | null
+          cpbl_game_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
+          end_date: string | null
           end_time: string
           event_type: string | null
           family_id: string | null
           id: string
           is_all_day: boolean | null
+          start_date: string | null
           start_time: string
           title: string
+          visibility: string
         }
         Insert: {
+          category_id?: string | null
           color?: string | null
+          cpbl_game_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          end_date?: string | null
           end_time: string
           event_type?: string | null
           family_id?: string | null
           id?: string
           is_all_day?: boolean | null
+          start_date?: string | null
           start_time: string
           title: string
+          visibility?: string
         }
         Update: {
+          category_id?: string | null
           color?: string | null
+          cpbl_game_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          end_date?: string | null
           end_time?: string
           event_type?: string | null
           family_id?: string | null
           id?: string
           is_all_day?: boolean | null
+          start_date?: string | null
           start_time?: string
           title?: string
+          visibility?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "calendar_events_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "event_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_cpbl_game_id_fkey"
+            columns: ["cpbl_game_id"]
+            isOneToOne: false
+            referencedRelation: "cpbl_schedule"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "calendar_events_family_id_fkey"
             columns: ["family_id"]
@@ -156,6 +185,7 @@ export type Database = {
           tent_type: string | null
           trip_date: string
           user_id: string | null
+          visibility: string
           zone: string | null
         }
         Insert: {
@@ -193,6 +223,7 @@ export type Database = {
           tent_type?: string | null
           trip_date: string
           user_id?: string | null
+          visibility?: string
           zone?: string | null
         }
         Update: {
@@ -230,6 +261,7 @@ export type Database = {
           tent_type?: string | null
           trip_date?: string
           user_id?: string | null
+          visibility?: string
           zone?: string | null
         }
         Relationships: [
@@ -407,6 +439,36 @@ export type Database = {
         }
         Relationships: []
       }
+      event_categories: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          sort_order: number
+          system_key: string | null
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          id?: string
+          name: string
+          owner_id?: string
+          sort_order?: number
+          system_key?: string | null
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          sort_order?: number
+          system_key?: string | null
+        }
+        Relationships: []
+      }
       families: {
         Row: {
           created_at: string | null
@@ -441,6 +503,7 @@ export type Database = {
           location_name: string | null
           longitude: number | null
           onboarding_completed_at: string | null
+          show_cpbl: boolean
           updated_at: string | null
         }
         Insert: {
@@ -452,6 +515,7 @@ export type Database = {
           location_name?: string | null
           longitude?: number | null
           onboarding_completed_at?: string | null
+          show_cpbl?: boolean
           updated_at?: string | null
         }
         Update: {
@@ -463,6 +527,7 @@ export type Database = {
           location_name?: string | null
           longitude?: number | null
           onboarding_completed_at?: string | null
+          show_cpbl?: boolean
           updated_at?: string | null
         }
         Relationships: [
