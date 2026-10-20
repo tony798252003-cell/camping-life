@@ -13,10 +13,20 @@ export interface CapacityZone {
     tents: number       // 該區帳數
 }
 
+export type FieldSource = {
+    source: 'places' | 'elevation' | 'gemini' | 'manual'
+    confidence: 'high' | 'low' | 'none'
+    urls: string[]
+    confirmed: boolean
+}
+
+export type FieldSources = Record<string, FieldSource>
+
 export type Campsite = Omit<
     Tables<'campsites'>,
-    'amenities' | 'capacity_zones' | 'booking_difficulty' | 'booking_platform'
+    'amenities' | 'capacity_zones' | 'booking_difficulty' | 'booking_platform' | 'field_sources'
 > & {
+    field_sources: FieldSources
     booking_difficulty: 'normal' | 'moderate' | 'hard' | null
     booking_platform: 'icamping' | 'campingfun' | null
     amenities: {
