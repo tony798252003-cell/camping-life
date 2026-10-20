@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Moon, Navigation, Tent, Snowflake, Droplets, Plus, Umbrella } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Moon, Navigation, Tent, Snowflake, Droplets, Plus, Umbrella } from 'lucide-vue-next'
 import { useTrips } from '../../composables/useTrips'
 import { useTripModal } from '../../composables/useTripModal'
 import { useTripWeather, type WeatherDay } from '../../composables/useTripWeather'
 import { estimateTripDuration } from '../../composables/useTravelTime'
 import { useUserProfile } from '../../composables/useUserProfile'
-import { pickNextTrip, tripStart } from '../../utils/nextTrip'
+import { browseableTrips, defaultTripIndex, tripStart } from '../../utils/nextTrip'
 import { diffDays, tripRange, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
 import { COLD_NIGHT_C, summarizeTripWeather } from '../../utils/tripWeatherSummary'
@@ -19,7 +19,21 @@ const { openEdit, openNew } = useTripModal()
 const { userOrigin } = useUserProfile()
 
 const today = useToday()
-const trip = computed(() => pickNextTrip(trips.value, today.value))
+// 翻看：以 id 記住使用者翻到的那趟（資料重新載入也不跳掉）；null = 回到預設的下一趟
+const list = computed(() => browseableTrips(trips.value))
+const defaultIndex = computed(() => defaultTripIndex(list.value, today.value))
+const browsedId = ref<number | null>(null)
+const index = computed(() => {
+  const i = browsedId.value == null ? -1 : list.value.findIndex((t) => t.id === browsedId.value)
+  return i >= 0 ? i : defaultIndex.value
+})
+const trip = computed(() => list.value[index.value] ?? null)
+const hasPrev = computed(() => index.value > 0)
+const hasNext = computed(() => index.value < list.value.length - 1)
+const go = (delta: number) => {
+  browsedId.value = list.value[index.value + delta]?.id ?? null
+}
+const isDefault = computed(() => index.value === defaultIndex.value)
 
 // 營區的 google_place_id 欄位尚未進入產生的型別（M4 加入），先用寬鬆型別讀取
 const placeId = computed(() => (trip.value?.campsites as { google_place_id?: string | null } | null)?.google_place_id ?? null)
@@ -32,11 +46,14 @@ const coords = computed(() => {
 })
 const name = computed(() => trip.value?.campsites?.name ?? trip.value?.campsite_name ?? '未命名營區')
 
+const range = computed(() => (trip.value ? tripRange(trip.value.trip_date, trip.value.duration_days) : null))
+const isPast = computed(() => !!range.value && range.value.end < today.value)
+
 // 舊行程沒有營區也沒有座標時，只顯示名稱快照，不查天氣和車程
-const weatherTrip = computed(() => (coords.value ? trip.value : null))
+// 已結束的行程不查預報
+const weatherTrip = computed(() => (coords.value && !isPast.value ? trip.value : null))
 const { weatherDays, packingStatus, altitudeCorrected, siteAltitude, loading: weatherLoading } = useTripWeather(weatherTrip)
 
-const range = computed(() => (trip.value ? tripRange(trip.value.trip_date, trip.value.duration_days) : null))
 const days = computed(() => (range.value ? diffDays(range.value.start, range.value.end) + 1 : 1))
 const md = (ymd: string) => `${Number(ymd.slice(5, 7))}/${Number(ymd.slice(8))}（${WEEK[weekdayMon0(ymd)]}）`
 const dateText = computed(() => (range.value ? `${md(range.value.start)}–${md(range.value.end)}` : ''))
@@ -45,16 +62,19 @@ const nightsText = computed(() => `${trip.value?.night_rush ? '夜衝＋' : ''}$
 // 右側大數字：未出發 = 倒數天數；進行中 = 第幾天；今晚夜衝 = 「今晚」
 const countdown = computed(() => {
   const t = trip.value
-  if (!t || !range.value) return { big: '', unit: '', tag: '' }
+  if (!t || !range.value) return { big: '', unit: '', tag: '', large: false }
+  if (isPast.value) return { big: String(diffDays(range.value.end, today.value)), unit: '天前', tag: '已結束', large: false }
   const start = tripStart(t)
-  if (t.night_rush && t.trip_date > today.value && start <= today.value) return { big: '今晚', unit: '', tag: '夜衝出發' }
-  if (start > today.value) return { big: String(diffDays(today.value, start)), unit: '天', tag: '' }
-  return { big: `第 ${diffDays(range.value.start, today.value) + 1}`, unit: '天', tag: '進行中' }
+  if (t.night_rush && t.trip_date > today.value && start <= today.value) return { big: '今晚', unit: '', tag: '夜衝出發', large: false }
+  if (start > today.value) return { big: String(diffDays(today.value, start)), unit: '天', tag: '', large: true }
+  return { big: `第 ${diffDays(range.value.start, today.value) + 1}`, unit: '天', tag: '進行中', large: false }
 })
+
+const title = computed(() => (isPast.value ? '過去的露營' : isDefault.value ? '下一趟露營' : '露營行程'))
 
 const statusText = computed(() => {
   const s = trip.value?.status
-  return s === 'planning' ? '規劃中' : s === 'booked' ? '已訂位' : '—'
+  return s === 'planning' ? '規劃中' : s === 'booked' ? '已訂位' : s === 'completed' ? '已完成' : '—'
 })
 
 // 溫度已是海拔校正後的數字；夜間（20:00–06:00）最低溫低於 10°C 時標出
@@ -78,7 +98,7 @@ watch(
     travelSec.value = null
     const t = trip.value
     const c = coords.value
-    if (!t || !c) return
+    if (!t || !c || isPast.value) return
     const o = userOrigin()
     const sLat = t.start_latitude ?? o?.latitude
     const sLng = t.start_longitude ?? o?.longitude
@@ -100,7 +120,7 @@ const weatherSummary = computed(() =>
   ),
 )
 const weatherText = computed(() => {
-  if (!coords.value) return '—'
+  if (!coords.value || isPast.value) return '—'
   const w = weatherSummary.value
   if (w) return `${w.min}–${w.max}°C`
   if (weatherLoading.value) return '載入中'
@@ -133,13 +153,38 @@ const navUrl = computed(() => {
 </script>
 
 <template>
+  <div v-if="trip" class="flex flex-col gap-2">
+  <div class="flex items-center justify-between gap-2 px-1">
+    <h2 class="text-xs font-bold uppercase tracking-widest text-slate-500">{{ title }}</h2>
+    <div class="flex items-center -my-2.5">
+      <button
+        v-if="!isDefault"
+        type="button"
+        class="min-h-[44px] px-3 rounded-[12px] text-[13px] font-extrabold text-primary-700"
+        @click="browsedId = null"
+      >回到下一趟</button>
+      <button
+        type="button"
+        aria-label="上一趟"
+        :disabled="!hasPrev"
+        class="w-11 h-11 flex items-center justify-center rounded-full text-primary-700 disabled:text-slate-300"
+        @click="go(-1)"
+      ><ChevronLeft class="w-5 h-5" /></button>
+      <button
+        type="button"
+        aria-label="下一趟"
+        :disabled="!hasNext"
+        class="w-11 h-11 flex items-center justify-center rounded-full text-primary-700 disabled:text-slate-300"
+        @click="go(1)"
+      ><ChevronRight class="w-5 h-5" /></button>
+    </div>
+  </div>
   <div
-    v-if="trip"
     role="button"
     tabindex="0"
     data-testid="next-trip"
-    class="rounded-[30px] bg-white/85 p-4 text-left cursor-pointer shadow-[0_8px_24px_-12px_rgba(14,165,233,0.35)] flex flex-col gap-2.5"
-    :class="trip.status === 'planning' ? 'border border-dashed border-primary-300' : 'border border-white/70'"
+    class="rounded-[30px] p-4 text-left cursor-pointer shadow-[0_8px_24px_-12px_rgba(14,165,233,0.35)] flex flex-col gap-2.5"
+    :class="[trip.status === 'planning' ? 'border border-dashed border-primary-300' : 'border border-white/70', isPast ? 'bg-white/60' : 'bg-white/85']"
     @click="openEdit(trip)"
     @keydown.enter="openEdit(trip)"
   >
@@ -154,7 +199,7 @@ const navUrl = computed(() => {
           <span v-if="trip.tent?.name" class="w-full text-[10px] font-bold text-slate-500 text-center truncate">{{ trip.tent.name }}</span>
         </div>
         <div class="min-w-0 flex flex-col gap-0.5">
-          <span class="text-[11px] font-bold text-primary-700">下一趟露營<template v-if="countdown.tag">・{{ countdown.tag }}</template></span>
+          <span v-if="countdown.tag" class="text-[11px] font-bold text-primary-700">{{ countdown.tag }}</span>
           <h2 class="text-xl font-black text-primary-900 truncate">{{ name }}</h2>
           <p class="text-[13px] font-semibold text-slate-600">
             {{ dateText }}
@@ -163,7 +208,7 @@ const navUrl = computed(() => {
         </div>
       </div>
       <div class="flex items-baseline gap-1 shrink-0">
-        <span class="font-black leading-none text-accent-sky" :class="countdown.unit === '天' && !countdown.tag ? 'text-[52px]' : 'text-[30px]'">{{ countdown.big }}</span>
+        <span class="font-black leading-none" :class="[isPast ? 'text-slate-600' : 'text-accent-sky', countdown.large ? 'text-[52px]' : 'text-[30px]']">{{ countdown.big }}</span>
         <span class="text-[13px] font-bold text-primary-600">{{ countdown.unit }}</span>
       </div>
     </div>
@@ -186,7 +231,7 @@ const navUrl = computed(() => {
       </div>
     </div>
 
-    <div v-if="coords" class="flex items-end justify-between gap-2">
+    <div v-if="coords && !isPast" class="flex items-end justify-between gap-2">
       <div class="space-y-0.5 text-[11px] text-slate-500 min-w-0">
         <p v-if="departText">{{ departText }}</p>
         <p v-if="holidayJam" class="text-accent-orange">連假，可能塞車</p>
@@ -205,6 +250,7 @@ const navUrl = computed(() => {
         @click.stop
       ><Navigation class="w-4 h-4" />導航</a>
     </div>
+  </div>
   </div>
 
   <button

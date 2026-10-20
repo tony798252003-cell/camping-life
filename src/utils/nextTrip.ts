@@ -29,3 +29,15 @@ export function pickNextTrip<T extends TripLike>(trips: T[], today: string): T |
     .sort((a, b) => a.tier - b.tier || a.start.localeCompare(b.start) || a.t.id - b.t.id)
   return ranked[0]?.t ?? null
 }
+
+// 首頁卡片左右翻看的清單：與行事曆同一套規則（排除取消、已合併），依日期、id 排序讓順序不隨回傳順序跳動
+export function browseableTrips<T extends TripLike>(trips: T[]): T[] {
+  return trips.filter(isActiveTrip).sort((a, b) => a.trip_date.localeCompare(b.trip_date) || a.id - b.id)
+}
+
+// 預設顯示的位置：和 pickNextTrip 同一趟；全部都過去了就停在最近的一趟；沒有行程回 -1
+export function defaultTripIndex<T extends TripLike>(list: T[], today: string): number {
+  const next = pickNextTrip(list, today)
+  if (next) return list.findIndex((t) => t.id === next.id)
+  return list.length - 1
+}
