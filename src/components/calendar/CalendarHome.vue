@@ -149,7 +149,7 @@ const onAddOnDay = (ymd: string) => {
       :date="sheetDate ?? ''"
       :items="sheetDate ? eventsOnDay(sheetDate, feed) : []"
       @close="sheetDate = null"
-      @open="onOpen"
+      @open="(e) => { sheetDate = null; onOpen(e) }"
       @add="onAddOnDay"
     />
   </div>
