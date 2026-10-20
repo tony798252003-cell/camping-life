@@ -169,6 +169,7 @@ export type Database = {
           latitude: number | null
           location: string | null
           longitude: number | null
+          merged_into_id: number | null
           night_rush: boolean | null
           notes: string | null
           owner_friendliness: string | null
@@ -207,6 +208,7 @@ export type Database = {
           latitude?: number | null
           location?: string | null
           longitude?: number | null
+          merged_into_id?: number | null
           night_rush?: boolean | null
           notes?: string | null
           owner_friendliness?: string | null
@@ -245,6 +247,7 @@ export type Database = {
           latitude?: number | null
           location?: string | null
           longitude?: number | null
+          merged_into_id?: number | null
           night_rush?: boolean | null
           notes?: string | null
           owner_friendliness?: string | null
@@ -280,6 +283,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "camping_trips_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "camping_trips"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "camping_trips_tarp_id_fkey"
             columns: ["tarp_id"]
             isOneToOne: false
@@ -297,6 +307,7 @@ export type Database = {
       }
       campsites: {
         Row: {
+          address: string | null
           altitude: number | null
           amenities: Json | null
           booking_available_until: string | null
@@ -307,6 +318,7 @@ export type Database = {
           booking_platform_url: string | null
           booking_scraped_at: string | null
           booking_timing: string | null
+          business_status: string | null
           campsite_notes: string | null
           capacity_zones: Json | null
           check_in_time: string | null
@@ -315,11 +327,15 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           district: string | null
+          field_sources: Json
+          google_maps_url: string | null
+          google_place_id: string | null
           id: number
           is_verified: boolean | null
           latitude: number | null
           layout_image_url: string | null
           longitude: number | null
+          merged_into_id: number | null
           name: string
           night_rush_time: string | null
           phone: string | null
@@ -334,6 +350,7 @@ export type Database = {
           zone_config: string | null
         }
         Insert: {
+          address?: string | null
           altitude?: number | null
           amenities?: Json | null
           booking_available_until?: string | null
@@ -344,6 +361,7 @@ export type Database = {
           booking_platform_url?: string | null
           booking_scraped_at?: string | null
           booking_timing?: string | null
+          business_status?: string | null
           campsite_notes?: string | null
           capacity_zones?: Json | null
           check_in_time?: string | null
@@ -352,11 +370,15 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           district?: string | null
+          field_sources?: Json
+          google_maps_url?: string | null
+          google_place_id?: string | null
           id?: number
           is_verified?: boolean | null
           latitude?: number | null
           layout_image_url?: string | null
           longitude?: number | null
+          merged_into_id?: number | null
           name: string
           night_rush_time?: string | null
           phone?: string | null
@@ -371,6 +393,7 @@ export type Database = {
           zone_config?: string | null
         }
         Update: {
+          address?: string | null
           altitude?: number | null
           amenities?: Json | null
           booking_available_until?: string | null
@@ -381,6 +404,7 @@ export type Database = {
           booking_platform_url?: string | null
           booking_scraped_at?: string | null
           booking_timing?: string | null
+          business_status?: string | null
           campsite_notes?: string | null
           capacity_zones?: Json | null
           check_in_time?: string | null
@@ -389,11 +413,15 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           district?: string | null
+          field_sources?: Json
+          google_maps_url?: string | null
+          google_place_id?: string | null
           id?: number
           is_verified?: boolean | null
           latitude?: number | null
           layout_image_url?: string | null
           longitude?: number | null
+          merged_into_id?: number | null
           name?: string
           night_rush_time?: string | null
           phone?: string | null
@@ -407,7 +435,15 @@ export type Database = {
           water_features?: string[] | null
           zone_config?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campsites_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "campsites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cpbl_schedule: {
         Row: {
