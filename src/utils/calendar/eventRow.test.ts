@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { CalendarEventRow } from '../../types/database'
 import { taipeiYmd } from '../dateRange'
-import { toEventRow, fromEventRow, normalizeTimedRange, type EventInput } from './eventRow'
+import { toEventRow, fromEventRow, normalizeTimedRange, isBumpedRange, type EventInput } from './eventRow'
 
 const allDay: EventInput = {
   title: 'x', description: null, categoryId: 'c1', allDay: true, startDate: '2026-10-17', endDate: '2026-10-18',
@@ -58,6 +58,12 @@ describe('null category 與跨夜時間', () => {
     expect(r1).toEqual({ endDate: '2026-10-18', bumped: true })
     expect(normalizeTimedRange('2026-10-17', r1.endDate, '14:00', '10:00', true).bumped).toBe(true)
     expect(normalizeTimedRange('2026-10-17', r1.endDate, '14:00', '15:00', true)).toEqual({ endDate: '2026-10-17', bumped: false })
+  })
+  // 為什麼：時間改合理後，「已改成隔天」提示不能留在畫面上
+  it('isBumpedRange 只在仍跨午夜時為真', () => {
+    expect(isBumpedRange('2026-10-17', '2026-10-18', '22:00', '02:00')).toBe(true)
+    expect(isBumpedRange('2026-10-17', '2026-10-18', '22:00', '23:00')).toBe(false)
+    expect(isBumpedRange('2026-10-17', '2026-10-17', '22:00', '23:00')).toBe(false)
   })
   // 為什麼：使用者手動選了結束日，就是他要的，不能再被自動改回
   it('手動改結束日後不再還原', () => {

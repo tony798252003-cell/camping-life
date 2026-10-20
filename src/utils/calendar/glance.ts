@@ -24,15 +24,8 @@ export function timeLabel(e: ViewEvent, day: string): string {
   return e.allDay || e.startMin == null || e.startDate !== day ? '全天' : hhmm(e.startMin)
 }
 
-// 當天事件：全天在前、再依開始時間；最多 limit 筆
-export function dayAgenda(day: string, events: ViewEvent[], limit = 3): ViewEvent[] {
-  const start = (e: ViewEvent) => (e.allDay || e.startMin == null || e.startDate !== day ? -1 : e.startMin)
-  return eventsOnDay(day, events)
-    .map((e, i) => ({ e, i }))
-    .sort((a, b) => start(a.e) - start(b.e) || a.i - b.i)
-    .slice(0, limit)
-    .map((x) => x.e)
-}
+// 當天事件：順序與月列表相同（eventsOnDay）；最多 limit 筆
+export const dayAgenda = (day: string, events: ViewEvent[], limit = 3): ViewEvent[] => eventsOnDay(day, events).slice(0, limit)
 
 // 賽程標題帶 ⚾ 前綴（資料層規格），畫面上不用 emoji 當圖示
 export const displayTitle = (e: ViewEvent) => e.title.replace(/^⚾\s*/, '')

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { ViewEvent } from './viewEvent'
+import { dayAgenda } from './glance'
 import { agendaRange, eventsOnDay, dayClickAction } from './agendaRange'
 
 const ev = (o: Partial<ViewEvent> & { key: string }): ViewEvent => ({
@@ -40,5 +41,15 @@ describe('dayClickAction（規格 §5.3 唯一規則）', () => {
   it('範圍外（當月過去日）即使有事件 → 開當日 sheet', () => {
     // 列表沒有那一天的群組，捲動會無處可去
     expect(dayClickAction('2026-10-05', range, events)).toBe('sheet')
+  })
+  // 為什麼：首頁「今天」清單與月列表必須同序，否則同一天兩處看到的順序不一致
+  it('全天在前、timed 依時間；首頁 dayAgenda 與列表同序', () => {
+    const night = ev({ key: 'night', allDay: false, startMin: 1145 })
+    const morning = ev({ key: 'morning', allDay: false, startMin: 540 })
+    const a = ev({ key: 'a' })
+    const b = ev({ key: 'b' })
+    const list = [night, a, morning, b]
+    expect(eventsOnDay('2026-10-20', list).map((e) => e.key)).toEqual(['a', 'b', 'morning', 'night'])
+    expect(dayAgenda('2026-10-20', list, 10)).toEqual(eventsOnDay('2026-10-20', list))
   })
 })

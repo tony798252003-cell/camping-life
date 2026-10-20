@@ -47,7 +47,7 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <div class="mx-3 mt-1 bg-white rounded-[24px] px-1.5 py-2 select-none">
+  <div class="mx-2 mt-1 bg-white rounded-[24px] px-1 py-2 select-none">
     <!-- 表頭：點日期跳日檢視 -->
     <div class="flex">
       <span class="w-9 shrink-0"></span>

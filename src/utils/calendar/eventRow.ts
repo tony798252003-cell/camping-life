@@ -14,6 +14,10 @@ export interface EventInput {
   cpblGameId?: string | null
 }
 
+// 結束日剛好是開始日隔天、且結束時間早於開始時間 = 目前仍是「跨午夜」的自動隔天
+export const isBumpedRange = (startDate: string, endDate: string, startTime: string, endTime: string) =>
+  endDate === addDays(startDate, 1) && endTime < startTime
+
 type EventRowInsert = Pick<
   TablesInsert<'calendar_events'>,
   'title' | 'description' | 'category_id' | 'is_all_day' | 'start_date' | 'end_date' | 'start_time' | 'end_time' | 'cpbl_game_id' | 'visibility'

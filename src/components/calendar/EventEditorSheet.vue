@@ -8,7 +8,7 @@ import { useNotification } from '../../composables/useNotification'
 import { useTripModal } from '../../composables/useTripModal'
 import { getCpblSchedule } from '../../services/cpblService'
 import type { CpblSchedule } from '../../types/database'
-import { fromEventRow, normalizeTimedRange, type EventInput } from '../../utils/calendar/eventRow'
+import { fromEventRow, isBumpedRange, normalizeTimedRange, type EventInput } from '../../utils/calendar/eventRow'
 import { isRakutenGame } from '../../utils/calendar/eventSources'
 import { todayYmd } from '../../utils/dateRange'
 
@@ -32,6 +32,10 @@ const cpblGameId = ref<string | null>(null)
 const clamped = ref(false)
 const nextDayHint = ref(false)
 const saving = ref(false)
+// 提示只在「目前確實是自動改成隔天」時顯示，避免狀態旗標殘留
+const showNextDayHint = computed(
+  () => nextDayHint.value && !allDay.value && isBumpedRange(startDate.value, endDate.value, startTime.value, endTime.value),
+)
 const game = ref<CpblSchedule | null>(null)
 
 const isEdit = computed(() => editing.value !== null)
@@ -264,7 +268,7 @@ async function saveCategory() {
             </label>
           </div>
           <p v-if="clamped" class="text-[11px] text-amber-600">結束日期不能早於開始日期，已自動改成開始日期</p>
-          <p v-if="nextDayHint && !allDay" class="text-[11px] text-amber-600">結束時間早於開始時間，已改成隔天結束</p>
+          <p v-if="showNextDayHint" class="text-[11px] text-amber-600">結束時間早於開始時間，已改成隔天結束</p>
           <div v-if="!allDay" class="grid grid-cols-2 gap-3">
             <label class="text-[11px] font-semibold text-slate-500">
               開始時間

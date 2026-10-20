@@ -102,6 +102,20 @@ const highlight = ref<string | undefined>(undefined)
 let highlightTimer: ReturnType<typeof setTimeout> | undefined
 const sheetDate = ref<string | null>(null)
 
+// 捲動最近的可捲動祖先，讓列表的該日靠上，但月格裡選取的那格不能被 sticky 標頭蓋住
+const focusAgendaDay = (ymd: string, smooth: boolean) => {
+  const sec = document.querySelector(`[data-day="${ymd}"]`)
+  if (!sec) return
+  let sc: HTMLElement | null = sec.parentElement
+  while (sc && !/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement
+  if (!sc) return
+  const headerBottom = document.querySelector('[data-cal-header]')?.getBoundingClientRect().bottom ?? 0
+  const cellTop = document.querySelector(`[data-cell="${ymd}"]`)?.getBoundingClientRect().top
+  let delta = sec.getBoundingClientRect().top - headerBottom - 8
+  if (cellTop !== undefined) delta = Math.min(delta, cellTop - headerBottom - 4)
+  sc.scrollTo({ top: sc.scrollTop + Math.max(0, delta), behavior: smooth ? 'smooth' : 'auto' })
+}
+
 const onSelectDay = async (ymd: string) => {
   selectedDate.value = ymd
   if (dayClickAction(ymd, range.value, feed.value) === 'sheet') {
@@ -109,7 +123,7 @@ const onSelectDay = async (ymd: string) => {
     return
   }
   await nextTick()
-  document.querySelector(`[data-day="${ymd}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  focusAgendaDay(ymd, true)
   highlight.value = ymd
   clearTimeout(highlightTimer)
   highlightTimer = setTimeout(() => (highlight.value = undefined), 1500)
@@ -122,7 +136,7 @@ onMounted(async () => {
   const q = route.query.date
   if (typeof q !== 'string' || !YMD.test(q) || dayClickAction(q, range.value, feed.value) !== 'scroll') return
   await nextTick()
-  document.querySelector(`[data-day="${q}"]`)?.scrollIntoView({ block: 'start' })
+  focusAgendaDay(q, false)
   highlight.value = q
   highlightTimer = setTimeout(() => (highlight.value = undefined), 1500)
 })

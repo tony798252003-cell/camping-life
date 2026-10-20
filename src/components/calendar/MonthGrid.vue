@@ -55,6 +55,7 @@ const nightRushFirst = (b: WeekBar) => !!b.event.nightRushDate && !b.continuesBe
           selected === d && d !== today ? 'bg-primary-50' : '',
         ]"
         :aria-label="d"
+        :data-cell="d"
         :title="isHoliday(d)?.name"
         @click="emit('select', d)"
       >
