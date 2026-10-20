@@ -2,7 +2,9 @@
 import { useRouter, useRoute } from 'vue-router'
 import { Calendar as CalendarIcon, Tent, MapPin, ChartColumn, Plus } from 'lucide-vue-next'
 import NewItemSheet from '../components/calendar/NewItemSheet.vue'
+import EventEditorSheet from '../components/calendar/EventEditorSheet.vue'
 import { useCalendarFeed } from '../composables/useCalendarFeed'
+import { useEventEditor } from '../composables/useEventEditor'
 import { useNewItemSheet } from '../composables/useNewItemSheet'
 import { useTripModal } from '../composables/useTripModal'
 
@@ -14,17 +16,15 @@ defineProps<{
   session: any
 }>()
 
-const emit = defineEmits<{ (e: 'new-event', date?: string): void }>()
-
 const { selectedDate } = useCalendarFeed()
 const newItem = useNewItemSheet()
 const { openNew } = useTripModal()
+const eventEditor = useEventEditor()
 
 const onPick = (kind: 'event' | 'trip' | 'campsite', date?: string) => {
   newItem.close()
   if (kind === 'trip') openNew(date)
-  // TODO(Task 3.9)：改成開 EventEditorSheet；目前只 emit，Task 3.9 必須移除此佔位
-  else if (kind === 'event') emit('new-event', date)
+  else if (kind === 'event') eventEditor.openNew(date)
 }
 
 // Navigation helpers
@@ -120,6 +120,7 @@ const go = (path: string) => router.push(path)
         </button>
     </nav>
 
+    <EventEditorSheet />
     <NewItemSheet :open="newItem.isOpen.value" :date="newItem.date.value" @pick="onPick" @close="newItem.close()" />
   </div>
 </template>

@@ -47,7 +47,7 @@ export function useCalendarFeed() {
     games.value = await getCpblSchedule(fromYmd, toYmd)
   }
 
-  return { feed, hiddenCategoryIds, selectedDate, loadGames }
+  return { feed, hiddenCategoryIds, selectedDate, games, loadGames }
 }
 
 // 篩選變更後寫回 localStorage；寫入失敗（無痕、被封鎖）不影響畫面

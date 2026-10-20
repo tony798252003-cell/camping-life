@@ -5,15 +5,19 @@ import CalendarHeader, { type CalendarViewMode } from './CalendarHeader.vue'
 import MonthGrid from './MonthGrid.vue'
 import AgendaList from './AgendaList.vue'
 import DayListSheet from './DayListSheet.vue'
+import EventDetailSheet from './EventDetailSheet.vue'
+import CpblGameSheet from './CpblGameSheet.vue'
 import { useCalendarFeed } from '../../composables/useCalendarFeed'
 import { useCalendarEvents } from '../../composables/useCalendarEvents'
 import { useEventCategories } from '../../composables/useEventCategories'
+import { useEventEditor } from '../../composables/useEventEditor'
 import { useNewItemSheet } from '../../composables/useNewItemSheet'
 import { useTripModal } from '../../composables/useTripModal'
 import { useTrips } from '../../composables/useTrips'
 import { useUserProfile } from '../../composables/useUserProfile'
 import { agendaRange, dayClickAction, eventsOnDay } from '../../utils/calendar/agendaRange'
 import { buildMonthWeeks } from '../../utils/calendar/monthLayout'
+import type { CpblSchedule } from '../../types/database'
 import type { ViewEvent } from '../../utils/calendar/viewEvent'
 import { addDays, todayYmd } from '../../utils/dateRange'
 
@@ -22,13 +26,14 @@ defineOptions({ inheritAttrs: false })
 
 const route = useRoute()
 const router = useRouter()
-const { feed, hiddenCategoryIds, selectedDate, loadGames } = useCalendarFeed()
+const { feed, hiddenCategoryIds, selectedDate, games, loadGames } = useCalendarFeed()
 const { fetchEvents } = useCalendarEvents()
 const { categories, load: loadCategories } = useEventCategories()
 const { showCpbl, setShowCpbl } = useUserProfile()
 const { findTripById } = useTrips()
 const { openEdit } = useTripModal()
 const newItem = useNewItemSheet()
+const eventEditor = useEventEditor()
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/
 const today = computed(() => todayYmd())
@@ -108,12 +113,22 @@ const onSelectDay = async (ymd: string) => {
   highlightTimer = setTimeout(() => (highlight.value = undefined), 1500)
 }
 
+const detailEventId = ref<string | null>(null)
+const gameSheet = ref<CpblSchedule | null>(null)
+
 const onOpen = (ev: ViewEvent) => {
   if (ev.source === 'trip') {
     const trip = findTripById(Number(ev.sourceId))
     if (trip) openEdit(trip)
+  } else if (ev.source === 'event') {
+    detailEventId.value = String(ev.sourceId)
+  } else {
+    gameSheet.value = games.value.find((g) => g.id === ev.sourceId) ?? null
   }
-  // TODO(Task 3.9)：source === 'event' 時開 EventEditorSheet；cpbl 比賽沒有詳情
+}
+const onAddGame = (g: CpblSchedule) => {
+  gameSheet.value = null
+  eventEditor.openWithGame(g)
 }
 const onAddOnDay = (ymd: string) => {
   sheetDate.value = null
@@ -141,7 +156,7 @@ const onAddOnDay = (ymd: string) => {
       <MonthGrid :year="year" :month="month" :events="feed" :today="today" :selected="selectedDate" @select="onSelectDay" />
       <AgendaList :items="agendaItems" :from="range.from" :to="range.to" :highlight="highlight" @open="onOpen" />
     </template>
-    <!-- TODO(週／日檢視)：後續 task 實作；先讓 query 切得過去且不壞畫面 -->
+    <!-- 週／日檢視：後續 task 實作；先讓 query 切得過去且不壞畫面 -->
     <p v-else class="text-center text-sm text-primary-400 py-16">{{ view === 'week' ? '週' : '日' }}檢視即將推出</p>
 
     <DayListSheet
@@ -152,5 +167,7 @@ const onAddOnDay = (ymd: string) => {
       @open="(e) => { sheetDate = null; onOpen(e) }"
       @add="onAddOnDay"
     />
+    <EventDetailSheet :event-id="detailEventId" @close="detailEventId = null" />
+    <CpblGameSheet :game="gameSheet" @close="gameSheet = null" @add="onAddGame" />
   </div>
 </template>
