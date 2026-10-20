@@ -31,7 +31,7 @@ const router = useRouter()
 const { feed, hiddenCategoryIds, selectedDate, games, loadGames } = useCalendarFeed()
 const { fetchEvents } = useCalendarEvents()
 const { categories, load: loadCategories } = useEventCategories()
-const { showCpbl, setShowCpbl } = useUserProfile()
+const { showCpbl } = useUserProfile()
 const { findTripById } = useTrips()
 const { openEdit } = useTripModal()
 const newItem = useNewItemSheet()
@@ -152,14 +152,12 @@ const onAddOnDay = (ymd: string) => {
     <CalendarHeader
       :title="title"
       :view="view"
-      :show-cpbl="showCpbl"
       :categories="categories"
       :hidden-category-ids="hiddenCategoryIds"
       @prev="step(-1)"
       @next="step(1)"
       @today="setQuery({ date: today })"
       @update:view="(v) => setQuery({ view: v })"
-      @toggle-cpbl="setShowCpbl(!showCpbl)"
       @toggle-category="toggleCategory"
     />
 

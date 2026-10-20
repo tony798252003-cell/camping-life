@@ -223,6 +223,13 @@
                            <Loader2 v-if="isSyncingCpbl" class="w-4 h-4 animate-spin" />
                            {{ isSyncingCpbl ? '同步中...' : '開始同步賽程' }}
                         </button>
+                        <button
+                           @click="handleResyncCpbl"
+                           :disabled="isSyncingCpbl"
+                           class="w-full justify-center py-2 bg-white border border-blue-600 text-blue-700 font-bold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                           重新同步整年
+                        </button>
                     </div>
                  </div>
               </div>
@@ -250,7 +257,9 @@ import TentManagement from '../components/TentManagement.vue'
 import GooglePlaceSearch from '../components/GooglePlaceSearch.vue'
 import CategorySettings from '../components/settings/CategorySettings.vue'
 import SystemAssetManager from '../components/SystemAssetManager.vue'
-import { syncCpblScheduleForYear } from '../services/cpblService'
+import { syncCpblScheduleForYear, resyncCpblYear } from '../services/cpblService'
+import { useConfirm } from '../composables/useConfirm'
+import { useNotification } from '../composables/useNotification'
 
 // Logic to fetch necessary data if not provided (for standalone view)
 const router = useRouter()
@@ -323,6 +332,28 @@ const handleSyncCpbl = async () => {
   } catch (error: any) {
     console.error('CPBL 同步失敗:', error)
     alert('❌ 同步失敗: ' + error.message)
+  } finally {
+    isSyncingCpbl.value = false
+  }
+}
+
+const { confirm: confirmDialog } = useConfirm()
+const { success: notifySuccess, error: notifyError } = useNotification()
+
+const handleResyncCpbl = async () => {
+  const ok = await confirmDialog({
+    title: `重新同步 ${syncYear.value} 年`,
+    message: '會刪除官方已取消或改期的舊比賽，已加入你行事曆的比賽不受影響。',
+    type: 'warning',
+  })
+  if (!ok) return
+  isSyncingCpbl.value = true
+  try {
+    const { upserted, deleted } = await resyncCpblYear(syncYear.value)
+    notifySuccess(`新增/更新 ${upserted} 場、移除 ${deleted} 場`)
+  } catch (error: any) {
+    console.error('CPBL 重新同步失敗:', error)
+    notifyError('重新同步失敗，未刪除任何比賽：' + error.message)
   } finally {
     isSyncingCpbl.value = false
   }

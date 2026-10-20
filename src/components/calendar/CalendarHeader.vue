@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import CpblToggle from './CpblToggle.vue'
 import type { EventCategory } from '../../types/database'
 
 export type CalendarViewMode = 'month' | 'week' | 'day'
@@ -7,7 +8,6 @@ export type CalendarViewMode = 'month' | 'week' | 'day'
 defineProps<{
   title: string
   view: CalendarViewMode
-  showCpbl: boolean
   categories: EventCategory[]
   hiddenCategoryIds: Set<string>
 }>()
@@ -16,7 +16,6 @@ const emit = defineEmits<{
   (e: 'next'): void
   (e: 'today'): void
   (e: 'update:view', v: CalendarViewMode): void
-  (e: 'toggle-cpbl'): void
   (e: 'toggle-category', id: string): void
 }>()
 
@@ -48,13 +47,7 @@ const VIEWS: { key: CalendarViewMode; label: string }[] = [
     </div>
 
     <div class="flex items-center gap-2 mt-2 overflow-x-auto">
-      <button
-        class="shrink-0 px-3 py-1 rounded-full text-xs font-bold border transition-colors"
-        :class="showCpbl ? 'text-white border-transparent' : 'text-gray-400 border-gray-300 bg-transparent'"
-        :style="showCpbl ? { backgroundColor: '#9d1c32' } : undefined"
-        :aria-pressed="showCpbl"
-        @click="emit('toggle-cpbl')"
-      >⚾ 桃猿</button>
+      <CpblToggle />
       <button
         v-for="c in categories"
         :key="c.id"

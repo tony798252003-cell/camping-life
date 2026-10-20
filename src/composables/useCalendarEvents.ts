@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { eventQueries } from '../services/db/events'
-import type { CalendarEventRow, NewCalendarEvent } from '../types/database'
+import type { CalendarEventRow } from '../types/database'
 import type { EventInput } from '../utils/calendar/eventRow'
 
 // 模組層級 ref：整個 app 共用同一份事件，登出時 reset()
@@ -43,21 +43,9 @@ export function useCalendarEvents() {
     error.value = null
   }
 
-  // 過渡別名：舊 CalendarView.vue 還在用，M3 新畫面接上後移除
-  async function addEvent(row: NewCalendarEvent) {
-    const created = await eventQueries.createRaw(row)
-    events.value = [...events.value, created]
-    return created
-  }
-  async function updateEvent(id: string, row: Partial<NewCalendarEvent>) {
-    const updated = await eventQueries.updateRaw(id, row)
-    events.value = events.value.map((e) => (e.id === id ? updated : e))
-    return updated
-  }
-
   return {
     events, load, create, update, remove, reset,
     isLoading, error,
-    fetchEvents: load, addEvent, updateEvent, deleteEvent: remove,
+    fetchEvents: load, deleteEvent: remove,
   }
 }
