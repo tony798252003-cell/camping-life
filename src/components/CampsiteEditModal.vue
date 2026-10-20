@@ -4,16 +4,16 @@ import { X, MapPin, Loader2, Navigation, Snowflake, IceCream, Droplets, Upload, 
 import { supabase } from '../lib/supabase'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { parseTaiwanLocation } from '../utils/googleMaps'
-import type { Campsite, CapacityZone } from '../types/database'
+import type { Campsite } from '../types/database'
+import {
+  PLAYGROUND_OPTIONS,
+  WATER_OPTIONS,
+  SCENERY_OPTIONS,
+  SPOT_TYPE_OPTIONS,
+  ZONE_TYPE_OPTIONS,
+  BOOKING_METHOD_OPTIONS,
+} from '../constants/campsiteOptions'
 
-const ZONE_TYPE_OPTIONS: CapacityZone['type'][] = ['草地', '碎石', '雨棚', '棧板', '其他']
-
-// Facility options constants
-const PLAYGROUND_OPTIONS = ['沙坑', '溜滑梯', '盪鞦韆', '遊戲室', '氣墊城堡', '滑草', '彈簧床', '兒童攀岩', '棒球九宮格']
-const WATER_OPTIONS = ['戲水池', '溪流', '河流', '瀑布', '湖泊', '溫泉', '滑水道', '海邊']
-const SCENERY_OPTIONS = ['櫻花', '落羽松', '桐花', '楓葉', '螢火蟲', '雲海', '夜景', '山景', '海景', '湖景', '森林']
-const SPOT_TYPE_OPTIONS = ['草地', '碎石', '草地混碎石', '棧板', '雨棚', '免搭帳']
-const BOOKING_METHOD_OPTIONS = ['電話', 'FB', 'Line', '官網']
 const isFacilityOpen = ref(true)
 
 const props = defineProps<{

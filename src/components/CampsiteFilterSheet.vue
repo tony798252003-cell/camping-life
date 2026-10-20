@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { X, SlidersHorizontal } from 'lucide-vue-next'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
+import { PLAYGROUND_OPTIONS, WATER_OPTIONS, SCENERY_OPTIONS, SPOT_TYPE_OPTIONS } from '../constants/campsiteOptions'
 
 export interface CampsiteFilters {
   city: string
@@ -24,10 +25,6 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const PLAYGROUND_OPTIONS = ['溜滑梯','沙坑','盪鞦韆','遊戲室','氣墊城堡','滑草','彈簧床','兒童攀岩','棒球九宮格']
-const WATER_OPTIONS = ['戲水池','溪流','河流','瀑布','湖泊','溫泉','滑水道','海邊']
-const SCENERY_OPTIONS = ['櫻花','落羽松','桐花','楓葉','螢火蟲','雲海','夜景','山景','海景','湖景','森林']
-const SPOT_TYPE_OPTIONS = ['草地','碎石','草地混碎石','棧板','雨棚','免搭帳']
 
 // Local copy for editing (don't mutate props directly)
 const local = ref<CampsiteFilters>({
