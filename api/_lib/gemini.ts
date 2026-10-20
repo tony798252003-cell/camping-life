@@ -29,6 +29,8 @@ export const HIGH_RISK_FIELDS = [
 ] as const
 
 const TIMEOUT_MS = 45_000
+// 重試至少要剩這麼多時間才值得送出
+const MIN_RETRY_MS = 8_000
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 const TAG_OPTIONS: Record<string, readonly string[]> = {
@@ -110,6 +112,7 @@ async function callGemini(
   input: { name: string; address: string; mapsUrl: string },
   grounded: boolean,
   fetchImpl: typeof fetch,
+  timeoutMs: number = TIMEOUT_MS,
 ): Promise<Record<string, GeminiFieldResult>> {
   const model = process.env.GEMINI_MODEL
   if (!model) throw new Error('GEMINI_MODEL is not set')
@@ -125,7 +128,7 @@ async function callGemini(
         contents: [{ role: 'user', parts: [{ text: buildPrompt(input, grounded) }] }],
         ...(grounded ? { tools: [{ google_search: {} }] } : {}),
       }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(Math.max(1, timeoutMs)),
     })
   } catch (e) {
     throw new HttpError(502, `gemini request failed: ${e instanceof Error ? e.name : 'error'}`)
@@ -134,7 +137,7 @@ async function callGemini(
     if (grounded) {
       const body = typeof res.text === 'function' ? await res.text().catch(() => '') : ''
       const quota = res.status === 429 || body.includes('RESOURCE_EXHAUSTED')
-      const toolOff = (res.status === 400 || res.status === 403) && /google_search|grounding|search/i.test(body)
+      const toolOff = (res.status === 400 || res.status === 403) && /google_search|grounding/i.test(body)
       if (quota || toolOff) throw new GroundingUnavailable(`gemini: HTTP ${res.status}`)
     }
     throw new HttpError(502, `gemini: HTTP ${res.status}`)
@@ -179,18 +182,25 @@ export function researchCampsite(
 }
 
 // 先試 grounded；額度或工具不可用就退回不搜尋重試一次。GEMINI_GROUNDING=off 直接跳過 grounded。
+// 兩次呼叫共用一個 deadline（絕對毫秒），避免兩段逾時加起來超過 function 的 maxDuration。
 export async function researchCampsiteAuto(
   input: { name: string; address: string; mapsUrl: string },
   fetchImpl: typeof fetch = fetch,
+  opts: { deadline?: number; now?: () => number } = {},
 ): Promise<{ fields: Record<string, GeminiFieldResult>; aiMode: AiMode }> {
+  const now = opts.now ?? Date.now
+  const deadline = opts.deadline ?? now() + TIMEOUT_MS
   if (process.env.GEMINI_GROUNDING?.toLowerCase() !== 'off') {
     try {
-      return { fields: await callGemini(input, true, fetchImpl), aiMode: 'grounded' }
+      return { fields: await callGemini(input, true, fetchImpl, deadline - now()), aiMode: 'grounded' }
     } catch (e) {
       if (!(e instanceof GroundingUnavailable)) throw e
+      console.warn(`gemini: ${e.message}, retrying without search`)
     }
   }
-  return { fields: await callGemini(input, false, fetchImpl), aiMode: 'ungrounded' }
+  const remaining = deadline - now()
+  if (remaining < MIN_RETRY_MS) throw new HttpError(502, 'gemini: no time left for retry')
+  return { fields: await callGemini(input, false, fetchImpl, remaining), aiMode: 'ungrounded' }
 }
 
 // 把 Gemini 的值整理成可寫入的型別；不合格的回 null（= 查無資料，不填假值）

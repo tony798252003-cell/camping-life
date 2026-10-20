@@ -143,6 +143,7 @@ function reusableBase(raw: unknown, placeId: string): CampsiteDraft | null {
 }
 
 export async function handleCampsiteDraft(req: Request, deps: { fetchImpl?: typeof fetch } = {}): Promise<Response> {
+  const startedAt = Date.now()
   const body = (await req.json().catch(() => null)) as {
     mapsUrl?: unknown
     resolveOnly?: unknown
@@ -185,7 +186,10 @@ export async function handleCampsiteDraft(req: Request, deps: { fetchImpl?: type
   }
   if (body.skipAi === true) return json(200, draft)
   try {
-    const { fields, aiMode } = await researchCampsiteAuto(info, deps.fetchImpl)
+    const { fields, aiMode } = await researchCampsiteAuto(info, deps.fetchImpl, {
+      // maxDuration 60 s：Gemini 階段最多 45 s，且整體不超過 50 s（Places／海拔已用掉的時間要扣）
+      deadline: Math.min(Date.now() + 45_000, startedAt + 50_000),
+    })
     return json(200, { ...mergeGemini(draft, fields), aiMode })
   } catch (e) {
     // Gemini 失敗或逾時：保留 Places 草稿，前端提示手動補

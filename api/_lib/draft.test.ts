@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { mergeGemini, researchCampsite, researchCampsiteAuto, HIGH_RISK_FIELDS } from './gemini.js'
 import { placeToDraft, fetchElevations, resolveMapsUrl, handleCampsiteDraft } from './draft.js'
 import type { PlaceDetail } from './places.js'
@@ -385,6 +385,13 @@ describe('handleCampsiteDraft + Gemini', () => {
 })
 
 describe('Gemini 無搜尋 fallback', () => {
+  const saved = { m: process.env.GEMINI_MODEL, k: process.env.GEMINI_API_KEY, g: process.env.GEMINI_GROUNDING }
+  afterEach(() => {
+    for (const [name, v] of [['GEMINI_MODEL', saved.m], ['GEMINI_API_KEY', saved.k], ['GEMINI_GROUNDING', saved.g]] as const) {
+      if (v === undefined) delete process.env[name]
+      else process.env[name] = v
+    }
+  })
   const post = (b: unknown) => new Request('http://x/api/campsite-draft', { method: 'POST', body: JSON.stringify(b) })
   const info = { name: '雲頂', address: 'a', mapsUrl: 'https://maps.google.com/?cid=1' }
   const answer = JSON.stringify({
@@ -481,5 +488,29 @@ describe('Gemini 無搜尋 fallback', () => {
     const body = (await (await handleCampsiteDraft(post({ placeId: 'pid1' }), { fetchImpl: f })).json()) as { aiMode: string }
     expect(body.aiMode).toBe('ungrounded')
     delete process.env.GEMINI_GROUNDING
+  })
+
+  // 為什麼：兩次呼叫各自 45 s 會超過 function 的 60 s，被 Vercel 砍成 504 而不是降級
+  it('grounded 用掉大半時間後剩餘 < 8 s → 不重試，丟錯（handler 會轉 gemini_failed）', async () => {
+    env()
+    let t = 0
+    const calls: number[] = []
+    const f = (async () => {
+      calls.push(t)
+      t += 40_000
+      return errRes(429, 'RESOURCE_EXHAUSTED')
+    }) as unknown as typeof fetch
+    await expect(researchCampsiteAuto(info, f, { now: () => t })).rejects.toMatchObject({ status: 502 })
+    expect(calls).toHaveLength(1)
+  })
+
+  it('剩餘時間足夠時照常重試', async () => {
+    env()
+    let t = 0
+    const { f: inner, calls } = seq(errRes(429, 'RESOURCE_EXHAUSTED'), okRes())
+    const f = (async (u: string, i: RequestInit) => { t += 10_000; return (inner as any)(u, i) }) as unknown as typeof fetch
+    const r = await researchCampsiteAuto(info, f, { now: () => t })
+    expect(r.aiMode).toBe('ungrounded')
+    expect(calls).toHaveLength(2)
   })
 })
