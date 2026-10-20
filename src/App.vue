@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterView } from 'vue-router'
-import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite, Campsite } from './types/database'
+import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './types/database'
 
 // Components
 import TripModal from './components/TripModal.vue'
-import CampsiteEditModal from './components/CampsiteEditModal.vue'
 import ToastNotification from './components/ToastNotification.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 
@@ -32,10 +31,6 @@ const calendarEventsStore = useCalendarEvents()
 
 // Modal state
 const { isOpen: isModalOpen, activeTrip, initialDate, openNew, openEdit, close: closeTripModal } = useTripModal()
-const tripModalRef = ref<InstanceType<typeof TripModal> | null>(null)
-const isCampsiteEditOpen = ref(false)
-const editingCampsiteData = ref<any>(null)
-const campsiteLibraryKey = ref(0)
 
 const inviteCode = ref('')
 
@@ -126,50 +121,6 @@ const handleUpdateNightRush = async ({ id, value }: { id: number, value: boolean
   const success = await updateNightRush(id, value)
   if (success && session.value) {
     await fetchTrips(session.value.user.id, familyId())
-  }
-}
-
-const handleEditCampsite = (campsite: any) => {
-  editingCampsiteData.value = campsite
-  isCampsiteEditOpen.value = true
-}
-
-// TripModal 內「＋新增營區」：在其上疊開新增模式，TripModal 不卸載、表單保留
-const handleAddCampsiteFromTrip = (prefill: { name: string; latitude?: number | null; longitude?: number | null; altitude?: number | null }) => {
-  // 營區圖鑑新增流程共用 draft key，清掉舊草稿才不會蓋掉預填的名稱
-  localStorage.removeItem('campsite-draft-0')
-  editingCampsiteData.value = {
-    id: 0,
-    name: prefill.name,
-    city: '',
-    district: '',
-    altitude: prefill.altitude ?? null,
-    latitude: prefill.latitude ?? null,
-    longitude: prefill.longitude ?? null,
-    phone: null,
-    tags: [],
-    amenities: { has_fridge: false, has_freezer: false, has_water_dispenser: false },
-    is_verified: false,
-    created_at: new Date().toISOString(),
-    playground_features: [],
-    water_features: [],
-    scenery_features: [],
-    spot_types: [],
-    booking_method: [],
-    booking_difficulty: 'normal',
-  }
-  isCampsiteEditOpen.value = true
-}
-
-const handleCampsiteSaved = (saved?: Campsite) => {
-  if (editingCampsiteData.value?.id === 0 && saved) {
-    tripModalRef.value?.selectCampsite(saved)
-  }
-  isCampsiteEditOpen.value = false
-  editingCampsiteData.value = null
-  campsiteLibraryKey.value++
-  if (session.value) {
-    fetchTrips(session.value.user.id, familyId())
   }
 }
 
@@ -267,7 +218,6 @@ onMounted(async () => {
               @add="handleAdd"
               @edit="handleEdit"
               @delete="handleDeleteTrip"
-              @edit-campsite="handleEditCampsite"
               @saved="handleSettingsSaved"
               @logout="handleLogout"
             />
@@ -282,7 +232,6 @@ onMounted(async () => {
   
       <!-- Modals -->
       <TripModal
-        ref="tripModalRef"
         :is-open="isModalOpen"
         :trip="activeTrip"
         :initial-date="initialDate"
@@ -292,21 +241,11 @@ onMounted(async () => {
         :has-next="hasNextTrip"
         @close="closeTripModal"
         @submit="handleSubmit"
-        @edit-campsite="handleEditCampsite"
-        @add-campsite="handleAddCampsiteFromTrip"
         @delete="deleteTrip"
         @prev="navigateTrip('prev')"
         @next="navigateTrip('next')"
       />
 
-      <CampsiteEditModal
-        v-if="isCampsiteEditOpen && editingCampsiteData"
-        :is-open="isCampsiteEditOpen"
-        :campsite="editingCampsiteData"
-        :is-editable="editingCampsiteData.id === 0"
-        @close="isCampsiteEditOpen = false"
-        @saved="handleCampsiteSaved"
-      />
       
       <!-- Global Components -->
       <ToastNotification />

@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { 
   MapPin, Mountain, CloudRain, Moon, Tent, Wind, Save, RotateCcw, 
-  Globe, ChevronLeft, ChevronRight, Users, Home, Trash2, Snowflake, IceCream, Droplets, Pencil, Star, AlarmClock
+  ChevronLeft, ChevronRight, Users, Home, Trash2, Snowflake, IceCream, Droplets, Pencil, Star, AlarmClock
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
@@ -11,7 +11,8 @@ import { canSaveTrip, CAMPSITE_REQUIRED_MESSAGE } from '../utils/tripValidation'
 import { useNotification } from '../composables/useNotification'
 
 import TripWeather from './TripWeather.vue'
-import GooglePlaceSearch from './GooglePlaceSearch.vue'
+import PlaceSearchInput from './settings/PlaceSearchInput.vue'
+import AddCampsiteFlow from './campsite/AddCampsiteFlow.vue'
 import PhotoGallery from './PhotoGallery.vue'
 
 interface Props {
@@ -28,8 +29,6 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'submit', data: NewCampingTrip): void
-  (e: 'edit-campsite', campsite: any): void
-  (e: 'add-campsite', prefill: { name: string; latitude?: number | null; longitude?: number | null; altitude?: number | null }): void
   (e: 'delete', id: number): void
   (e: 'prev'): void
   (e: 'next'): void
@@ -143,8 +142,12 @@ const fetchTents = async () => {
   }
 }
 
-// --- Google Places Search ---
-const useGoogleSearch = ref(false)
+// --- 新增營區 sheet（疊在 TripModal 上，表單不卸載）---
+const showAddCampsite = ref(false)
+const handleCampsiteCreated = (campsite: Campsite) => {
+  selectCampsite(campsite)
+  showAddCampsite.value = false
+}
 
 
 
@@ -376,30 +379,12 @@ const selectCampsite = (campsite: Campsite) => {
 
 const closeDropdown = () => setTimeout(() => { showCampsiteDropdown.value = false }, 200)
 
-defineExpose({ selectCampsite })
-
-const handleGooglePlaceSelected = (place: any) => {
-  formData.value.campsite_name = place.name
-  formData.value.latitude = place.lat
-  formData.value.longitude = place.lng
-  if (place.formatted_address) {
-    const addressParts = place.formatted_address.split(',')
-    if (addressParts.length > 0) formData.value.location = addressParts[0].trim()
-  }
-
-}
 
 const handleStartLocationSelected = (place: any) => {
   // Save place name (e.g., "台北車站"), NOT full address
   formData.value.start_location = place.name || place.formatted_address || ''
   formData.value.start_latitude = place.lat
   formData.value.start_longitude = place.lng
-}
-
-const toggleSearchMode = () => {
-  useGoogleSearch.value = !useGoogleSearch.value
-  campsiteSearchResults.value = []
-  showCampsiteDropdown.value = false
 }
 
 // --- Resources Load ---
@@ -527,21 +512,7 @@ onMounted(async () => {
                                </h2>
                            </div>
                            <div v-else class="relative group/search text-center">
-                               <!-- Google/Local Toggle (floating) -->
-                               <div class="absolute -top-10 right-0 left-0 flex justify-center opacity-0 group-hover/search:opacity-100 transition-opacity pointer-events-none group-hover/search:pointer-events-auto">
-                                   <button type="button" @click="toggleSearchMode" class="text-[10px] bg-white/80 px-2 py-1 rounded-full shadow-sm flex items-center gap-1 text-primary-600">
-                                       <Globe class="w-3 h-3" /> {{ useGoogleSearch ? 'Google' : 'Local' }}
-                                   </button>
-                               </div>
-
-                               <div v-if="useGoogleSearch">
-                                 <GooglePlaceSearch
-                                   v-model="formData.campsite_name"
-                                   @place-selected="handleGooglePlaceSelected"
-                                   class="text-3xl md:text-5xl font-black text-primary-900 bg-transparent text-center w-full placeholder-primary-900/40"
-                                 />
-                               </div>
-                               <div v-else>
+                               <div>
                                     <input 
                                       v-model="formData.campsite_name"
                                       type="text"
@@ -561,8 +532,14 @@ onMounted(async () => {
                                       </ul>
                                     </div>
                                </div>
+                               <div v-if="trip" class="mt-3 flex flex-col items-center gap-1">
+                                   <p class="text-xs text-primary-700">此行程尚未綁定營區（可不綁定直接儲存）</p>
+                                   <button type="button" @click="searchCampsites(formData.campsite_name)" class="text-sm font-bold text-primary-700 bg-white/70 px-3 py-1 rounded-full shadow-sm border border-white/40">
+                                       綁定營區
+                                   </button>
+                               </div>
                                <div v-if="!trip" class="mt-3 flex flex-col items-center gap-1">
-                                   <button type="button" @click="emit('add-campsite', { name: formData.campsite_name, latitude: formData.latitude, longitude: formData.longitude, altitude: formData.altitude })" class="text-sm font-bold text-primary-700 bg-white/70 px-3 py-1 rounded-full shadow-sm border border-white/40">
+                                   <button type="button" @click="showAddCampsite = true" class="text-sm font-bold text-primary-700 bg-white/70 px-3 py-1 rounded-full shadow-sm border border-white/40">
                                        ＋新增營區
                                    </button>
                                    <p v-if="campsiteError" class="text-xs font-bold text-red-500">{{ campsiteError }}</p>
@@ -648,10 +625,9 @@ onMounted(async () => {
 
                         <!-- 2. SEARCH VIEW -->
                         <div v-else>
-                           <GooglePlaceSearch
+                           <PlaceSearchInput
                               v-model="formData.start_location"
                               @place-selected="(p) => { handleStartLocationSelected(p); isEditingStartLocation = false }"
-                              class="w-full bg-surface-50 border-none rounded-xl p-2 text-sm font-bold text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-primary-100 transition-all"
                               placeholder="輸入地址，轉換為本次出發座標..."
                            />
                            <div class="mt-2 flex justify-end" v-if="isEditingStartLocation">
@@ -992,6 +968,13 @@ onMounted(async () => {
 
       </div>
     </Transition>
+  </Teleport>
+
+  <!-- 新增營區：全螢幕 sheet，不換路由，TripModal 已填的表單不會遺失 -->
+  <Teleport to="body">
+    <div v-if="showAddCampsite" class="fixed inset-0 z-[70] bg-surface-50 overflow-y-auto">
+      <AddCampsiteFlow @saved="handleCampsiteCreated" @cancel="showAddCampsite = false" />
+    </div>
   </Teleport>
 </template>
 
