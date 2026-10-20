@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ViewEvent } from '../../utils/calendar/viewEvent'
-import { eachDay, diffDays, todayYmd, weekdayMon0 } from '../../utils/dateRange'
+import { eachDay, diffDays, weekdayMon0 } from '../../utils/dateRange'
+import { useToday } from '../../composables/useToday'
 import { eventsOnDay } from '../../utils/calendar/agendaRange'
 import PinnedTripCard from './PinnedTripCard.vue'
 import { useEventCategories } from '../../composables/useEventCategories'
@@ -13,7 +14,7 @@ const { categories } = useEventCategories()
 const catName = (id: string | null) => (id ? categories.value.find((c) => c.id === id)?.name : undefined) ?? ''
 
 const WEEK = ['一', '二', '三', '四', '五', '六', '日']
-const today = computed(() => todayYmd())
+const today = useToday()
 
 // 只列有事件的日子；多天事件涵蓋的每一天都會出現
 const groups = computed(() =>

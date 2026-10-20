@@ -123,7 +123,7 @@ onBeforeUnmount(() => clearInterval(timer))
               :class="p.event.past ? 'opacity-50' : ''"
               :style="{
                 top: `${(p.top / 60) * HOUR_H}px`,
-                height: `${Math.max(((p.bottom - p.top) / 60) * HOUR_H, 16)}px`,
+                height: `${Math.max(((p.bottom - p.top) / 60) * HOUR_H, HOUR_H / 2)}px`,
                 left: `${(p.col / p.cols) * 100}%`,
                 width: `${100 / p.cols}%`,
                 backgroundColor: p.event.color,

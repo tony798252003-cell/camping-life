@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { CalendarEventRow } from '../../types/database'
 import { taipeiYmd } from '../dateRange'
-import { toEventRow, fromEventRow, type EventInput } from './eventRow'
+import { toEventRow, fromEventRow, normalizeTimedRange, type EventInput } from './eventRow'
 
 const allDay: EventInput = {
   title: 'x', description: null, categoryId: 'c1', allDay: true, startDate: '2026-10-17', endDate: '2026-10-18',
@@ -33,5 +33,23 @@ describe('toEventRow', () => {
       const row = { id: 'e', ...toEventRow(x) } as unknown as CalendarEventRow
       expect(fromEventRow(row)).toEqual({ cpblGameId: null, ...x })
     }
+  })
+})
+
+describe('null category 與跨夜時間', () => {
+  const row = (o: Partial<CalendarEventRow>) => ({
+    id: 'e1', title: 't', description: null, category_id: null, is_all_day: true, start_date: '2026-10-17', end_date: '2026-10-17',
+    start_time: '2026-10-17T00:00:00+08:00', end_time: '2026-10-17T00:00:00+08:00', cpbl_game_id: null, ...o,
+  }) as CalendarEventRow
+  // 為什麼：舊資料 category_id 為 null，送 '' 會讓 Postgres 22P02 導致永遠存不了
+  it('null category 往返不會送出空字串', () => {
+    const input = fromEventRow(row({}))
+    expect(toEventRow(input).category_id).toBeNull()
+  })
+  // 為什麼：22:00–02:00 沒改結束日時，不能默默變成 0 分鐘事件
+  it('同日結束早於開始改成隔天', () => {
+    expect(normalizeTimedRange('2026-10-17', '2026-10-17', '22:00', '02:00')).toEqual({ endDate: '2026-10-18', bumped: true })
+    expect(normalizeTimedRange('2026-10-17', '2026-10-17', '09:00', '10:00')).toEqual({ endDate: '2026-10-17', bumped: false })
+    expect(normalizeTimedRange('2026-10-17', '2026-10-18', '22:00', '02:00').bumped).toBe(false)
   })
 })

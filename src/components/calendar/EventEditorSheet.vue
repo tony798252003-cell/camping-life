@@ -8,7 +8,7 @@ import { useNotification } from '../../composables/useNotification'
 import { useTripModal } from '../../composables/useTripModal'
 import { getCpblSchedule } from '../../services/cpblService'
 import type { CpblSchedule } from '../../types/database'
-import { fromEventRow, type EventInput } from '../../utils/calendar/eventRow'
+import { fromEventRow, normalizeTimedRange, type EventInput } from '../../utils/calendar/eventRow'
 import { isRakutenGame } from '../../utils/calendar/eventSources'
 import { todayYmd } from '../../utils/dateRange'
 
@@ -30,6 +30,7 @@ const endTime = ref('10:00')
 const description = ref('')
 const cpblGameId = ref<string | null>(null)
 const clamped = ref(false)
+const nextDayHint = ref(false)
 const saving = ref(false)
 const game = ref<CpblSchedule | null>(null)
 
@@ -41,6 +42,7 @@ watch(isOpen, (open) => {
   if (!open) return
   loadCategories()
   clamped.value = false
+  nextDayHint.value = false
   saving.value = false
   const e = editing.value
   if (e) {
@@ -54,6 +56,8 @@ watch(isOpen, (open) => {
     endTime.value = f.endTime ?? '10:00'
     description.value = f.description ?? ''
     cpblGameId.value = f.cpblGameId ?? null
+    // 分類已被刪除或舊資料沒有分類：預設個人，避免送出空字串
+    if (!categoryId.value) categoryId.value = bySystemKey.value.personal?.id ?? ''
   } else {
     title.value = ''
     categoryId.value = bySystemKey.value.personal?.id ?? ''
@@ -70,7 +74,7 @@ watch(isOpen, (open) => {
 
 // 分類載入完成後，新增模式若還沒選分類就補上預設「個人」
 watch(bySystemKey, (m) => {
-  if (isOpen.value && !isEdit.value && !categoryId.value) categoryId.value = m.personal?.id ?? ''
+  if (isOpen.value && !categoryId.value) categoryId.value = m.personal?.id ?? ''
 })
 
 // 結束日期早於開始日期：自動改成開始日期，只在表單上提示（規格 §5.5）
@@ -85,6 +89,19 @@ watch([startDate, endDate], ([s, e], [, oldE]) => {
     selfClamp = false
   } else if (e !== oldE) {
     clamped.value = false
+  }
+})
+
+// 有時段事件同一天結束早於開始：結束日改成隔天並提示（不可默默改成 0 分鐘）
+watch([startDate, endDate, startTime, endTime, allDay], () => {
+  if (allDay.value) {
+    nextDayHint.value = false
+    return
+  }
+  const r = normalizeTimedRange(startDate.value, endDate.value, startTime.value, endTime.value)
+  if (r.bumped) {
+    endDate.value = r.endDate
+    nextDayHint.value = true
   }
 })
 
@@ -127,15 +144,17 @@ async function save() {
     notifyError('請輸入標題')
     return
   }
-  const sameDayEarlier = startDate.value === endDate.value && endTime.value < startTime.value
+  const range = allDay.value
+    ? { endDate: endDate.value }
+    : normalizeTimedRange(startDate.value, endDate.value, startTime.value, endTime.value)
   const input: EventInput = {
     title: title.value.trim(),
     description: description.value.trim() || null,
     categoryId: categoryId.value,
     allDay: allDay.value,
     startDate: startDate.value,
-    endDate: endDate.value,
-    ...(allDay.value ? {} : { startTime: startTime.value, endTime: sameDayEarlier ? startTime.value : endTime.value }),
+    endDate: range.endDate,
+    ...(allDay.value ? {} : { startTime: startTime.value, endTime: endTime.value }),
     cpblGameId: cpblGameId.value,
   }
   saving.value = true
@@ -247,6 +266,7 @@ async function saveCategory() {
             </label>
           </div>
           <p v-if="clamped" class="text-xs text-amber-600">結束日期不能早於開始日期，已自動改成開始日期</p>
+          <p v-if="nextDayHint && !allDay" class="text-xs text-amber-600">結束時間早於開始時間，已改成隔天結束</p>
           <div v-if="!allDay" class="grid grid-cols-2 gap-3">
             <label class="text-xs text-primary-600">
               開始時間

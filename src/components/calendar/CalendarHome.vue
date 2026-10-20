@@ -21,7 +21,8 @@ import { agendaRange, dayClickAction, eventsOnDay } from '../../utils/calendar/a
 import { buildMonthWeeks } from '../../utils/calendar/monthLayout'
 import type { CpblSchedule } from '../../types/database'
 import type { ViewEvent } from '../../utils/calendar/viewEvent'
-import { addDays, todayYmd, weekdayMon0 } from '../../utils/dateRange'
+import { addDays, weekdayMon0 } from '../../utils/dateRange'
+import { useToday } from '../../composables/useToday'
 
 // App.vue 會把 trips、session 等 props 全部丟給 router-view，這裡都不需要，不能落到根元素
 defineOptions({ inheritAttrs: false })
@@ -38,7 +39,7 @@ const newItem = useNewItemSheet()
 const eventEditor = useEventEditor()
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/
-const today = computed(() => todayYmd())
+const today = useToday()
 const view = computed<CalendarViewMode>(() => {
   const v = route.query.view
   return v === 'week' || v === 'day' ? v : 'month'

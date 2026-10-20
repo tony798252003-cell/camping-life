@@ -36,6 +36,12 @@ export function eventToView(
   if (!allDay) {
     v.startMin = taipeiMinutes(e.start_time)
     v.endMin = taipeiMinutes(e.end_time)
+    // 剛好結束在隔天 00:00：算到前一天 24:00，不要在隔天產生 0 分鐘的幽靈項目
+    if (v.endMin === 0 && endDate > startDate) {
+      v.endDate = addDays(endDate, -1)
+      v.endMin = 1440
+      v.past = v.endDate < today
+    }
   }
   return v
 }

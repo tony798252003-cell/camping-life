@@ -40,6 +40,11 @@ describe('eventToView', () => {
     const v = eventToView(ev({ start_time: '2026-10-17T14:00:00Z', end_time: '2026-10-17T17:00:00Z' }), catMap, '#8b5cf6', today)
     expect(v).toMatchObject({ allDay: false, startDate: '2026-10-17', endDate: '2026-10-18', startMin: 1320, endMin: 60 })
   })
+  it('結束在隔天 00:00 的 timed 事件算到前一天 24:00', () => {
+    // 為什麼：否則隔天會多出一個 0 分鐘的幽靈項目撐亂時間軸
+    const v = eventToView(ev({ start_time: '2026-10-17T14:00:00Z', end_time: '2026-10-17T16:00:00Z' }), catMap, '#8b5cf6', today)
+    expect(v).toMatchObject({ startDate: '2026-10-17', endDate: '2026-10-17', startMin: 1320, endMin: 1440 })
+  })
   it('顏色跟著分類，null 用個人色；past 看 endDate', () => {
     // 使用者改分類色，事件顏色要一起變
     expect(eventToView(ev({ category_id: 'c-work' }), catMap, '#123456', today).color).toBe('#3b82f6')

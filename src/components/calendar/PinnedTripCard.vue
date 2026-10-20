@@ -7,7 +7,8 @@ import { useTripWeather, type WeatherDay } from '../../composables/useTripWeathe
 import { estimateTripDuration } from '../../composables/useTravelTime'
 import { useUserProfile } from '../../composables/useUserProfile'
 import { pickNextTrip, tripStart } from '../../utils/nextTrip'
-import { diffDays, todayYmd, tripRange, weekdayMon0 } from '../../utils/dateRange'
+import { diffDays, tripRange, weekdayMon0 } from '../../utils/dateRange'
+import { useToday } from '../../composables/useToday'
 import { isHoliday } from '../../utils/holidays'
 import { getSmartWeatherIcon } from '../../utils/weatherHelpers'
 
@@ -18,7 +19,7 @@ const { trips } = useTrips()
 const { openEdit, openNew } = useTripModal()
 const { userOrigin } = useUserProfile()
 
-const today = computed(() => todayYmd())
+const today = useToday()
 const trip = computed(() => pickNextTrip(trips.value, today.value))
 
 // 營區的 google_place_id 欄位尚未進入產生的型別（M4 加入），先用寬鬆型別讀取

@@ -1,6 +1,6 @@
 import type { CalendarEventRow } from '../../types/database'
 import type { TablesInsert } from '../../types/supabase'
-import { taipeiIso, taipeiMinutes, taipeiYmd } from '../dateRange'
+import { addDays, taipeiIso, taipeiMinutes, taipeiYmd } from '../dateRange'
 
 export interface EventInput {
   title: string
@@ -19,11 +19,22 @@ type EventRowInsert = Pick<
   'title' | 'description' | 'category_id' | 'is_all_day' | 'start_date' | 'end_date' | 'start_time' | 'end_time' | 'cpbl_game_id' | 'visibility'
 >
 
+// 同一天結束時間早於開始時間（例如 22:00–02:00）：結束日改成隔天，並回報讓表單提示
+export function normalizeTimedRange(
+  startDate: string,
+  endDate: string,
+  startTime: string,
+  endTime: string,
+): { endDate: string; bumped: boolean } {
+  if (startDate === endDate && endTime < startTime) return { endDate: addDays(startDate, 1), bumped: true }
+  return { endDate, bumped: false }
+}
+
 export function toEventRow(i: EventInput): EventRowInsert {
   const base = {
     title: i.title,
     description: i.description,
-    category_id: i.categoryId,
+    category_id: i.categoryId || null,
     is_all_day: i.allDay,
     cpbl_game_id: i.cpblGameId ?? null,
     visibility: 'private',
