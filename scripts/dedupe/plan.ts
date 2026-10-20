@@ -213,3 +213,26 @@ export function groupDuplicateTrips(all: TripRow[]): TripDuplicateGroup[] {
   groups.forEach((g, i) => (g.groupId = i + 1))
   return groups
 }
+
+// ---- 合併補值（規格 §8 步驟 4）：keep 的空欄位依 drops 順序取第一個非空值 ----
+const isEmptyValue = (v: unknown) =>
+  v == null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0)
+
+export interface FieldFill {
+  value: unknown
+  fromId: unknown
+}
+
+export function fillEmptyFields(
+  keep: Record<string, unknown>,
+  drops: Array<Record<string, unknown>>,
+  excluded: ReadonlySet<string>,
+): Record<string, FieldFill> {
+  const patch: Record<string, FieldFill> = {}
+  for (const field of Object.keys(keep)) {
+    if (excluded.has(field) || !isEmptyValue(keep[field])) continue
+    const src = drops.find(d => !isEmptyValue(d[field]))
+    if (src) patch[field] = { value: src[field], fromId: src.id }
+  }
+  return patch
+}

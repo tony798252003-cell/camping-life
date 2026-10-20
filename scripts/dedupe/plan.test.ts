@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  countFilledFields, groupDuplicateTrips, groupDuplicates, nameStem, pickKeeper,
+  countFilledFields, fillEmptyFields, groupDuplicateTrips, groupDuplicates, nameStem, pickKeeper,
   type CampsiteRow, type TripRow,
 } from './plan'
 
@@ -139,5 +139,32 @@ describe('groupDuplicateTrips', () => {
     ])
     expect(g.map(x => x.members.map(m => m.id))).toEqual([[1, 2], [3, 4]])
     expect(g[0]!.suggestedKeepId).toBe(2)
+  })
+})
+
+describe('fillEmptyFields', () => {
+  const EXCL = new Set(['id', 'google_place_id'])
+  // 為什麼：合併不能蓋掉保留那筆已有的資料，只能補空白
+  it('keep 的 null 被第一個有值的 drop 補上，已有值不覆蓋', () => {
+    const keep = { id: 1, phone: null, address: '舊址' }
+    const drops = [{ id: 2, phone: null, address: '新址' }, { id: 3, phone: '02-1', address: 'x' }, { id: 4, phone: '02-2' }]
+    expect(fillEmptyFields(keep, drops, EXCL)).toEqual({ phone: { value: '02-1', fromId: 3 } })
+  })
+  // 為什麼：空字串與空陣列在 DB 裡等同沒填；若不補，保留那筆會永遠缺資料
+  it('空字串與空陣列視為空', () => {
+    const keep = { id: 1, note: '  ', tags: [] as string[] }
+    const drops = [{ id: 2, note: '備註', tags: ['a'] }]
+    expect(fillEmptyFields(keep, drops, EXCL)).toEqual({
+      note: { value: '備註', fromId: 2 }, tags: { value: ['a'], fromId: 2 },
+    })
+  })
+  // 為什麼：google_place_id 有 unique 限制且 id 是主鍵，補進去會造成衝突或改壞身分
+  it('排除欄位不補', () => {
+    const keep = { id: 1, google_place_id: null }
+    expect(fillEmptyFields(keep, [{ id: 2, google_place_id: 'p' }], EXCL)).toEqual({})
+  })
+  // 為什麼：drops 都沒有值時不該產生無意義的更新
+  it('drops 全空則不補', () => {
+    expect(fillEmptyFields({ id: 1, phone: null }, [{ id: 2, phone: '' }], EXCL)).toEqual({})
   })
 })

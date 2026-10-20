@@ -128,6 +128,7 @@ const fetchCampsites = async () => {
     let query = supabase
       .from('campsites')
       .select('*') // This already selects all columns including new ones
+      .is('merged_into_id', null)
       .order('created_at', { ascending: false })
 
     const { data, error } = await query
@@ -138,6 +139,7 @@ const fetchCampsites = async () => {
     const { data: tripData, error: tripError } = await supabase
       .from('camping_trips')
       .select('campsite_id, campsite_name, status')
+      .is('merged_into_id', null)
 
     if (!tripError && tripData) {
       const counts: Record<number, number> = {}

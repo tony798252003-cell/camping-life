@@ -351,7 +351,7 @@ const searchCampsites = async (query: string) => {
   searchDebounce = setTimeout(async () => {
     isSearchingCampsite.value = true
     try {
-      const { data } = await supabase.from('campsites').select('*').ilike('name', `%${query}%`).limit(5)
+      const { data } = await supabase.from('campsites').select('*').is('merged_into_id', null).ilike('name', `%${query}%`).limit(5)
       campsiteSearchResults.value = (data || []) as unknown as Campsite[] // TODO(types): M5 JSONB 欄位收窄
       showCampsiteDropdown.value = true
     } catch (e) { console.error(e) } finally { isSearchingCampsite.value = false }
