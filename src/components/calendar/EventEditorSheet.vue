@@ -110,15 +110,16 @@ function pickCategory(id: string) {
 
 async function save() {
   if (saving.value) return
-  if (!title.value.trim()) {
-    notifyError('請輸入標題')
-    return
-  }
+  // 露營標題會被丟棄，所以必須在標題檢查之前分流，否則空標題會卡住無法進 TripModal
   // 新增模式選了露營：關閉 sheet，改開 TripModal 新增（露營資料只存 camping_trips）
   if (!isEdit.value && categoryId.value === campingId.value) {
     const d = startDate.value
     close()
     openNewTrip(d)
+    return
+  }
+  if (!title.value.trim()) {
+    notifyError('請輸入標題')
     return
   }
   const sameDayEarlier = startDate.value === endDate.value && endTime.value < startTime.value
