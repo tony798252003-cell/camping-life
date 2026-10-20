@@ -55,10 +55,25 @@ create policy "Users can view own or family trip photos" on public.trip_photos
 -- 所以加入家庭之後新增的裝備 family_id 會是 null，"View family gear" 看不到。
 -- 今天 RLS 關閉時家人看得到所有裝備（行程卡片的帳篷 embed、TripModal 裝備清單），
 -- 為了維持「家人看得到家庭裝備」，改以「擁有者是同家庭成員」判斷。
--- get_family_members() 是既有的 SECURITY DEFINER RPC，沒有家庭時回傳空集合。
+-- 用專用的 family_member_ids()（只回 profiles.id，不碰 auth.users、不回 email），
+-- 不重用 get_family_members()。沒有家庭時回傳空集合。
+-- ⚠ authenticated 對 family_member_ids() 與 user_family_id() 的 EXECUTE 絕對不能收回：
+--   policy 以呼叫者身分執行這兩個函式，收回後所有 camping_gear / camping_trips / trip_photos /
+--   families 查詢（含行程列表的 camping_gear!tent_id embed）都會 permission denied。
+create function public.family_member_ids() returns setof uuid
+  language sql stable security definer
+  set search_path = ''
+  as $$
+    select p.id from public.profiles p
+    where p.family_id is not null
+      and p.family_id = (select me.family_id from public.profiles me where me.id = auth.uid())
+  $$;
+revoke execute on function public.family_member_ids() from public, anon;
+grant execute on function public.family_member_ids() to authenticated;
+
 create policy "View family members gear" on public.camping_gear
   for select to authenticated using (
-    user_id in (select m.id from public.get_family_members() m)
+    user_id in (select public.family_member_ids())
   );
 
 -- ---------------------------------------------------------------------------
@@ -83,6 +98,21 @@ grant insert (id, updated_at, location_name, latitude, longitude, onboarding_com
   on public.profiles to authenticated;
 grant update (id, updated_at, location_name, latitude, longitude, onboarding_completed_at, campsite_quick_chips)
   on public.profiles to authenticated;
+
+-- 其餘 3 張表（RLS 已啟用、policy 不動）只收回會繞過 RLS 的 TRUNCATE 與用不到的 REFERENCES/TRIGGER。
+revoke truncate, references, trigger on table public.calendar_events, public.system_assets,
+       public.cpbl_schedule from anon, authenticated;
+
+-- 家庭 RPC：前端（main 與 redesign/m1）沒有任何 .rpc() 呼叫，家庭 UI 已在 M0 移除。
+-- 函式預設 EXECUTE 給 PUBLIC，所以要從 public、anon、authenticated 都收回。
+-- get_family_by_invite(_code) 對 anon 會洩漏 family id、名稱、邀請碼、created_by。
+-- 之後重做家庭分享時再依新設計授權。
+-- 不動 user_family_id()、get_family_members()（policy / 既有授權依賴）。
+revoke execute on function public.get_family_by_invite(code text),
+                           public.get_family_by_invite_code(code_input text),
+                           public.kick_family_member(target_user_id uuid),
+                           public.leave_family()
+  from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 4. 啟用 RLS（trip_photos 已啟用）
@@ -109,6 +139,14 @@ commit;
 -- drop policy if exists "Users can update own profile" on public.profiles;
 -- drop policy if exists "Users can view own or family trip photos" on public.trip_photos;
 -- drop policy if exists "View family members gear" on public.camping_gear;
+-- drop function if exists public.family_member_ids();
+-- grant execute on function public.get_family_by_invite(code text),
+--                           public.get_family_by_invite_code(code_input text),
+--                           public.kick_family_member(target_user_id uuid),
+--                           public.leave_family()
+--   to public, anon, authenticated;
+-- grant truncate, references, trigger on table public.calendar_events, public.system_assets,
+--       public.cpbl_schedule to anon, authenticated;
 -- create policy "Public Access" on public.camping_trips using (true);
 -- create policy "Enable read access for all users" on public.camping_trips for select using (true);
 -- create policy "Enable insert access for all users" on public.camping_trips for insert with check (true);
