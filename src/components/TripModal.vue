@@ -7,6 +7,7 @@ import {
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
+import { resolveTripDate } from '../utils/dateRange'
 import { canSaveTrip, CAMPSITE_REQUIRED_MESSAGE } from '../utils/tripValidation'
 import { useNotification } from '../composables/useNotification'
 
@@ -62,7 +63,7 @@ watch([selectedCity, selectedDistrict], ([city, district]) => {
 })
 
 const formData = ref<NewCampingTrip>({
-  trip_date: new Date().toISOString().split('T')[0] ?? '',
+  trip_date: resolveTripDate(null, props.initialDate),
   duration_days: 2,
   campsite_name: '',
   location: '',
@@ -225,7 +226,7 @@ const initFormData = (newTrip: any) => {
 
 function resetForm() {
   const emptyForm = {
-    trip_date: props.initialDate || new Date().toISOString().split('T')[0],
+    trip_date: resolveTripDate(null, props.initialDate),
     campsite_name: '',
     duration_days: 2,
     location: '',
@@ -362,6 +363,8 @@ const searchCampsites = async (query: string) => {
 }
 
 const selectCampsite = (campsite: Campsite) => {
+  // 新增行程選營區後日期不能變空白（QA）：空白時補回預設日期，已填的保留
+  if (!props.trip) formData.value.trip_date = resolveTripDate(formData.value.trip_date, props.initialDate)
   formData.value.campsite_name = campsite.name
   formData.value.campsite_id = campsite.id
   if (campsite.latitude && campsite.longitude) {

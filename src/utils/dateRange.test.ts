@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  taipeiYmd, taipeiMinutes, todayYmd, addDays, diffDays, eachDay, weekdayMon0, taipeiIso, tripRange,
+  taipeiYmd, taipeiMinutes, todayYmd, addDays, diffDays, eachDay, weekdayMon0, taipeiIso, tripRange, resolveTripDate,
 } from './dateRange'
 
 // 為什麼：行事曆差一天是最傷信任的 bug；這些測試在 UTC 與 America/Los_Angeles 下都要通過
@@ -52,5 +52,16 @@ describe('dateRange', () => {
     expect(tripRange('2026-10-23', 0)).toEqual({ start: '2026-10-23', end: '2026-10-23' })
     expect(tripRange('2026-10-23', null)).toEqual({ start: '2026-10-23', end: '2026-10-23' })
     expect(tripRange('2026-10-23', -2)).toEqual({ start: '2026-10-23', end: '2026-10-23' })
+  })
+})
+
+describe('resolveTripDate', () => {
+  // 為什麼：新增行程選營區後預設日期曾變空白；已填的日期不能被覆蓋，空白要補回
+  it('保留已填日期', () => {
+    expect(resolveTripDate('2026-11-20', '2026-12-01')).toBe('2026-11-20')
+  })
+  it('空白時用 initialDate，再退回台北今天', () => {
+    expect(resolveTripDate('', '2026-12-01')).toBe('2026-12-01')
+    expect(resolveTripDate(undefined, null, new Date('2026-10-16T16:30:00Z'))).toBe('2026-10-17')
   })
 })

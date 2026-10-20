@@ -98,30 +98,6 @@ const handleEdit = (site: Campsite) => {
   isEditModalOpen.value = true
 }
 
-const handleAddNew = () => {
-  editingCampsite.value = {
-    id: 0,
-    name: '',
-    city: '',
-    district: '',
-    altitude: null,
-    latitude: null,
-    longitude: null,
-    phone: null,
-    tags: [],
-    amenities: { has_fridge: false, has_freezer: false, has_water_dispenser: false },
-    is_verified: false,
-    created_at: new Date().toISOString(),
-    playground_features: [],
-    water_features: [],
-    scenery_features: [],
-    spot_types: [],
-    booking_method: [],
-    booking_difficulty: 'normal',
-  } as any
-  isEditModalOpen.value = true
-}
-
 const handleEditSaved = () => {
   fetchCampsites() // Refresh list
 }
@@ -410,16 +386,9 @@ onMounted(() => {
     <div class="fixed bottom-24 right-6 flex flex-col gap-3 z-30">
       <button
         @click="router.push({ name: 'library-new' })"
-        class="bg-emerald-600 text-white rounded-full shadow-lg active:scale-90 transition-all z-40 flex items-center justify-center border-4 border-surface-50 w-14 h-14"
-        title="從 Google 地圖新增營區"
-      >
-        <MapPin class="w-7 h-7" />
-      </button>
-      <button
-        v-if="isAdmin"
-        @click="handleAddNew"
         class="bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 active:scale-90 transition-all z-40 flex items-center justify-center border-4 border-surface-50 w-14 h-14"
-        title="新增營地 (管理員)"
+        title="新增營區"
+        aria-label="新增營區"
       >
         <Plus class="w-8 h-8" />
       </button>

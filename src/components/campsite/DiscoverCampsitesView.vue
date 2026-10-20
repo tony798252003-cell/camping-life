@@ -144,7 +144,7 @@ onMounted(() => {
 <template>
   <div class="min-h-full bg-surface-50 pb-24 font-sans">
     <div class="sticky top-0 z-20 flex items-center gap-2 bg-gray-50 px-3 py-3 shadow-sm">
-      <button class="p-1 text-gray-600" aria-label="返回" @click="router.push({ name: 'library' })">
+      <button class="-ml-2 flex h-11 w-11 items-center justify-center text-gray-600" aria-label="返回" @click="router.push({ name: 'library' })">
         <ArrowLeft class="h-5 w-5" />
       </button>
       <h2 class="text-lg font-black text-primary-900">找新營區</h2>
@@ -153,11 +153,11 @@ onMounted(() => {
     <div class="space-y-4 p-3">
       <section class="space-y-3 rounded-xl border border-gray-200 bg-white p-3">
         <div class="flex gap-2">
-          <select v-model="city" class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm" @change="onCityChange">
+          <select v-model="city" class="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm" @change="onCityChange">
             <option value="">選擇縣市（必選）</option>
             <option v-for="c in TAIWAN_LOCATIONS" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
-          <select v-model="district" :disabled="!city" class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm disabled:opacity-50">
+          <select v-model="district" :disabled="!city" class="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm disabled:opacity-50">
             <option value="">鄉鎮（不限）</option>
             <option v-for="d in districts" :key="d.id" :value="d.id">{{ d.name }}</option>
           </select>
@@ -169,7 +169,7 @@ onMounted(() => {
             <button
               v-for="a in ALTITUDE_CHIPS"
               :key="a.label"
-              class="rounded-full border px-3 py-1.5 text-xs font-semibold"
+              class="min-h-11 rounded-full border px-4 py-2.5 text-xs font-semibold"
               :class="altitudeMin === a.value ? 'border-primary-600 bg-primary-600 text-white' : 'border-gray-200 bg-white text-gray-600'"
               @click="altitudeMin = a.value"
             >{{ a.label }}</button>
@@ -182,7 +182,7 @@ onMounted(() => {
             <button
               v-for="k in FACILITY_CHIPS"
               :key="k"
-              class="rounded-full border px-3 py-1.5 text-xs font-semibold"
+              class="min-h-11 rounded-full border px-4 py-2.5 text-xs font-semibold"
               :class="keywords.includes(k) ? 'border-primary-600 bg-primary-600 text-white' : 'border-gray-200 bg-white text-gray-600'"
               @click="toggleKeyword(k)"
             >{{ k }}</button>
