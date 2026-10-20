@@ -38,7 +38,8 @@ function done(c: Campsite) {
 
 function cancel() {
   leaving = true
-  router.replace({ name: 'library' })
+  if (returnTo) router.replace(returnTo)
+  else router.replace({ name: 'library' })
 }
 </script>
 

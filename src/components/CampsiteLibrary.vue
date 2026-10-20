@@ -282,6 +282,10 @@ onMounted(() => {
           <Search class="w-5 h-5 text-accent-sky" />
           找營地
         </h2>
+        <button
+          @click="router.push({ name: 'library-discover' })"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border border-emerald-600 text-emerald-700 bg-white"
+        >找新營區</button>
       </div>
 
       <!-- Search Bar + Filter Button -->

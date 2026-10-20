@@ -308,6 +308,8 @@ onMounted(async () => {
       [{ placeId: props.initialPlaceId, name: props.initialName ?? '指定的地點', address: '', lat: NaN, lng: NaN }],
       props.initialPlaceId,
     )
+    // 從「找新營區」帶入：已經選好地點，直接進入產生中（失敗會退回候選頁）
+    void generate()
   }
 })
 onBeforeUnmount(() => {
