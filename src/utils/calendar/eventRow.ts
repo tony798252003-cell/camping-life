@@ -19,13 +19,21 @@ type EventRowInsert = Pick<
   'title' | 'description' | 'category_id' | 'is_all_day' | 'start_date' | 'end_date' | 'start_time' | 'end_time' | 'cpbl_game_id' | 'visibility'
 >
 
-// 同一天結束時間早於開始時間（例如 22:00–02:00）：結束日改成隔天，並回報讓表單提示
+// 有時段事件的結束日自動調整：
+// - 同一天結束時間早於開始時間（例如 22:00–02:00）：結束日改成隔天（bumped）
+// - 之前是自動改成隔天、現在時間又合理了：還原成同一天；使用者手動改過結束日（不再等於隔天）就不動
 export function normalizeTimedRange(
   startDate: string,
   endDate: string,
   startTime: string,
   endTime: string,
+  bumped = false,
 ): { endDate: string; bumped: boolean } {
+  if (bumped) {
+    if (endDate !== addDays(startDate, 1)) return { endDate, bumped: false }
+    if (endTime >= startTime) return { endDate: startDate, bumped: false }
+    return { endDate, bumped: true }
+  }
   if (startDate === endDate && endTime < startTime) return { endDate: addDays(startDate, 1), bumped: true }
   return { endDate, bumped: false }
 }

@@ -52,4 +52,15 @@ describe('null category 與跨夜時間', () => {
     expect(normalizeTimedRange('2026-10-17', '2026-10-17', '09:00', '10:00')).toEqual({ endDate: '2026-10-17', bumped: false })
     expect(normalizeTimedRange('2026-10-17', '2026-10-18', '22:00', '02:00').bumped).toBe(false)
   })
+  // 為什麼：09:00–10:00 改開始 14:00 被自動改隔天，再把結束改成 15:00 不能存成 25 小時的事件
+  it('自動隔天後時間合理就還原同一天', () => {
+    const r1 = normalizeTimedRange('2026-10-17', '2026-10-17', '14:00', '10:00')
+    expect(r1).toEqual({ endDate: '2026-10-18', bumped: true })
+    expect(normalizeTimedRange('2026-10-17', r1.endDate, '14:00', '10:00', true).bumped).toBe(true)
+    expect(normalizeTimedRange('2026-10-17', r1.endDate, '14:00', '15:00', true)).toEqual({ endDate: '2026-10-17', bumped: false })
+  })
+  // 為什麼：使用者手動選了結束日，就是他要的，不能再被自動改回
+  it('手動改結束日後不再還原', () => {
+    expect(normalizeTimedRange('2026-10-17', '2026-10-20', '14:00', '15:00', true)).toEqual({ endDate: '2026-10-20', bumped: false })
+  })
 })

@@ -98,11 +98,9 @@ watch([startDate, endDate, startTime, endTime, allDay], () => {
     nextDayHint.value = false
     return
   }
-  const r = normalizeTimedRange(startDate.value, endDate.value, startTime.value, endTime.value)
-  if (r.bumped) {
-    endDate.value = r.endDate
-    nextDayHint.value = true
-  }
+  const r = normalizeTimedRange(startDate.value, endDate.value, startTime.value, endTime.value, nextDayHint.value)
+  if (r.endDate !== endDate.value) endDate.value = r.endDate
+  nextDayHint.value = r.bumped
 })
 
 // 開始日期當天有樂天比賽時提示套用；用 token 避免快速改日期時舊回應蓋掉新結果
@@ -146,7 +144,7 @@ async function save() {
   }
   const range = allDay.value
     ? { endDate: endDate.value }
-    : normalizeTimedRange(startDate.value, endDate.value, startTime.value, endTime.value)
+    : normalizeTimedRange(startDate.value, endDate.value, startTime.value, endTime.value, nextDayHint.value)
   const input: EventInput = {
     title: title.value.trim(),
     description: description.value.trim() || null,
