@@ -27,32 +27,36 @@ const VIEWS: { key: CalendarViewMode; label: string }[] = [
 </script>
 
 <template>
-  <div class="sticky top-0 z-20 bg-white/70 backdrop-blur-md px-4 pt-2 pb-2">
+  <div class="sticky top-0 z-20 bg-primary-50/90 backdrop-blur-md px-4 pt-2 pb-1">
     <div class="flex items-center justify-between gap-2">
-      <h2 class="text-lg font-bold text-primary-900 whitespace-nowrap">{{ title }}</h2>
-      <div class="flex items-center gap-1">
-        <button class="p-1 rounded-full hover:bg-primary-100" aria-label="上一個" @click="emit('prev')"><ChevronLeft class="w-5 h-5" /></button>
-        <button class="px-2 py-1 text-xs font-bold rounded-full hover:bg-primary-100 text-primary-600" @click="emit('today')">今天</button>
-        <button class="p-1 rounded-full hover:bg-primary-100" aria-label="下一個" @click="emit('next')"><ChevronRight class="w-5 h-5" /></button>
-        <div class="flex ml-1 rounded-full bg-primary-100 p-0.5">
-          <button
-            v-for="v in VIEWS"
-            :key="v.key"
-            class="px-2.5 py-0.5 text-xs font-bold rounded-full transition-colors"
-            :class="view === v.key ? 'bg-white text-primary-600 shadow-sm' : 'text-primary-400'"
-            @click="emit('update:view', v.key)"
-          >{{ v.label }}</button>
-        </div>
+      <div class="flex items-center min-w-0">
+        <button class="w-11 h-11 -ml-2.5 flex items-center justify-center text-primary-600 rounded-full active:bg-primary-100" aria-label="上一個" @click="emit('prev')"><ChevronLeft class="w-6 h-6" /></button>
+        <h2 class="text-xl font-black text-primary-900 whitespace-nowrap">{{ title }}</h2>
+        <button class="w-11 h-11 flex items-center justify-center text-primary-600 rounded-full active:bg-primary-100" aria-label="下一個" @click="emit('next')"><ChevronRight class="w-6 h-6" /></button>
+      </div>
+      <div class="flex bg-primary-100 rounded-[14px] p-[3px] shrink-0">
+        <button
+          v-for="v in VIEWS"
+          :key="v.key"
+          class="min-w-[40px] min-h-[40px] rounded-[11px] text-[13px] font-extrabold transition-colors"
+          :class="view === v.key ? 'bg-white text-primary-900 shadow-sm' : 'text-primary-700 font-bold'"
+          :aria-pressed="view === v.key"
+          @click="emit('update:view', v.key)"
+        >{{ v.label }}</button>
       </div>
     </div>
 
-    <div class="flex items-center gap-2 mt-2 overflow-x-auto">
+    <div class="flex items-center gap-2 py-1.5 overflow-x-auto">
+      <button
+        class="shrink-0 relative min-h-[32px] px-3 rounded-full bg-primary-100 text-primary-700 text-xs font-bold after:absolute after:-inset-y-2 after:inset-x-0 after:content-['']"
+        @click="emit('today')"
+      >今天</button>
       <CpblToggle />
       <button
         v-for="c in categories"
         :key="c.id"
-        class="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-opacity"
-        :class="hiddenCategoryIds.has(c.id) ? 'opacity-40 border-gray-300' : 'border-transparent bg-white'"
+        class="shrink-0 relative flex items-center gap-1.5 min-h-[32px] px-3 rounded-full bg-white text-xs font-bold text-primary-900 transition-opacity after:absolute after:-inset-y-2 after:inset-x-0 after:content-['']"
+        :class="hiddenCategoryIds.has(c.id) ? 'opacity-40' : ''"
         :aria-pressed="!hiddenCategoryIds.has(c.id)"
         @click="emit('toggle-category', c.id)"
       >

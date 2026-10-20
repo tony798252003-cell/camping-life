@@ -198,10 +198,10 @@ async function saveCategory() {
 <template>
   <Teleport to="body">
     <div v-if="isOpen" class="fixed inset-0 z-[70] bg-white flex flex-col">
-      <header class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <button class="p-2 -ml-2 text-primary-600" aria-label="關閉" @click="close()"><X class="w-5 h-5" /></button>
-        <h2 class="font-bold text-primary-900">{{ isEdit ? '編輯事件' : '新增事件' }}</h2>
-        <button class="px-4 py-1.5 rounded-full btn-primary font-bold text-sm disabled:opacity-50" :disabled="saving" @click="save()">
+      <header class="flex items-center justify-between px-4 py-3 border-b border-primary-100">
+        <button class="w-11 h-11 -ml-2.5 flex items-center justify-center text-primary-600" aria-label="關閉" @click="close()"><X class="w-5 h-5" /></button>
+        <h2 class="text-[15px] font-extrabold text-primary-900">{{ isEdit ? '編輯事件' : '新增事件' }}</h2>
+        <button class="px-5 min-h-[44px] rounded-[14px] btn-primary font-bold text-[13px] disabled:opacity-50" :disabled="saving" @click="save()">
           儲存
         </button>
       </header>
@@ -211,26 +211,26 @@ async function saveCategory() {
           v-model="title"
           type="text"
           placeholder="標題"
-          class="w-full text-xl font-bold text-primary-900 border-b border-gray-200 pb-2 outline-none focus:border-primary-500"
+          class="w-full text-xl font-bold text-primary-900 border-b border-primary-100 pb-2 outline-none focus:border-primary-500"
         />
 
         <button
           v-if="game"
-          class="w-full text-left text-sm rounded-xl bg-red-50 text-red-900 px-3 py-2 flex items-center justify-between gap-2"
+          class="w-full text-left text-[13px] rounded-[14px] bg-red-50 text-red-900 px-3 min-h-[44px] flex items-center justify-between gap-2"
           @click="apply(game)"
         >
-          <span>⚾ 這天有桃猿比賽：{{ gameLabel }}</span>
+          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#9d1c32] shrink-0"></span>這天有桃猿比賽：{{ gameLabel }}</span>
           <span class="font-bold shrink-0">套用</span>
         </button>
 
         <section>
-          <p class="text-xs text-primary-600 mb-2">分類</p>
+          <p class="text-[11px] font-semibold text-slate-500 mb-2">分類</p>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="c in categories"
               :key="c.id"
-              class="px-3 py-1.5 rounded-full text-sm font-medium border flex items-center gap-1.5 disabled:opacity-40"
-              :class="categoryId === c.id ? 'text-white border-transparent' : 'bg-white text-primary-700 border-gray-200'"
+              class="px-3 min-h-[44px] rounded-full text-[13px] font-bold border flex items-center gap-1.5 disabled:opacity-40"
+              :class="categoryId === c.id ? 'text-white border-transparent' : 'bg-white text-primary-700 border-primary-100'"
               :style="categoryId === c.id ? { backgroundColor: c.color } : {}"
               :disabled="isEdit && c.id === campingId && categoryId !== c.id"
               @click="pickCategory(c.id)"
@@ -239,7 +239,7 @@ async function saveCategory() {
               {{ c.name }}
             </button>
             <button
-              class="w-8 h-8 rounded-full border border-dashed border-gray-300 text-primary-600 flex items-center justify-center"
+              class="w-11 h-11 rounded-full border border-dashed border-primary-200 text-primary-600 flex items-center justify-center"
               aria-label="新增分類"
               @click="openCatSheet()"
             >
@@ -249,67 +249,67 @@ async function saveCategory() {
         </section>
 
         <section class="space-y-3">
-          <label class="flex items-center justify-between text-sm text-primary-900 font-medium">
+          <label class="flex items-center justify-between text-[15px] text-primary-900 font-bold min-h-[44px]">
             全天
             <input v-model="allDay" type="checkbox" class="w-5 h-5 accent-primary-600" />
           </label>
           <div class="grid grid-cols-2 gap-3">
-            <label class="text-xs text-primary-600">
+            <label class="text-[11px] font-semibold text-slate-500">
               開始日期
-              <input v-model="startDate" type="date" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-primary-900" />
+              <input v-model="startDate" type="date" class="mt-1 w-full rounded-[14px] border border-primary-100 px-3 min-h-[44px] text-[15px] text-primary-900" />
             </label>
-            <label class="text-xs text-primary-600">
+            <label class="text-[11px] font-semibold text-slate-500">
               結束日期
-              <input v-model="endDate" type="date" :min="startDate" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-primary-900" />
+              <input v-model="endDate" type="date" :min="startDate" class="mt-1 w-full rounded-[14px] border border-primary-100 px-3 min-h-[44px] text-[15px] text-primary-900" />
             </label>
           </div>
-          <p v-if="clamped" class="text-xs text-amber-600">結束日期不能早於開始日期，已自動改成開始日期</p>
-          <p v-if="nextDayHint && !allDay" class="text-xs text-amber-600">結束時間早於開始時間，已改成隔天結束</p>
+          <p v-if="clamped" class="text-[11px] text-amber-600">結束日期不能早於開始日期，已自動改成開始日期</p>
+          <p v-if="nextDayHint && !allDay" class="text-[11px] text-amber-600">結束時間早於開始時間，已改成隔天結束</p>
           <div v-if="!allDay" class="grid grid-cols-2 gap-3">
-            <label class="text-xs text-primary-600">
+            <label class="text-[11px] font-semibold text-slate-500">
               開始時間
-              <input v-model="startTime" type="time" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-primary-900" />
+              <input v-model="startTime" type="time" class="mt-1 w-full rounded-[14px] border border-primary-100 px-3 min-h-[44px] text-[15px] text-primary-900" />
             </label>
-            <label class="text-xs text-primary-600">
+            <label class="text-[11px] font-semibold text-slate-500">
               結束時間
-              <input v-model="endTime" type="time" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-primary-900" />
+              <input v-model="endTime" type="time" class="mt-1 w-full rounded-[14px] border border-primary-100 px-3 min-h-[44px] text-[15px] text-primary-900" />
             </label>
           </div>
         </section>
 
-        <label class="block text-xs text-primary-600">
+        <label class="block text-[11px] font-semibold text-slate-500">
           備註
           <textarea
             v-model="description"
             rows="4"
-            class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-primary-900"
+            class="mt-1 w-full rounded-[14px] border border-primary-100 px-3 min-h-[44px] text-[15px] text-primary-900"
           ></textarea>
         </label>
       </div>
     </div>
 
     <div v-if="isOpen && catOpen" class="fixed inset-0 z-[80] flex items-end justify-center bg-black/40" @click.self="catOpen = false">
-      <div class="w-full max-w-md bg-white rounded-t-3xl p-5 pb-safe shadow-xl">
-        <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
-        <h3 class="font-bold text-primary-900 mb-3">新增分類</h3>
+      <div class="w-full max-w-md bg-white rounded-t-[28px] p-5 pb-safe shadow-xl">
+        <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4"></div>
+        <h3 class="text-[15px] font-extrabold text-primary-900 mb-3">新增分類</h3>
         <input
           v-model="catName"
           type="text"
           placeholder="分類名稱"
-          class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm mb-3"
+          class="w-full rounded-[14px] border border-primary-100 px-3 min-h-[44px] text-[15px] mb-3"
         />
         <div class="flex gap-2 mb-4">
           <button
             v-for="c in PALETTE"
             :key="c"
-            class="w-8 h-8 rounded-full border-2"
+            class="w-10 h-10 rounded-full border-2"
             :class="catColor === c ? 'border-primary-900' : 'border-transparent'"
             :style="{ backgroundColor: c }"
             :aria-label="c"
             @click="catColor = c"
           ></button>
         </div>
-        <button class="w-full py-3 rounded-2xl btn-primary font-bold text-sm disabled:opacity-50" :disabled="!catName.trim() || catSaving" @click="saveCategory()">
+        <button class="w-full min-h-[48px] rounded-[14px] btn-primary font-bold text-[13px] disabled:opacity-50" :disabled="!catName.trim() || catSaving" @click="saveCategory()">
           新增
         </button>
       </div>

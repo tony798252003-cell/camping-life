@@ -25,27 +25,27 @@ const time = (e: ViewEvent) =>
 <template>
   <Teleport to="body">
     <div v-if="open" class="fixed inset-0 z-[60] flex items-end justify-center bg-black/40" @click.self="emit('close')">
-      <div class="w-full max-w-md bg-white rounded-t-3xl p-5 pb-safe shadow-xl max-h-[70vh] overflow-y-auto">
-        <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
-        <h3 class="font-bold text-primary-900 mb-3">{{ label() }}</h3>
+      <div class="w-full max-w-md bg-white rounded-t-[28px] p-5 pb-safe shadow-xl max-h-[70vh] overflow-y-auto">
+        <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4"></div>
+        <h3 class="text-[15px] font-extrabold text-primary-900 mb-3">{{ label() }}</h3>
 
-        <p v-if="items.length === 0" class="text-sm text-primary-400 py-6 text-center">這天沒有事件</p>
+        <p v-if="items.length === 0" class="text-[13px] text-slate-400 py-6 text-center">這天沒有事件</p>
         <ul v-else class="space-y-2 mb-3">
           <li v-for="e in items" :key="e.key">
             <button
-              class="w-full flex items-stretch gap-3 text-left rounded-xl bg-primary-50 hover:bg-primary-100 overflow-hidden"
+              class="w-full flex items-center gap-3 text-left rounded-[18px] bg-primary-50 active:bg-primary-100 px-3.5 py-3 min-h-[56px]"
               :class="{ 'opacity-50': e.past }"
               @click="emit('open', e)"
             >
-              <span class="w-1 shrink-0" :style="{ backgroundColor: e.color }"></span>
-              <span class="py-2 text-xs text-primary-600 w-10 shrink-0">{{ time(e) }}</span>
-              <span class="py-2 pr-3 text-sm font-medium text-primary-900 truncate">{{ e.title }}</span>
+              <span class="w-1 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
+              <span class="text-[11px] font-semibold text-slate-500 w-10 shrink-0">{{ time(e) }}</span>
+              <span class="text-[15px] font-bold text-primary-900 truncate">{{ e.title }}</span>
             </button>
           </li>
         </ul>
 
         <button
-          class="w-full flex items-center justify-center gap-1 py-3 rounded-2xl btn-primary font-bold text-sm"
+          class="w-full flex items-center justify-center gap-1 min-h-[48px] rounded-[14px] btn-primary font-bold text-[13px]"
           @click="emit('add', date)"
         >
           <Plus class="w-4 h-4" /> 在這天新增

@@ -47,7 +47,7 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <div class="px-2 select-none">
+  <div class="mx-3 mt-1 bg-white rounded-[24px] px-1.5 py-2 select-none">
     <!-- 表頭：點日期跳日檢視 -->
     <div class="flex">
       <span class="w-9 shrink-0"></span>
@@ -56,14 +56,14 @@ onBeforeUnmount(() => clearInterval(timer))
           v-for="(d, i) in days"
           :key="d"
           type="button"
-          class="py-1 flex flex-col items-center active:bg-primary-100"
+          class="min-h-[48px] py-1 flex flex-col items-center justify-center rounded-[12px] active:bg-primary-50"
           :aria-label="d"
           @click="emit('select-day', d)"
         >
-          <span class="text-[11px] text-primary-400">{{ HEAD[i] }}</span>
+          <span class="text-[11px] font-bold text-slate-400">{{ HEAD[i] }}</span>
           <span
-            class="inline-flex items-center justify-center min-w-6 h-6 px-1 rounded-full text-sm font-semibold"
-            :class="d === today ? 'bg-primary-500 text-white' : 'text-primary-900'"
+            class="inline-flex items-center justify-center w-7 h-7 rounded-full text-[13px] font-bold"
+            :class="d === today ? 'bg-accent-sky text-white' : 'text-primary-900'"
           >{{ Number(d.slice(8)) }}</span>
         </button>
       </div>
@@ -77,7 +77,7 @@ onBeforeUnmount(() => clearInterval(timer))
           v-for="i in visibleItems"
           :key="i.key"
           type="button"
-          class="absolute h-4 px-1 rounded text-[10px] leading-none font-medium text-white truncate text-left"
+          class="absolute h-4 px-1 rounded-[6px] text-[10px] leading-none font-medium text-white truncate text-left"
           :class="i.event.past ? 'opacity-50' : ''"
           :style="{
             top: `${i.row * ROW_H}px`,
@@ -92,7 +92,7 @@ onBeforeUnmount(() => clearInterval(timer))
     <button
       v-if="allDay.rows > MAX_ROWS"
       type="button"
-      class="ml-9 text-[11px] text-primary-500 py-0.5"
+      class="ml-9 min-h-[44px] text-[11px] font-bold text-primary-600"
       @click="expanded = !expanded"
     >{{ expanded ? '收合' : `展開（還有 ${allDay.rows - MAX_ROWS} 列）` }}</button>
 
@@ -119,7 +119,7 @@ onBeforeUnmount(() => clearInterval(timer))
               v-for="p in c.items"
               :key="p.event.key"
               type="button"
-              class="absolute rounded text-[10px] leading-tight font-medium text-white overflow-hidden text-left px-0.5 border border-white/60"
+              class="absolute rounded-[8px] text-[10px] leading-tight font-medium text-white overflow-hidden text-left px-0.5 border border-white/60"
               :class="p.event.past ? 'opacity-50' : ''"
               :style="{
                 top: `${(p.top / 60) * HOUR_H}px`,

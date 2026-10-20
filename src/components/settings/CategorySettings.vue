@@ -99,11 +99,11 @@ const move = async (index: number, delta: -1 | 1) => {
 </script>
 
 <template>
-  <div class="p-6 space-y-3">
+  <div class="p-4 space-y-3">
     <div
       v-for="(c, i) in categories"
       :key="c.id"
-      class="bg-white border border-gray-100 rounded-xl shadow-sm"
+      class="bg-white rounded-[18px]"
     >
       <div class="flex items-center gap-2 p-3">
         <button
@@ -111,12 +111,12 @@ const move = async (index: number, delta: -1 | 1) => {
           @click="editingId === c.id ? (editingId = null) : startEdit(c.id, c.name, c.color)"
         >
           <span class="w-4 h-4 rounded-full shrink-0" :style="{ backgroundColor: c.color }"></span>
-          <span class="font-bold text-gray-900 truncate">{{ c.name }}</span>
+          <span class="text-[15px] font-bold text-primary-900 truncate">{{ c.name }}</span>
         </button>
         <button
           :disabled="i === 0"
           aria-label="上移"
-          class="p-2 text-gray-500 disabled:opacity-30"
+          class="w-11 h-11 flex items-center justify-center text-slate-500 disabled:opacity-30"
           @click="move(i, -1)"
         >
           <ChevronUp class="w-5 h-5" />
@@ -124,7 +124,7 @@ const move = async (index: number, delta: -1 | 1) => {
         <button
           :disabled="i === categories.length - 1"
           aria-label="下移"
-          class="p-2 text-gray-500 disabled:opacity-30"
+          class="w-11 h-11 flex items-center justify-center text-slate-500 disabled:opacity-30"
           @click="move(i, 1)"
         >
           <ChevronDown class="w-5 h-5" />
@@ -132,18 +132,18 @@ const move = async (index: number, delta: -1 | 1) => {
         <button
           v-if="c.system_key !== 'camping' && c.system_key !== 'baseball'"
           aria-label="刪除"
-          class="p-2 text-red-500"
+          class="w-11 h-11 flex items-center justify-center text-red-500"
           @click="handleRemove(c.id, c.name)"
         >
           <Trash2 class="w-5 h-5" />
         </button>
       </div>
 
-      <div v-if="editingId === c.id" class="px-3 pb-3 space-y-3 border-t border-gray-100 pt-3">
+      <div v-if="editingId === c.id" class="px-3 pb-3 space-y-3 border-t border-primary-100 pt-3">
         <input
           v-model="draftName"
           maxlength="20"
-          class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          class="w-full px-4 min-h-[48px] bg-white border border-primary-100 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
           placeholder="分類名稱"
         />
         <div class="flex flex-wrap gap-3">
@@ -151,7 +151,7 @@ const move = async (index: number, delta: -1 | 1) => {
             v-for="color in PALETTE"
             :key="color"
             :aria-label="color"
-            class="w-9 h-9 rounded-full flex items-center justify-center"
+            class="w-11 h-11 rounded-full flex items-center justify-center"
             :style="{ backgroundColor: color }"
             @click="draftColor = color"
           >
@@ -160,7 +160,7 @@ const move = async (index: number, delta: -1 | 1) => {
         </div>
         <button
           :disabled="isSaving"
-          class="w-full py-3 font-bold text-white bg-gray-900 rounded-xl disabled:opacity-70"
+          class="w-full min-h-[48px] font-bold text-white bg-primary-500 rounded-[14px] disabled:opacity-70"
           @click="save"
         >
           儲存
@@ -168,11 +168,11 @@ const move = async (index: number, delta: -1 | 1) => {
       </div>
     </div>
 
-    <div v-if="editingId === 'new'" class="bg-white border border-gray-100 rounded-xl shadow-sm p-3 space-y-3">
+    <div v-if="editingId === 'new'" class="bg-white rounded-[18px] p-3 space-y-3">
       <input
         v-model="draftName"
         maxlength="20"
-        class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+        class="w-full px-4 min-h-[48px] bg-white border border-primary-100 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
         placeholder="新分類名稱"
       />
       <div class="flex flex-wrap gap-3">
@@ -180,7 +180,7 @@ const move = async (index: number, delta: -1 | 1) => {
           v-for="color in PALETTE"
           :key="color"
           :aria-label="color"
-          class="w-9 h-9 rounded-full flex items-center justify-center"
+          class="w-11 h-11 rounded-full flex items-center justify-center"
           :style="{ backgroundColor: color }"
           @click="draftColor = color"
         >
@@ -188,10 +188,10 @@ const move = async (index: number, delta: -1 | 1) => {
         </button>
       </div>
       <div class="flex gap-2">
-        <button class="flex-1 py-3 font-bold text-gray-600 bg-gray-100 rounded-xl" @click="editingId = null">取消</button>
+        <button class="flex-1 min-h-[48px] font-bold text-primary-700 bg-primary-100 rounded-[14px]" @click="editingId = null">取消</button>
         <button
           :disabled="isSaving"
-          class="flex-1 py-3 font-bold text-white bg-gray-900 rounded-xl disabled:opacity-70"
+          class="flex-1 min-h-[48px] font-bold text-white bg-primary-500 rounded-[14px] disabled:opacity-70"
           @click="save"
         >
           新增
@@ -201,7 +201,7 @@ const move = async (index: number, delta: -1 | 1) => {
 
     <button
       v-else
-      class="w-full flex items-center justify-center gap-2 p-4 bg-white border border-dashed border-gray-300 text-gray-700 rounded-xl font-bold active:scale-[0.98]"
+      class="w-full flex items-center justify-center gap-2 min-h-[56px] bg-white border border-dashed border-primary-200 text-primary-700 rounded-[18px] font-bold active:scale-[0.98]"
       @click="startNew"
     >
       <Plus class="w-5 h-5" />

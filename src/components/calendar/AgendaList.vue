@@ -4,6 +4,7 @@ import type { ViewEvent } from '../../utils/calendar/viewEvent'
 import { eachDay, diffDays, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
 import { eventsOnDay } from '../../utils/calendar/agendaRange'
+import { displayTitle } from '../../utils/calendar/glance'
 import { useEventCategories } from '../../composables/useEventCategories'
 
 const props = defineProps<{ items: ViewEvent[]; from: string; to: string; highlight?: string }>()
@@ -35,35 +36,35 @@ const dayNo = (e: ViewEvent, day: string) =>
 </script>
 
 <template>
-  <div class="pb-6">
-    <div class="px-4">
-    <p v-if="groups.length === 0" class="text-center text-sm text-primary-400 py-8">這段期間沒有事件</p>
+  <div class="px-4 pt-3.5 pb-28">
+    <p v-if="groups.length === 0" class="text-center text-[13px] text-slate-400 py-8">這段期間沒有事件</p>
     <section v-for="g in groups" :key="g.day" :data-day="g.day" class="scroll-mt-40 mb-3">
       <h3
-        class="text-xs font-bold px-2 py-1 rounded-lg inline-block transition-colors duration-300"
-        :class="[g.day === highlight ? 'bg-accent-orange text-white' : 'text-primary-600']"
+        class="text-[13px] font-extrabold px-2 py-1 rounded-[10px] inline-block transition-colors duration-300"
+        :class="[g.day === highlight ? 'bg-accent-sky text-white' : 'text-primary-700']"
       >
         {{ dayLabel(g.day) }}<span v-if="g.day === today" class="ml-1">今天</span>
       </h3>
-      <ul class="mt-1 space-y-1">
+      <ul class="mt-1.5 space-y-2">
         <li v-for="e in g.events" :key="e.key + g.day">
           <button
-            class="w-full flex items-stretch gap-3 text-left rounded-xl bg-white/80 hover:bg-white overflow-hidden"
+            class="w-full flex items-center gap-3 text-left rounded-[18px] bg-white px-3.5 py-3 min-h-[56px]"
             :class="{ 'opacity-50': e.past, 'border border-dashed border-primary-300': e.tripStatus === 'planning' }"
             @click="emit('open', e)"
           >
-            <span class="w-1 shrink-0" :style="{ backgroundColor: e.color }"></span>
-            <span class="py-2 text-xs text-primary-600 w-10 shrink-0">{{ time(e) }}</span>
-            <span class="py-2 text-sm font-medium text-primary-900 truncate flex-1">
-              {{ e.title }}
-              <span v-if="e.tripStatus === 'planning'" class="text-[10px] text-primary-400 ml-1">規劃中</span>
-              <span v-if="dayNo(e, g.day)" class="text-[10px] text-primary-400 ml-1">{{ dayNo(e, g.day) }}</span>
+            <span class="w-1 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
+            <span class="flex flex-col min-w-0 flex-1">
+              <span class="text-[15px] font-bold text-primary-900 truncate">
+                {{ displayTitle(e) }}
+                <span v-if="e.tripStatus === 'planning'" class="text-[11px] font-semibold text-slate-400 ml-1">規劃中</span>
+              </span>
+              <span class="text-[11px] font-semibold text-slate-500 truncate">
+                {{ time(e) }}<template v-if="dayNo(e, g.day)"> · {{ dayNo(e, g.day) }}</template><template v-if="e.source === 'cpbl' || catName(e.categoryId)"> · {{ e.source === 'cpbl' ? '桃猿賽程' : catName(e.categoryId) }}</template>
+              </span>
             </span>
-            <span class="py-2 pr-3 text-[10px] text-primary-400 shrink-0">{{ e.source === 'cpbl' ? '棒球' : catName(e.categoryId) }}</span>
           </button>
         </li>
       </ul>
     </section>
-    </div>
   </div>
 </template>

@@ -56,20 +56,20 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <div class="px-2 select-none">
+  <div class="mx-3 mt-1 bg-white rounded-[24px] px-1.5 py-2 select-none">
     <div class="grid grid-cols-7 text-center">
       <button
         v-for="(d, i) in strip"
         :key="d"
         type="button"
-        class="py-1 flex flex-col items-center active:bg-primary-100"
+        class="min-h-[48px] py-1 flex flex-col items-center justify-center rounded-[12px] active:bg-primary-50"
         :aria-label="d"
         @click="emit('select-day', d)"
       >
-        <span class="text-[11px] text-primary-400">{{ HEAD[i] }}</span>
+        <span class="text-[11px] font-bold text-slate-400">{{ HEAD[i] }}</span>
         <span
-          class="inline-flex items-center justify-center min-w-6 h-6 px-1 rounded-full text-sm font-semibold"
-          :class="d === date ? 'bg-primary-500 text-white' : d === today ? 'ring-2 ring-primary-500 text-primary-900' : 'text-primary-900'"
+          class="inline-flex items-center justify-center w-7 h-7 rounded-full text-[13px] font-bold"
+          :class="d === date ? 'bg-accent-sky text-white' : d === today ? 'ring-2 ring-primary-500 text-primary-900' : 'text-primary-900'"
         >{{ Number(d.slice(8)) }}</span>
       </button>
     </div>
@@ -79,7 +79,7 @@ onBeforeUnmount(() => clearInterval(timer))
       <div
         v-for="e in shownAllDay"
         :key="e.key"
-        class="w-full flex items-center gap-2 text-left text-sm"
+        class="w-full flex items-center gap-2 text-left text-[15px]"
       >
         <button type="button" class="flex-1 min-w-0 flex items-center gap-2 text-left" @click="emit('open', e)">
           <span class="w-1 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
@@ -92,7 +92,7 @@ onBeforeUnmount(() => clearInterval(timer))
       <button
         v-if="allDay.length > MAX_ROWS"
         type="button"
-        class="text-[11px] text-primary-500"
+        class="min-h-[44px] text-[11px] font-bold text-primary-600"
         @click="expanded = !expanded"
       >{{ expanded ? '收合' : `展開（還有 ${allDay.length - MAX_ROWS} 項）` }}</button>
     </div>
@@ -118,7 +118,7 @@ onBeforeUnmount(() => clearInterval(timer))
             v-for="p in positioned"
             :key="p.event.key"
             type="button"
-            class="absolute rounded text-xs leading-tight font-medium text-white overflow-hidden text-left px-1.5 py-0.5 border border-white/60"
+            class="absolute rounded-[10px] text-[13px] leading-tight font-medium text-white overflow-hidden text-left px-1.5 py-0.5 border border-white/60"
             :class="p.event.past ? 'opacity-50' : ''"
             :style="{
               top: `${(p.top / 60) * HOUR_H}px`,
