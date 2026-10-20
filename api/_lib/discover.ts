@@ -17,6 +17,7 @@ export interface DiscoverDeps {
 const MAX_KEYWORDS = 8
 const MAX_QUERY = 120
 const PAGE_SIZE = 20
+const MAX_PAGE_TOKEN = 2048
 
 async function loadAllCampsites(): Promise<MatchableCampsite[]> {
   const { data, error } = await supabaseAdmin
@@ -47,6 +48,8 @@ export async function handleCampsiteDiscover(req: Request, deps: DiscoverDeps = 
   const freeText = typeof body?.freeText === 'string' ? body.freeText.trim() : ''
   const altitudeMin = typeof body?.altitudeMin === 'number' && Number.isFinite(body.altitudeMin) ? body.altitudeMin : undefined
   const pageToken = typeof body?.pageToken === 'string' && body.pageToken ? body.pageToken : undefined
+  // 頁數由前端控制（API 沒有頁碼計數，token 為 Google 不透明字串），伺服器只擋過長 token
+  if (pageToken && pageToken.length > MAX_PAGE_TOKEN) throw new HttpError(400, 'pageToken too long')
 
   const query = `露營 ${city}${district} ${(keywords as string[]).join(' ')} ${freeText}`.trim().slice(0, MAX_QUERY)
 

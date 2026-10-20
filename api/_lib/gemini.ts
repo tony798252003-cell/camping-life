@@ -8,6 +8,7 @@ import {
   WATER_OPTIONS,
 } from '../../src/constants/campsiteOptions.js'
 import type { CampsiteDraft, DraftField } from './draft.js'
+import { HttpError } from './http.js'
 
 export interface GeminiFieldResult {
   value: unknown
@@ -64,11 +65,22 @@ export function buildPrompt(input: { name: string; address: string; mapsUrl: str
 const strArr = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string' && s.length > 0) : []
 
+// 來源網址會被前端當 <a href>，只放行 http(s)，擋 javascript:、data:、相對路徑
+export function isHttpUrl(u: unknown): u is string {
+  if (typeof u !== 'string') return false
+  try {
+    const p = new URL(u).protocol
+    return p === 'http:' || p === 'https:'
+  } catch {
+    return false
+  }
+}
+
 function guardField(raw: unknown): GeminiFieldResult | null {
   if (typeof raw !== 'object' || raw === null) return null
   const r = raw as Record<string, unknown>
   const confidence = r.confidence === 'high' || r.confidence === 'low' || r.confidence === 'none' ? r.confidence : 'none'
-  return { value: r.value ?? null, confidence, sources: strArr(r.sources) }
+  return { value: r.value ?? null, confidence, sources: strArr(r.sources).filter(isHttpUrl) }
 }
 
 export function parseGeminiJson(text: string): Record<string, unknown> {
@@ -90,17 +102,24 @@ export async function researchCampsite(
   const key = process.env.GEMINI_API_KEY
   if (!key) throw new Error('GEMINI_API_KEY is not set')
 
-  const res = await fetchImpl(`${ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: buildPrompt(input) }] }],
-      tools: [{ google_search: {} }],
-    }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  })
-  if (!res.ok) throw new Error(`gemini: HTTP ${res.status}`)
-  const data = (await res.json()) as {
+  let res: Response
+  try {
+    res = await fetchImpl(`${ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: buildPrompt(input) }] }],
+        tools: [{ google_search: {} }],
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+  } catch (e) {
+    throw new HttpError(502, `gemini request failed: ${e instanceof Error ? e.name : 'error'}`)
+  }
+  if (!res.ok) throw new HttpError(502, `gemini: HTTP ${res.status}`)
+  const data = (await res.json().catch(() => {
+    throw new HttpError(502, 'gemini: invalid JSON')
+  })) as {
     candidates?: Array<{
       content?: { parts?: Array<{ text?: string }> }
       groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string } }> }
@@ -111,7 +130,7 @@ export async function researchCampsite(
   const parsed = parseGeminiJson(text)
   const grounding = (cand?.groundingMetadata?.groundingChunks ?? [])
     .map((c) => c.web?.uri)
-    .filter((u): u is string => typeof u === 'string' && u.length > 0)
+    .filter(isHttpUrl)
 
   const out: Record<string, GeminiFieldResult> = {}
   for (const [k, raw] of Object.entries(parsed)) {
@@ -148,6 +167,7 @@ const isEmpty = (v: unknown) =>
 export function mergeGemini(draft: CampsiteDraft, g: Record<string, GeminiFieldResult>): CampsiteDraft {
   const fields: CampsiteDraft['fields'] = { ...draft.fields }
   for (const [rawKey, r] of Object.entries(g)) {
+    if (rawKey === 'campsite_notes') continue
     const key = rawKey === 'ai_summary' ? 'campsite_notes' : rawKey
     if (key !== 'campsite_notes' && !(key in TAG_OPTIONS) && key !== 'amenities' && !TEXT_FIELDS.includes(key)) continue
     // Places／海拔已經有值的欄位不覆蓋

@@ -174,16 +174,21 @@ async function main() {
     const after = await countRows(t)
     if (after !== before[t]) problems.push(`${t} 筆數改變：${before[t]} → ${after}`)
   }
-  const [tripsAfter, campsitesAfter] = await Promise.all([fetchAll('camping_trips'), fetchAll('campsites')])
+  const [tripsAfter, campsitesAfter, photosAfter] = await Promise.all([
+    fetchAll('camping_trips'), fetchAll('campsites'), fetchAll('trip_photos'),
+  ])
   const merged = new Set(campsitesAfter.filter(c => c.merged_into_id != null).map(c => c.id))
   const bad = tripsAfter.filter(t => t.campsite_id != null && merged.has(t.campsite_id))
   if (bad.length) problems.push(`${bad.length} 筆行程仍指向已合併營區（id ${bad.map(t => t.id).join(', ')}）`)
+  const mergedTrips = new Set(tripsAfter.filter(t => t.merged_into_id != null).map(t => t.id))
+  const badPhotos = photosAfter.filter(p => mergedTrips.has(p.trip_id))
+  if (badPhotos.length) problems.push(`trip_photos 指向已合併行程 = ${badPhotos.length}（應為 0）`)
 
   if (problems.length) {
     console.error(`\n驗證失敗：\n  ${problems.join('\n  ')}\n還原指令：\n  ${restoreCmd()}`)
     process.exit(1)
   }
-  console.log('\n驗證通過：各表筆數不變、沒有行程指向已合併營區、照片總數不變。')
+  console.log('\n驗證通過：各表筆數不變、沒有行程指向已合併營區、trip_photos 指向已合併行程 = 0、照片總數不變。')
 }
 
 main().catch(e => {

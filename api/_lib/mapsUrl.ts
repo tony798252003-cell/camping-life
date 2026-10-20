@@ -72,7 +72,13 @@ export async function resolveShortUrl(url: string, fetchImpl: typeof fetch = fet
   let current = url
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     if (!isAllowedMapsHost(current)) throw new HttpError(400, '請貼上 Google 地圖的連結')
-    const res = await fetchImpl(current, { redirect: 'manual' })
+    let res: Response
+    try {
+      res = await fetchImpl(current, { redirect: 'manual', signal: AbortSignal.timeout(8_000) })
+    } catch (e) {
+      throw new HttpError(502, `resolve maps url failed: ${e instanceof Error ? e.name : 'network error'}`)
+    }
+    await res.body?.cancel().catch(() => {})
     const location = res.headers.get('location')
     if (res.status < 300 || res.status >= 400 || !location) return current
     current = new URL(location, current).toString()

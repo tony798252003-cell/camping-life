@@ -130,3 +130,11 @@ describe('handleCampsiteDiscover', () => {
     expect(b.textSearchImpl).not.toHaveBeenCalled()
   })
 })
+
+describe('pageToken 長度上限', () => {
+  // 為什麼：token 會原樣轉給 Google，過長代表不是合法 token，直接擋掉
+  it('超過 2048 字回 400', async () => {
+    const req = new Request('http://x', { method: 'POST', body: JSON.stringify({ city: '新竹縣', pageToken: 'x'.repeat(2049) }) })
+    await expect(handleCampsiteDiscover(req, { textSearchImpl: async () => ({ places: [] }), loadCampsites: async () => [] })).rejects.toMatchObject({ status: 400 })
+  })
+})

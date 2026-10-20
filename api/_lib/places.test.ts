@@ -55,8 +55,6 @@ describe('textSearch', () => {
               googleMapsUri: 'https://maps.google.com/?cid=1',
               businessStatus: 'OPERATIONAL',
               primaryTypeDisplayName: { text: '露營地' },
-              rating: 4.5,
-              userRatingCount: 10,
             },
           ],
           nextPageToken: 'n2',
@@ -67,7 +65,9 @@ describe('textSearch', () => {
     const mask = headersOf(calls[0]!)['X-Goog-FieldMask']!
     expect(mask).toContain('nextPageToken')
     expect(mask).toContain('places.googleMapsUri')
-    expect(mask).toContain('places.rating')
+    // 計價未確認，rating 不得進 mask（規格 §7.3）
+    expect(mask).not.toContain('places.rating')
+    expect(mask).not.toContain('userRatingCount')
     const body = JSON.parse(calls[0]!.init.body as string)
     expect(body.pageToken).toBe('tok')
     expect(body.pageSize).toBe(20)
@@ -79,8 +79,6 @@ describe('textSearch', () => {
       address: '苗栗縣泰安鄉',
       lat: 24.5,
       lng: 121.1,
-      rating: 4.5,
-      ratingCount: 10,
       mapsUrl: 'https://maps.google.com/?cid=1',
       businessStatus: 'OPERATIONAL',
       typeLabel: '露營地',
@@ -137,5 +135,17 @@ describe('placeDetails', () => {
     const calls: Call[] = []
     await placeDetails('a/../b', mockFetch({ ...raw, googleMapsUri: 'u' }, calls))
     expect(calls[0]!.url).toContain('places/a%2F..%2Fb?')
+  })
+})
+
+describe('textSearch 缺座標', () => {
+  // 為什麼：沒座標若變成 (0,0)，會在重複比對與海拔查詢中被當成真實位置
+  it('丟掉沒有 location 的結果', async () => {
+    const r = await textSearch(
+      'x',
+      {},
+      mockFetch({ places: [{ id: 'a', displayName: { text: 'A' } }, { ...raw }] }, []),
+    )
+    expect(r.places.map((p) => p.placeId)).toEqual([raw.id])
   })
 })

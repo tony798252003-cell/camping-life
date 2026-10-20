@@ -43,6 +43,7 @@ const draft = ref<CampsiteDraft | null>(null)
 const rows = ref<Record<string, Row>>({})
 const saving = ref(false)
 const alreadyExists = ref(false)
+const existingWarn = ref('')
 
 type Kind = 'text' | 'textarea' | 'number' | 'tags' | 'amenities'
 const DISPLAY_ROWS: Array<{ key: string; label: string; kind?: Kind; unit?: string }> = [
@@ -168,7 +169,8 @@ async function generate() {
     baseDraft.value = base
     stepPlaces.value = true
     try {
-      const full = await apiPost<CampsiteDraft>('/api/campsite-draft', { placeId: id }, ctl.signal)
+      // 帶上第一次的 Places 草稿，伺服器不用再查一次 Place Details
+      const full = await apiPost<CampsiteDraft>('/api/campsite-draft', { placeId: id, baseDraft: base }, ctl.signal)
       if (ctl.signal.aborted) return
       showDraft(full)
     } catch {
@@ -239,7 +241,7 @@ function buildInsert() {
     sources[k] = {
       source: r.source,
       confidence: r.confidence,
-      urls: r.urls,
+      urls: r.urls.filter((u) => /^https?:\/\//i.test(u)),
       // 不需檢查的欄位視為可信；需檢查的欄位要使用者按過確認或修改過才算
       confirmed: !r.needsReview || r.confirmed,
     }
@@ -286,6 +288,24 @@ async function save() {
   }
 }
 
+// 內嵌（TripModal）時，已收錄的營區直接拿來用：抓回完整列並交給父層選取
+async function useExisting(filter: { id: number } | { googlePlaceId: string }) {
+  if (saving.value) return
+  saving.value = true
+  errorMsg.value = ''
+  try {
+    const q = supabase.from('campsites').select('*')
+    const { data, error } = await ('id' in filter ? q.eq('id', filter.id) : q.eq('google_place_id', filter.googlePlaceId)).limit(1).maybeSingle()
+    if (error || !data) throw error ?? new Error('找不到這個營區')
+    draft.value = null
+    emit('saved', data as unknown as Campsite)
+  } catch (e: any) {
+    errorMsg.value = `無法選取既有營區：${e?.message ?? '未知錯誤'}`
+  } finally {
+    saving.value = false
+  }
+}
+
 function viewExisting(name: string) {
   router.push({ name: 'library', query: { q: name } })
 }
@@ -296,11 +316,12 @@ function beforeUnload(ev: BeforeUnloadEvent) {
 
 onMounted(async () => {
   window.addEventListener('beforeunload', beforeUnload)
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('campsites')
     .select('id,name,district,latitude,longitude,google_place_id,phone,merged_into_id')
     .is('merged_into_id', null)
     .limit(5000)
+  if (error) existingWarn.value = '無法載入已收錄營區，這次沒有重複檢查，請自行確認是否已收錄'
   existing.value = (data ?? []) as MatchableCampsite[]
   if (props.initialPlaceId) {
     // 只有 placeId（例如從「找新營區」帶入）：沒有座標，重複檢查只能比對 place_id
@@ -308,8 +329,8 @@ onMounted(async () => {
       [{ placeId: props.initialPlaceId, name: props.initialName ?? '指定的地點', address: '', lat: NaN, lng: NaN }],
       props.initialPlaceId,
     )
-    // 從「找新營區」帶入：已經選好地點，直接進入產生中（失敗會退回候選頁）
-    void generate()
+    // 從「找新營區」帶入：先做重複檢查；有疑似重複就停在候選頁讓使用者決定，沒有才直接產生
+    if (!showDup.value) void generate()
   }
 })
 onBeforeUnmount(() => {
@@ -327,6 +348,7 @@ onBeforeUnmount(() => {
       </button>
     </header>
 
+    <p v-if="existingWarn" class="shrink-0 mx-4 mb-2 text-[13px] text-amber-800 bg-amber-50 rounded-[12px] px-3 py-2">{{ existingWarn }}</p>
     <p v-if="errorMsg" class="shrink-0 mx-4 mb-2 text-[13px] text-red-600 bg-red-50 rounded-[12px] px-3 py-2">{{ errorMsg }}</p>
 
     <!-- 1 輸入 -->
@@ -357,6 +379,7 @@ onBeforeUnmount(() => {
           <p v-for="m in dupMatches" :key="m.campsite.id" class="text-[14px] text-amber-900">
             {{ m.campsite.name }}<span v-if="m.distanceM != null" class="text-[12px] text-amber-700">（相距約 {{ Math.round(m.distanceM) }} m）</span>
             <button v-if="!embedded" class="ml-2 underline font-bold min-h-[32px]" @click="viewExisting(m.campsite.name)">查看</button>
+            <button v-else :disabled="saving" class="ml-2 underline font-bold min-h-[32px]" @click="useExisting({ id: m.campsite.id })">用這個營區</button>
           </p>
           <button class="min-h-[44px] px-4 rounded-[14px] bg-white border border-amber-300 text-[13px] font-bold text-amber-900" @click="dupDismissed = true">仍要新增</button>
         </div>
@@ -410,6 +433,7 @@ onBeforeUnmount(() => {
         <div v-if="alreadyExists" class="rounded-[14px] bg-red-50 border border-red-200 p-3 text-[14px] text-red-800">
           這個地點已經收錄了。
           <button v-if="!embedded" class="underline font-bold min-h-[32px]" @click="viewExisting(String(rows.name?.value ?? ''))">前往圖鑑查看</button>
+          <button v-else :disabled="saving" class="underline font-bold min-h-[32px]" @click="useExisting({ googlePlaceId: draft.placeId })">用這個營區</button>
         </div>
         <DraftFieldRow
           v-for="r in visibleRows" :key="r.key"

@@ -90,7 +90,7 @@ function pairConfidence(a: MatchableCampsite, b: MatchableCampsite): Confidence 
   if (hit) {
     if (hit.level === 'same_place') bump('high')
     else if (hit.level === 'likely') bump(hit.distanceM != null && hit.distanceM < NEAR_M ? 'high' : 'medium')
-    else bump('low') // nearby：300 m 內但名稱不像，只列不建議
+    // nearby（300 m 內但名稱不像）不建立關聯，改由 findNearbyPairs 另外列出，避免經 union-find 串成大群
   }
   const pa = normPhone(a.phone)
   if (pa !== '' && pa === normPhone(b.phone)) bump('low')
@@ -99,6 +99,28 @@ function pairConfidence(a: MatchableCampsite, b: MatchableCampsite): Confidence 
     bump('low') // 同名同鄉鎮不論距離；距離 ≤ 2 km 者上面已升級
   }
   return best
+}
+
+export interface NearbyPair {
+  a: CampsiteRow
+  b: CampsiteRow
+  distanceM: number | null
+}
+
+// 300 m 內但名稱不像、也沒有其他關聯的配對：只供報告列出，不建議合併、不進 decisions
+export function findNearbyPairs(all: CampsiteRow[]): NearbyPair[] {
+  const rows = all.filter(c => c.merged_into_id == null).sort((a, b) => a.id - b.id)
+  const out: NearbyPair[] = []
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = i + 1; j < rows.length; j++) {
+      const a = rows[i]!
+      const b = rows[j]!
+      if (pairConfidence(a, b) != null) continue
+      const hit = matchCampsite(a, [b])[0]
+      if (hit?.level === 'nearby') out.push({ a, b, distanceM: hit.distanceM ?? null })
+    }
+  }
+  return out
 }
 
 function isSamePark(members: CampsiteRow[]): boolean {

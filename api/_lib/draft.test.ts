@@ -241,6 +241,68 @@ describe('mergeGemini', () => {
   })
 })
 
+describe('Gemini 來源網址 scheme', () => {
+  // 為什麼：來源網址會被前端渲染成 <a href>，javascript: 會變成 XSS
+  it('只保留 http(s) 絕對網址，擋 javascript:、data:、相對路徑', async () => {
+    process.env.GEMINI_MODEL = 'm'
+    process.env.GEMINI_API_KEY = 'k'
+    const text = JSON.stringify({
+      water_features: {
+        value: ['溪流'],
+        confidence: 'high',
+        sources: ['javascript:alert(1)', 'data:text/html,x', '/relative', 'https://ok.example/a', 'http://ok.example/b'],
+      },
+    })
+    const f = (async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [
+          {
+            content: { parts: [{ text }] },
+            groundingMetadata: { groundingChunks: [{ web: { uri: 'javascript:1' } }, { web: { uri: 'https://g.example/c' } }] },
+          },
+        ],
+      }),
+    })) as unknown as typeof fetch
+    const r = await researchCampsite({ name: 'n', address: 'a', mapsUrl: 'https://maps.google.com/?cid=1' }, f)
+    expect(r.water_features!.sources).toEqual(['https://ok.example/a', 'http://ok.example/b', 'https://g.example/c'])
+  })
+
+  it('網路錯誤轉成 HttpError 502 — 不洩漏底層訊息', async () => {
+    process.env.GEMINI_MODEL = 'm'
+    process.env.GEMINI_API_KEY = 'k'
+    const f = (async () => { throw new TypeError('secret') }) as unknown as typeof fetch
+    await expect(researchCampsite({ name: 'n', address: 'a', mapsUrl: 'u' }, f)).rejects.toMatchObject({ status: 502 })
+  })
+
+  it('mergeGemini 忽略直接回傳的 campsite_notes 鍵 — 只有 ai_summary 可寫入摘要', () => {
+    const d = mergeGemini(placeToDraft(detail(), 1), { campsite_notes: { value: 'x', confidence: 'high', sources: [] } })
+    expect(d.fields.campsite_notes).toBeUndefined()
+  })
+})
+
+describe('handleCampsiteDraft baseDraft', () => {
+  // 為什麼：第二段只該跑 Gemini，Place Details 重打一次是多花一次 Google 費用
+  it('帶相符的 baseDraft 時不再呼叫 Places', async () => {
+    process.env.GEMINI_MODEL = 'm'
+    process.env.GEMINI_API_KEY = 'k'
+    const base = placeToDraft(detail(), 1200)
+    const urls: string[] = []
+    const f = (async (u: string) => {
+      urls.push(String(u))
+      return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: '{}' }] } }] }) }
+    }) as unknown as typeof fetch
+    const res = await handleCampsiteDraft(
+      new Request('http://x/api/campsite-draft', { method: 'POST', body: JSON.stringify({ placeId: base.placeId, baseDraft: base }) }),
+      { fetchImpl: f },
+    )
+    expect(res.status).toBe(200)
+    expect(urls.some((u) => u.includes('places.googleapis.com'))).toBe(false)
+    expect(urls.some((u) => u.includes('generativelanguage'))).toBe(true)
+  })
+})
+
 describe('researchCampsite', () => {
   const input = { name: '雲頂', address: 'a', mapsUrl: 'https://maps.google.com/?cid=1' }
   const okFetch = (text: string, uris: string[] = []) =>

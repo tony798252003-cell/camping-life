@@ -71,7 +71,9 @@ export async function fetchElevations(
   const lat = points.map((p) => p.lat).join(',')
   const lng = points.map((p) => p.lng).join(',')
   try {
-    const res = await fetchImpl(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`)
+    const res = await fetchImpl(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`, {
+      signal: AbortSignal.timeout(8_000),
+    })
     if (!res.ok) return nulls
     const { elevation } = (await res.json()) as { elevation?: unknown }
     if (!Array.isArray(elevation)) return nulls
@@ -131,12 +133,22 @@ export async function resolveMapsUrl(
   throw new CannotResolveError()
 }
 
+// 只接受結構合理、placeId 相符的草稿；其餘一律當作沒帶，走完整查詢
+function reusableBase(raw: unknown, placeId: string): CampsiteDraft | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const d = raw as Partial<CampsiteDraft>
+  if (d.placeId !== placeId || typeof d.rawName !== 'string') return null
+  if (typeof d.fields !== 'object' || d.fields === null || !Array.isArray(d.warnings)) return null
+  return d as CampsiteDraft
+}
+
 export async function handleCampsiteDraft(req: Request, deps: { fetchImpl?: typeof fetch } = {}): Promise<Response> {
   const body = (await req.json().catch(() => null)) as {
     mapsUrl?: unknown
     resolveOnly?: unknown
     placeId?: unknown
     skipAi?: unknown
+    baseDraft?: unknown
   } | null
 
   if (body?.resolveOnly === true) {
@@ -154,15 +166,26 @@ export async function handleCampsiteDraft(req: Request, deps: { fetchImpl?: type
   if (typeof body?.placeId !== 'string' || body.placeId.length === 0 || body.placeId.length > 300) {
     throw new HttpError(400, 'placeId is required')
   }
-  const detail = await placeDetails(body.placeId, deps.fetchImpl)
-  const [altitude] = await fetchElevations([{ lat: detail.lat, lng: detail.lng }], deps.fetchImpl)
-  const draft = placeToDraft(detail, altitude ?? null)
+  // 第二段（Gemini）帶第一段的 Places 草稿回來，避免重打 Place Details
+  const reuse = reusableBase(body.baseDraft, body.placeId)
+  let draft: CampsiteDraft
+  let info: { name: string; address: string; mapsUrl: string }
+  if (reuse) {
+    draft = reuse
+    const str = (k: string) => {
+      const v = reuse.fields[k]?.value
+      return typeof v === 'string' ? v.slice(0, 300) : ''
+    }
+    info = { name: str('name') || reuse.rawName.slice(0, 300), address: str('address'), mapsUrl: str('google_maps_url') }
+  } else {
+    const detail = await placeDetails(body.placeId, deps.fetchImpl)
+    const [altitude] = await fetchElevations([{ lat: detail.lat, lng: detail.lng }], deps.fetchImpl)
+    draft = placeToDraft(detail, altitude ?? null)
+    info = { name: draft.fields.name.value ?? detail.name, address: detail.address, mapsUrl: detail.mapsUrl }
+  }
   if (body.skipAi === true) return json(200, draft)
   try {
-    const g = await researchCampsite(
-      { name: draft.fields.name.value ?? detail.name, address: detail.address, mapsUrl: detail.mapsUrl },
-      deps.fetchImpl,
-    )
+    const g = await researchCampsite(info, deps.fetchImpl)
     return json(200, mergeGemini(draft, g))
   } catch (e) {
     // Gemini 失敗或逾時：保留 Places 草稿，前端提示手動補

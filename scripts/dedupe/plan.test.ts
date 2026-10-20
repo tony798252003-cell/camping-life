@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  countFilledFields, fillEmptyFields, groupDuplicateTrips, groupDuplicates, nameStem, pickKeeper,
+  countFilledFields, fillEmptyFields, findNearbyPairs, groupDuplicateTrips, groupDuplicates, nameStem, pickKeeper,
   type CampsiteRow, type TripRow,
 } from './plan'
 
@@ -87,6 +87,18 @@ describe('groupDuplicates', () => {
     ])
     expect(g).toHaveLength(1)
     expect(g[0]!.confidence).toBe('low')
+  })
+  // 為什麼：300m 內名稱不像只是鄰居，若建邊會經 union-find 串成大群，使用者可能誤併
+  it('300m 內但名稱不同 → 不成群，改列在 findNearbyPairs', () => {
+    const rows = [mk({ id: 1, name: '雲頂森林', ...at(0) }), mk({ id: 2, name: '海邊星空', ...at(0.1) })]
+    expect(groupDuplicates(rows)).toHaveLength(0)
+    const pairs = findNearbyPairs(rows)
+    expect(pairs).toHaveLength(1)
+    expect([pairs[0]!.a.id, pairs[0]!.b.id]).toEqual([1, 2])
+  })
+  // 為什麼：真重複不該同時被當成「僅鄰近」重複列出
+  it('已成群的配對不重複列入 nearby', () => {
+    expect(findNearbyPairs([mk({ id: 1, name: '甲露營區', ...at(0) }), mk({ id: 2, name: '甲營區', ...at(0.1) })])).toHaveLength(0)
   })
   it('同名不同鄉鎮且遠 → 不成群', () => {
     expect(groupDuplicates([

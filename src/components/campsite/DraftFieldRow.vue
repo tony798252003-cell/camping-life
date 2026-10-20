@@ -35,6 +35,9 @@ const PILL: Record<string, string> = {
 // 三級（規格 §5.7）：3 = 需要確認；2 = AI 有來源；1 = 可信
 const level = computed(() => (props.field.needsReview ? 3 : props.field.source === 'gemini' ? 2 : 1))
 
+// 來源網址只放行 http(s)，避免 javascript:／data: 等被當成連結（資料可能來自舊草稿或 AI）
+const safeUrls = computed(() => props.field.urls.filter((u) => /^https?:\/\//i.test(u)))
+
 const display = computed(() => {
   const v = props.field.value
   if (v === null || v === undefined || v === '') return null
@@ -97,13 +100,13 @@ function commit() {
         {{ display ?? '？查無資料' }}
       </p>
 
-      <div v-if="field.urls.length" class="mt-1">
+      <div v-if="safeUrls.length" class="mt-1">
         <button class="text-[12px] text-purple-700 flex items-center gap-1 min-h-[28px]" @click="showSources = !showSources">
-          來源 {{ field.urls.length }} 筆
+          來源 {{ safeUrls.length }} 筆
           <ChevronDown class="w-3 h-3" :class="showSources ? 'rotate-180' : ''" />
         </button>
         <ul v-if="showSources" class="space-y-1">
-          <li v-for="u in field.urls" :key="u">
+          <li v-for="u in safeUrls" :key="u">
             <a :href="u" target="_blank" rel="noopener noreferrer" class="text-[12px] text-purple-700 underline break-all inline-flex items-center gap-1">
               {{ u }}<ExternalLink class="w-3 h-3 shrink-0" />
             </a>

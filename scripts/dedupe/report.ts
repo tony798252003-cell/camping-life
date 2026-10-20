@@ -11,7 +11,7 @@ import * as dotenv from 'dotenv'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {
-  countFilledFields, groupDuplicates, groupDuplicateTrips,
+  countFilledFields, findNearbyPairs, groupDuplicates, groupDuplicateTrips,
   type CampsiteRow, type Decisions, type DuplicateGroup, type TripDuplicateGroup, type TripRow,
 } from './plan'
 
@@ -116,6 +116,7 @@ async function main() {
     filledFields: countFilledFields(c),
   }))
   const cGroups = groupDuplicates(campsites)
+  const nearbyPairs = findNearbyPairs(campsites)
 
   const trips: TripRow[] = tripsRaw.map(t => ({
     id: t.id as number,
@@ -154,6 +155,10 @@ async function main() {
     .map(c => `<tr><td>#${c.id}</td><td>${esc(c.name)}</td><td>${esc(c.district)}</td><td>${c.tripCount}</td><td>${c.filledFields}</td><td>${esc(cRaw.get(c.id)!.created_at)}</td></tr>`)
     .join('')
 
+  const nearbyRows = nearbyPairs
+    .map(p => `<tr><td>#${p.a.id} ${esc(p.a.name)}</td><td>#${p.b.id} ${esc(p.b.name)}</td><td>${p.distanceM == null ? '' : Math.round(p.distanceM) + ' m'}</td></tr>`)
+    .join('')
+
   const html = `<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>重複清理報告</title>
 <style>
@@ -172,6 +177,9 @@ th.keep{background:#dcfce7}td.f{background:#f1f5f9;white-space:nowrap}tr.diff td
 <p>營區重複 ${cGroups.length} 群、行程重複 ${tGroups.length} 群、舊版自動建立疑似空白營區 ${autoCreated.length} 筆。● 表示該欄位各筆不同。</p>
 <h2>重複營區</h2>
 ${cGroups.map(g => campsiteCard(g, cRaw)).join('') || '<p>沒有</p>'}
+<h2>鄰近但名稱不同（不建議合併）</h2>
+<p>相距 300 m 內但名稱不像，共 ${nearbyPairs.length} 組，僅供參考，不會出現在 decisions.json。</p>
+<div class="scroll"><table><thead><tr><th>營區 A</th><th>營區 B</th><th>距離</th></tr></thead><tbody>${nearbyRows || '<tr><td colspan="3">沒有</td></tr>'}</tbody></table></div>
 <h2>重複行程</h2>
 ${tGroups.map(g => tripCard(g, tRaw)).join('') || '<p>沒有</p>'}
 <h2>舊版 TripModal 自動建立的疑似空白營區（未審核，建立於 2026-10-18 前）</h2>
