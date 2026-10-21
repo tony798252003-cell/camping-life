@@ -129,11 +129,6 @@ function pickVisibility(v: Visibility) {
   visibilityTouched.value = true
 }
 
-// 關掉全天就不能每年重複
-watch(allDay, (v) => {
-  if (!v) yearly.value = false
-})
-
 // 結束日期早於開始日期：自動改成開始日期，只在表單上提示（規格 §5.5）
 // selfClamp：改 endDate 會再觸發本 watcher，要略過那一次，否則提示會被立刻清掉
 let selfClamp = false

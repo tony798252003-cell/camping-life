@@ -103,3 +103,13 @@ describe('recurrence 寫入與還原', () => {
     expect(toEventRow({ ...allDay, allDay: false, endDate: '2026-10-17', recurrence: 'yearly' }).recurrence).toBeNull()
   })
 })
+
+describe('編輯時改成非全天', () => {
+  // 為什麼：update 與 create 共用 toEventRow；把每年重複的事件改成有時段後，必須把 recurrence 清成 null，
+  // 否則資料庫留下展開不了的 yearly
+  it('由 yearly 全天還原後改成 timed，寫入 recurrence null', () => {
+    const loaded = fromEventRow({ ...toEventRow({ ...allDay, recurrence: 'yearly' }), id: 'x' } as unknown as CalendarEventRow)
+    const row = toEventRow({ ...loaded, allDay: false, endDate: loaded.startDate, startTime: '09:00', endTime: '10:00' })
+    expect(row.recurrence).toBeNull()
+  })
+})

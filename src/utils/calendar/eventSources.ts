@@ -144,7 +144,8 @@ export interface FeedInput {
   hiddenCategoryIds: Set<string>
   today: string
   ctx?: ViewContext
-  // 每年重複事件的展開範圍；畫面沒有範圍概念（feed 是整包），預設今年前後各抓一段
+  // 每年重複事件的展開範圍；畫面沒有範圍概念（feed 是整包），預設今年 -3 ～ +10 年。
+  // 限制：月曆翻到這個窗口之外的年份，重複事件不會顯示；要精準就得把可見範圍傳進 feed。
   range?: { from: string; to: string }
 }
 

@@ -200,3 +200,31 @@ describe('每年重複事件（F3）', () => {
     expect(r.map((v) => v.startDate)).toContain('2027-10-22')
   })
 })
+
+describe('每年重複事件：補充情境', () => {
+  const yearly = (o: Partial<CalendarEventRow> = {}) =>
+    ev({ id: 'b2', title: '紀念', is_all_day: true, start_date: '2020-10-22', end_date: '2020-10-22', recurrence: 'yearly', ...o })
+  const mine = (events: CalendarEventRow[], o: Partial<Parameters<typeof buildFeed>[0]> = {}) =>
+    feed({ events, ...o }).filter((v) => v.sourceId === 'b2')
+
+  it('預設窗口邊界：今年 -3 年（含）到 +10 年（含），之外不展開', () => {
+    // 為什麼：窗口是已知限制，邊界要被測試鎖住，改動時才會注意到
+    const years = mine([yearly()]).map((v) => v.startDate.slice(0, 4))
+    expect(years[0]).toBe('2023')
+    expect(years[years.length - 1]).toBe('2036')
+  })
+  it('從 2/29 開始的多天事件：非閏年起點為 2/28，長度不變', () => {
+    // 為什麼：起點位移後終點要跟著位移，否則非閏年天數會少一天
+    const e = yearly({ start_date: '2024-02-29', end_date: '2024-03-02' })
+    const r = feed({ events: [e], range: { from: '2024-01-01', to: '2025-12-31' } }).filter((v) => v.sourceId === 'b2')
+    expect(r.map((v) => [v.startDate, v.endDate])).toEqual([
+      ['2024-02-29', '2024-03-02'],
+      ['2025-02-28', '2025-03-03'],
+    ])
+  })
+  it('被隱藏的分類：重複事件整個不展開', () => {
+    // 為什麼：隱藏分類的篩選要先於展開，否則隱藏後每年的出現仍會冒出來
+    const r = mine([yearly({ category_id: 'c-work' })], { hiddenCategoryIds: new Set(['c-work']) })
+    expect(r).toEqual([])
+  })
+})
