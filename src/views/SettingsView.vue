@@ -23,6 +23,9 @@
              <span v-else-if="currentView === 'categories'" class="flex items-center gap-2">
                <Tags class="w-5 h-5 text-blue-600" /> 分類管理
              </span>
+             <span v-else-if="currentView === 'family'" class="flex items-center gap-2">
+               <Users class="w-5 h-5 text-blue-600" /> 家庭成員
+             </span>
              <span v-else-if="currentView === 'admin'" class="flex items-center gap-2">
                <ShieldAlert class="w-5 h-5 text-red-600" /> 管理員專區
              </span>
@@ -70,6 +73,19 @@
                  <div class="text-left">
                     <h3 class="font-bold text-gray-900">分類管理</h3>
                     <p class="text-xs text-gray-500">行事曆事件分類與顏色</p>
+                 </div>
+              </div>
+              <ChevronRight class="w-5 h-5 text-gray-300" />
+           </button>
+
+           <button @click="currentView = 'family'" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
+              <div class="flex items-center gap-3">
+                 <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                    <Users class="w-5 h-5" />
+                 </div>
+                 <div class="text-left">
+                    <h3 class="font-bold text-gray-900">家庭成員</h3>
+                    <p class="text-xs text-gray-500">邀請碼與共用行事曆</p>
                  </div>
               </div>
               <ChevronRight class="w-5 h-5 text-gray-300" />
@@ -128,6 +144,8 @@
 
         <CategorySettings v-else-if="currentView === 'categories'" />
 
+        <FamilySettings v-else-if="currentView === 'family'" />
+
         <!-- ADVANCED GEAR VIEW (Admin Only) -->
         <GearSettings v-else-if="currentView === 'advanced-gear'" mode="advanced-gear" :trips="trips" />
 
@@ -147,7 +165,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Settings, MapPin, LogOut, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Images, Tags } from 'lucide-vue-next'
+import { Settings, MapPin, LogOut, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Images, Tags, Users } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../composables/useAuth'
 import { useTrips } from '../composables/useTrips'
@@ -156,6 +174,7 @@ import OriginSettings from '../components/settings/OriginSettings.vue'
 import GearSettings from '../components/settings/GearSettings.vue'
 import CpblSettings from '../components/settings/CpblSettings.vue'
 import CategorySettings from '../components/settings/CategorySettings.vue'
+import FamilySettings from '../components/settings/FamilySettings.vue'
 import SystemAssetManager from '../components/SystemAssetManager.vue'
 
 const router = useRouter()
@@ -168,7 +187,7 @@ const { isAdmin } = useUserProfile()
 const internalUserId = ref<string>('')
 const effectiveUserId = computed(() => authSession.value?.user?.id || internalUserId.value)
 
-type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'categories' | 'admin'
+type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'categories' | 'family' | 'admin'
 const currentView = ref<ViewState>('menu')
 const isAssetManagerOpen = ref(false)
 
