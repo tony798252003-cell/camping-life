@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { 
-  MapPin, Mountain, CloudRain, Moon, Tent, Wind, Save, RotateCcw, 
-  ChevronLeft, ChevronRight, Users, Home, Trash2, Snowflake, IceCream, Droplets, Pencil, Star, AlarmClock
+import { ref, computed, watch, onMounted } from 'vue'
+import {
+  MapPin, Moon, Save, RotateCcw, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { resolveTripDate } from '../utils/dateRange'
-import { canSaveTrip, CAMPSITE_REQUIRED_MESSAGE } from '../utils/tripValidation'
+import { CAMPSITE_REQUIRED_MESSAGE } from '../utils/tripValidation'
 import { useNotification } from '../composables/useNotification'
+import { useTripForm } from '../composables/useTripForm'
 
 import TripWeather from './TripWeather.vue'
-import PlaceSearchInput from './settings/PlaceSearchInput.vue'
 import AddCampsiteFlow from './campsite/AddCampsiteFlow.vue'
-import PhotoGallery from './PhotoGallery.vue'
+import TripCampsitePicker from './trip/TripCampsitePicker.vue'
+import TripStartLocation from './trip/TripStartLocation.vue'
+import TripCampsiteInfoPanel from './trip/TripCampsiteInfoPanel.vue'
+import TripGearSection from './trip/TripGearSection.vue'
+import TripReviewSection from './trip/TripReviewSection.vue'
 
 interface Props {
   isOpen: boolean
@@ -35,68 +38,14 @@ const emit = defineEmits<{
   (e: 'next'): void
 }>()
 
-// --- State ---
-// Seamless editing: No explicit View/Edit mode toggle.
-// We track changes to show/hide the Save button.
+// Seamless editing: 沒有檢視/編輯切換，有變更才顯示儲存按鈕
 const isSubmitting = ref(false)
 const campsiteError = ref('')
 const { warning } = useNotification()
-const originalTripData = ref<any>(null)
-
-// Location selection
-const selectedCity = ref('')
-const selectedDistrict = ref('')
-
-const availableDistricts = computed(() => {
-  if (!selectedCity.value) return []
-  const city = TAIWAN_LOCATIONS.find(c => c.id === selectedCity.value)
-  return city ? city.districts : []
-})
-
-// Update location string when city/district changes
-watch([selectedCity, selectedDistrict], ([city, district]) => {
-  if (city && district) {
-    formData.value.location = `${city}${district}`
-  } else if (city) {
-    formData.value.location = city
-  }
-})
-
-const formData = ref<NewCampingTrip>({
-  trip_date: resolveTripDate(null, props.initialDate),
-  duration_days: 2,
-  campsite_name: '',
-  location: '',
-  altitude: undefined,
-  tent_type: '',
-  has_tarp: false,
-  cost: undefined,
-  price: 0,
-  status: 'planning',
-  is_windy: false,
-  is_rainy: false,
-  is_wet_tent: false,
-  night_rush: false,
-  tent_id: undefined,
-  tarp_id: undefined,
-  latitude: undefined,
-  longitude: undefined,
-  zone: '',
-  companions: '',
-  campsite_id: undefined,
-  owner_friendliness: '',
-  entertainment: '',
-  notes: '',
-  road_condition: undefined,
-  cleanliness: undefined,
-  scenery: undefined,
-  start_location: ''
-})
-
-const hasChanges = computed(() => {
-  if (!originalTripData.value) return false
-  return JSON.stringify(formData.value) !== JSON.stringify(originalTripData.value)
-})
+const {
+  formData, selectedCity, selectedDistrict, availableDistricts,
+  hasChanges, initFormData, resetForm, toPayload, markSaved
+} = useTripForm(() => props.initialDate)
 
 const weatherTrip = computed(() => {
   return {
@@ -118,12 +67,7 @@ const weatherTrip = computed(() => {
 
 // --- Resources ---
 const tents = ref<CampingGear[]>([])
-const campsiteSearchResults = ref<Campsite[]>([])
-const showCampsiteDropdown = ref(false)
-const isSearchingCampsite = ref(false)
-let searchDebounce: ReturnType<typeof setTimeout> | null = null
 
-// Fetch tents for selection
 const fetchTents = async () => {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return
@@ -143,225 +87,6 @@ const fetchTents = async () => {
   }
 }
 
-// --- 新增營區 sheet（疊在 TripModal 上，表單不卸載）---
-const showAddCampsite = ref(false)
-const handleCampsiteCreated = (campsite: Campsite) => {
-  selectCampsite(campsite)
-  showAddCampsite.value = false
-}
-
-
-
-// --- UI State ---
-const isStartLocationExpanded = ref(false)
-const isEditingStartLocation = ref(false)
-const selectedTentNameLength = computed(() => {
-  if (!formData.value.tent_id) return 0
-  const t = tents.value.find(t => t.id === formData.value.tent_id)
-  return t ? t.name.length : 0
-})
-
-// --- Initialization ---
-const initFormData = (newTrip: any) => {
-  if (newTrip) {
-    const linkedCampsite = (newTrip as any).campsites
-    
-    // Construct the initial state
-    const data = {
-      trip_date: newTrip.trip_date,
-      campsite_name: linkedCampsite?.name || newTrip.campsite_name,
-      duration_days: newTrip.duration_days ?? 1,
-      location: linkedCampsite?.city ? `${linkedCampsite.city}${linkedCampsite.district || ''}` : (newTrip.location ?? ''),
-      altitude: linkedCampsite?.altitude ?? newTrip.altitude ?? undefined,
-      road_condition: newTrip.road_condition ?? undefined,
-      cleanliness: newTrip.cleanliness ?? undefined,
-      scenery: newTrip.scenery ?? undefined,
-      entertainment: newTrip.entertainment ?? '',
-      owner_friendliness: newTrip.owner_friendliness ?? '',
-      notes: newTrip.notes ?? '',
-      is_windy: newTrip.is_windy,
-      is_rainy: newTrip.is_rainy,
-      is_wet_tent: newTrip.is_wet_tent,
-      night_rush: newTrip.night_rush,
-      tent_type: newTrip.tent_type ?? '',
-      has_tarp: newTrip.has_tarp,
-      cost: newTrip.cost || undefined,
-      latitude: linkedCampsite?.latitude ?? newTrip.latitude ?? undefined,
-      longitude: linkedCampsite?.longitude ?? newTrip.longitude ?? undefined,
-      start_latitude: newTrip.start_latitude ?? undefined,
-      start_longitude: newTrip.start_longitude ?? undefined,
-      start_location: newTrip.start_location ?? '',
-      tent_id: newTrip.tent_id ?? undefined,
-      tarp_id: newTrip.tarp_id ?? undefined,
-      campsite_id: newTrip.campsite_id ?? undefined,
-      price: newTrip.price ?? 0,
-      status: newTrip.status ?? 'planning',
-      zone: newTrip.zone ?? '',
-      companions: newTrip.companions ?? ''
-    }
-    
-    formData.value = JSON.parse(JSON.stringify(data))
-    originalTripData.value = JSON.parse(JSON.stringify(data))
-
-    // Parse location string to set city and district
-    if (linkedCampsite?.city) {
-      selectedCity.value = linkedCampsite.city
-      selectedDistrict.value = linkedCampsite.district || ''
-    } else if (data.location) {
-      // Try to parse location string (e.g., "新北市三峽區")
-      const city = TAIWAN_LOCATIONS.find(c => data.location.startsWith(c.id))
-      if (city) {
-        selectedCity.value = city.id
-        const districtPart = data.location.substring(city.id.length)
-        const district = city.districts.find(d => d.id === districtPart)
-        selectedDistrict.value = district ? district.id : ''
-      }
-    }
-    
-    refreshViewData()
-  } else {
-    resetForm()
-  }
-}
-
-function resetForm() {
-  const emptyForm = {
-    trip_date: resolveTripDate(null, props.initialDate),
-    campsite_name: '',
-    duration_days: 2,
-    location: '',
-    cost: undefined,
-    price: 0,
-    status: 'planning',
-    is_windy: false,
-    is_rainy: false,
-    is_wet_tent: false,
-    night_rush: false,
-    has_tarp: false,
-    tent_id: undefined,
-    tarp_id: undefined,
-    tent_type: '',
-    latitude: undefined,
-    longitude: undefined,
-    altitude: undefined,
-    zone: '',
-    companions: '',
-    campsite_id: undefined,
-    owner_friendliness: '',
-    entertainment: '',
-    notes: '',
-    road_condition: undefined,
-    cleanliness: undefined,
-    scenery: undefined
-  }
-  formData.value = JSON.parse(JSON.stringify(emptyForm))
-  selectedCity.value = ''
-  selectedDistrict.value = ''
-  originalTripData.value = JSON.parse(JSON.stringify(emptyForm))
-}
-
-const refreshViewData = () => {
-  nextTick(() => {
-
-  })
-}
-
-// Watchers
-watch(() => props.trip, (val) => initFormData(val), { immediate: true })
-
-// CRITICAL: Watch isOpen to reset state when re-opening same trip
-watch(() => props.isOpen, (newVal) => {
-  if (newVal) {
-    //Reset UI state
-    isStartLocationExpanded.value = false
-    isEditingStartLocation.value = false
-    
-    // Fetch tents for selection
-    fetchTents()
-    
-    campsiteError.value = ''
-    
-    if (props.trip) {
-      initFormData(props.trip)
-    } else {
-      resetForm()
-    }
-  }
-})
-
-// --- Control ---
-const cancelEdit = () => {
-    if (props.trip) {
-       initFormData(props.trip) // Revert data
-    } else {
-       handleClose()
-    }
-}
-
-const handleDelete = () => {
-  if (!props.trip?.id) return
-  // Confirm is usually handled by parent, but here we emit directly if confirmed
-  // Or we can let parent handle confirm. 
-  // Let's rely on parent's deleteTrip to confirm, or confirm here.
-  // App.vue deleteTrip has confirm. So just emit.
-  emit('delete', props.trip.id)
-}
-
-const handleSubmit = async () => {
-  if (isSubmitting.value) return
-
-  isSubmitting.value = true
-  try {
-    if (!canSaveTrip(!props.trip, formData.value.campsite_id)) {
-      campsiteError.value = CAMPSITE_REQUIRED_MESSAGE
-      warning(CAMPSITE_REQUIRED_MESSAGE)
-      return
-    }
-
-    const payload = { ...formData.value }
-    const sanitizeNullable = (v: any) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? null : Number(v)
-    const sanitizeRequired = (v: any, def = 0) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? def : Number(v)
-
-    payload.altitude = sanitizeNullable(formData.value.altitude) as number | undefined
-    payload.cost = sanitizeRequired(formData.value.cost, 0)
-    payload.price = sanitizeRequired(formData.value.price, 0)
-    payload.duration_days = sanitizeRequired(formData.value.duration_days, 1)
-
-    if (!payload.location) payload.location = ''
-
-    emit('submit', payload)
-    // Update original data locally to hide Save button immediately
-    originalTripData.value = JSON.parse(JSON.stringify(formData.value))
-
-  } catch (e) {
-    console.error('Error handling submission', e)
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-const handleClose = () => {
-    emit('close')
-}
-
-// --- Search Logic ---
-const searchCampsites = async (query: string) => {
-  if (!query || query.length < 1) {
-    campsiteSearchResults.value = []
-    showCampsiteDropdown.value = false
-    return
-  }
-  if (searchDebounce) clearTimeout(searchDebounce)
-  searchDebounce = setTimeout(async () => {
-    isSearchingCampsite.value = true
-    try {
-      const { data } = await supabase.from('campsites').select('*').is('merged_into_id', null).ilike('name', `%${query}%`).limit(5)
-      campsiteSearchResults.value = (data || []) as unknown as Campsite[] // TODO(types): M5 JSONB 欄位收窄
-      showCampsiteDropdown.value = true
-    } catch (e) { console.error(e) } finally { isSearchingCampsite.value = false }
-  }, 300)
-}
-
 const selectCampsite = (campsite: Campsite) => {
   // 新增行程選營區後日期不能變空白（QA）：空白時補回預設日期，已填的保留
   if (!props.trip) formData.value.trip_date = resolveTripDate(formData.value.trip_date, props.initialDate)
@@ -376,35 +101,75 @@ const selectCampsite = (campsite: Campsite) => {
     selectedCity.value = campsite.city
     selectedDistrict.value = campsite.district || ''
   }
-  showCampsiteDropdown.value = false
   campsiteError.value = ''
 }
 
-const closeDropdown = () => setTimeout(() => { showCampsiteDropdown.value = false }, 200)
-
-
-const handleStartLocationSelected = (place: any) => {
-  // Save place name (e.g., "台北車站"), NOT full address
-  formData.value.start_location = place.name || place.formatted_address || ''
-  formData.value.start_latitude = place.lat
-  formData.value.start_longitude = place.lng
+// --- 新增營區 sheet（疊在 TripModal 上，表單不卸載）---
+const showAddCampsite = ref(false)
+const handleCampsiteCreated = (campsite: Campsite) => {
+  selectCampsite(campsite)
+  showAddCampsite.value = false
 }
 
-// --- Resources Load ---
+// --- Watchers ---
+watch(() => props.trip, (val) => initFormData(val), { immediate: true })
+
+// 重新開啟同一筆行程時要重置狀態
+watch(() => props.isOpen, (newVal) => {
+  if (!newVal) return
+  fetchTents()
+  campsiteError.value = ''
+  if (props.trip) initFormData(props.trip)
+  else resetForm()
+})
+
+// --- Control ---
+const handleClose = () => emit('close')
+
+const cancelEdit = () => {
+  if (props.trip) initFormData(props.trip) // 還原
+  else handleClose()
+}
+
+// 確認視窗由父層 deleteTrip 處理，這裡直接 emit
+const handleDelete = () => {
+  if (!props.trip?.id) return
+  emit('delete', props.trip.id)
+}
+
+const handleSubmit = async () => {
+  if (isSubmitting.value) return
+
+  isSubmitting.value = true
+  try {
+    let payload: NewCampingTrip
+    try {
+      payload = toPayload(!props.trip)
+    } catch {
+      campsiteError.value = CAMPSITE_REQUIRED_MESSAGE
+      warning(CAMPSITE_REQUIRED_MESSAGE)
+      return
+    }
+    emit('submit', payload)
+    markSaved()
+  } catch (e) {
+    console.error('Error handling submission', e)
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
 onMounted(async () => {
   try {
     const { data } = await supabase.from('camping_gear').select('*').order('name')
     if (data) {
       const allGear = data as unknown as CampingGear[]
-      // Filter safer: assume type might be Tent or tent or null
       tents.value = allGear.filter(g => g.type && g.type.toLowerCase() === 'tent')
     }
   } catch (e) {
     console.error('Error loading gear', e)
   }
 })
-
-
 </script>
 
 <template>
@@ -507,48 +272,8 @@ onMounted(async () => {
                           </div>
                       </div>
 
-                      <!-- Title (Seamless Input) -->
-                      <div class="w-full max-w-2xl relative mb-2">
-                           <div v-if="formData.campsite_id" class="flex items-center justify-center gap-2">
-                               <h2 class="text-3xl md:text-5xl font-black text-primary-900 tracking-tight drop-shadow-sm">
-                                   {{ formData.campsite_name }}
-                               </h2>
-                           </div>
-                           <div v-else class="relative group/search text-center">
-                               <div>
-                                    <input 
-                                      v-model="formData.campsite_name"
-                                      type="text"
-                                      class="w-full text-center bg-transparent border-none p-0 text-3xl md:text-5xl font-black text-primary-900 placeholder-primary-900/40 focus:ring-0 disabled:opacity-80 disabled:cursor-not-allowed"
-                                      placeholder="輸入營地名稱..."
-                                      @input="searchCampsites(($event.target as HTMLInputElement).value)"
-                                      @focus="searchCampsites(formData.campsite_name)"
-                                      @blur="closeDropdown"
-                                    />
-                                    <!-- Dropdown -->
-                                    <div v-if="showCampsiteDropdown && campsiteSearchResults.length > 0" class="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 text-left text-sm overflow-hidden text-primary-900">
-                                      <ul>
-                                        <li v-for="site in campsiteSearchResults" :key="site.id" @mousedown="selectCampsite(site)" class="px-4 py-3 hover:bg-surface-50 cursor-pointer border-b border-gray-50 last:border-none">
-                                           <div class="font-bold">{{ site.name }}</div>
-                                           <div class="text-xs text-gray-500">{{ site.city }}{{ site.district }}</div>
-                                        </li>
-                                      </ul>
-                                    </div>
-                               </div>
-                               <div v-if="trip" class="mt-3 flex flex-col items-center gap-1">
-                                   <p class="text-xs text-primary-700">此行程尚未綁定營區（可不綁定直接儲存）</p>
-                                   <button type="button" @click="searchCampsites(formData.campsite_name)" class="text-sm font-bold text-primary-700 bg-white/70 px-3 py-1 rounded-full shadow-sm border border-white/40">
-                                       綁定營區
-                                   </button>
-                               </div>
-                               <div v-if="!trip" class="mt-3 flex flex-col items-center gap-1">
-                                   <button type="button" @click="showAddCampsite = true" class="text-sm font-bold text-primary-700 bg-white/70 px-3 py-1 rounded-full shadow-sm border border-white/40">
-                                       ＋新增營區
-                                   </button>
-                                   <p v-if="campsiteError" class="text-xs font-bold text-red-500">{{ campsiteError }}</p>
-                               </div>
-                           </div>
-                      </div>
+                      <!-- Title: 營區搜尋 / 已選營區 -->
+                      <TripCampsitePicker :form="formData" :is-edit="!!trip" :error="campsiteError" @select="selectCampsite" @add-campsite="showAddCampsite = true" />
 
                       <!-- Subtitle Location -->
                        <!-- Subtitle Location -->
@@ -584,242 +309,14 @@ onMounted(async () => {
                   <!-- Weather Widget -->
                   <TripWeather :trip="weatherTrip" :isOpen="!!weatherTrip" @close="weatherTrip = null" />
 
-                  <!-- Section Header: Basic Info -->
-                  <div class="flex items-center justify-between mt-4 px-1 mb-2">
-                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">CAMPSITE INFO</h3>
-                     
-                     <!-- Collapsible Start Location Trigger -->
-                     <button type="button" @click="isStartLocationExpanded = !isStartLocationExpanded" class="flex items-center gap-1 text-[10px] bg-white border border-gray-100 px-2 py-1 rounded-full text-gray-500 hover:text-primary-600 transition-colors">
-                        <MapPin class="w-3 h-3" />
-                        <span class="max-w-[150px] truncate">
-                           {{ formData.start_location ? `自訂出發地：${formData.start_location}` : '自訂出發地' }}
-                        </span>
-                        <ChevronRight class="w-3 h-3 transition-transform duration-300" :class="{'rotate-90': isStartLocationExpanded}" />
-                     </button>
-                  </div>
-                  
-                  <!-- Collapsible Start Location Input -->
-                  <div v-if="isStartLocationExpanded" class="px-1 mb-4 animate-in slide-in-from-top-2 fade-in duration-200">
-                     <div class="card-organic bg-white p-3 border-l-4 border-l-blue-400">
-                        <div class="flex justify-between items-center mb-2">
-                           <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">自訂本次出發地</label> 
-                           <span v-if="userProfile?.location_name && !formData.start_location" class="text-[10px] text-gray-400 truncate max-w-[150px]">
-                              預設: {{ userProfile.location_name }}
-                           </span>
-                        </div>
+                  <TripStartLocation :form="formData" :user-profile="userProfile" />
 
-                        <!-- 1. LOCKED VIEW: Show Selected Address -->
-                        <div v-if="formData.start_location && !isEditingStartLocation" class="flex items-center justify-between bg-surface-50 rounded-xl p-2">
-                           <div class="flex items-center gap-2 overflow-hidden">
-                              <MapPin class="w-4 h-4 text-primary-500 shrink-0" />
-                              <span class="text-sm font-bold text-gray-800 truncate">{{ formData.start_location }}</span>
-                           </div>
-                           <div class="flex items-center gap-1 shrink-0">
-                               <button type="button" @click="isEditingStartLocation = true" class="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg text-xs font-medium transition-colors">修改</button>
-                               <button 
-                                 type="button" 
-                                 @click="formData.start_location = ''; formData.start_latitude = undefined; formData.start_longitude = undefined; isEditingStartLocation = false"
-                                 class="p-1.5 text-red-400 hover:bg-red-50 rounded-lg text-xs font-medium transition-colors"
-                               >
-                                 清除
-                               </button>
-                           </div>
-                        </div>
-
-                        <!-- 2. SEARCH VIEW -->
-                        <div v-else>
-                           <PlaceSearchInput
-                              v-model="formData.start_location"
-                              @place-selected="(p) => { handleStartLocationSelected(p); isEditingStartLocation = false }"
-                              placeholder="輸入地址，轉換為本次出發座標..."
-                           />
-                           <div class="mt-2 flex justify-end" v-if="isEditingStartLocation">
-                               <button type="button" @click="isEditingStartLocation = false" class="text-xs text-gray-400 hover:text-gray-600">取消</button>
-                           </div>
-                        </div>
-                        
-                        <p class="text-[10px] text-gray-400 mt-2 leading-relaxed">
-                           若本次露營出發地非預設出發地，可在此設定。系統將依此計算路程與導航。
-                        </p>
-                     </div>
-                  </div>
 
                   <!-- INFO CARDS (Home Style) - Grid -->
                   <div class="grid grid-cols-2 gap-3">
-                      <!-- 1. Altitude & Facilities (Combined, Full Width) -->
-                      <div class="col-span-2 card-organic bg-white p-3 flex items-center justify-between gap-4 overflow-hidden">
-                          <!-- Altitude Section -->
-                          <div class="flex items-center gap-3 pl-1">
-                              <div class="w-10 h-10 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-500 shrink-0">
-                                  <Mountain class="w-5 h-5" />
-                              </div>
-                              <div class="flex flex-col min-w-0">
-                                  <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">海拔</span>
-                                  <div class="flex items-baseline">
-                                      <span class="text-xl font-black text-gray-800">{{ formData.altitude || '--' }}</span>
-                                      <span class="text-xs text-gray-400 ml-1 font-bold">m</span>
-                                  </div>
-                              </div>
-                          </div>
+                      <TripCampsiteInfoPanel :trip="trip" :altitude="formData.altitude" />
 
-                          <!-- Divider -->
-                          <div class="w-px h-8 bg-gray-100"></div>
-
-                          <!-- Facilities Section -->
-                          <div class="flex items-center gap-3 md:gap-6 pr-2">
-                               <!-- Fridge -->
-                               <div class="flex flex-col items-center gap-1 min-w-[24px]">
-                                   <div class="relative w-6 h-6 flex items-center justify-center">
-                                       <Snowflake class="w-full h-full" :class="trip?.campsites?.amenities?.has_fridge ? 'text-sky-500' : 'text-slate-200'" />
-                                       <div v-if="!trip?.campsites?.amenities?.has_fridge" class="absolute w-[140%] h-[2px] bg-red-400/50 rotate-45 rounded-full z-10"></div>
-                                   </div>
-                                   <span class="text-[10px] font-bold mt-0.5" :class="trip?.campsites?.amenities?.has_fridge ? 'text-sky-700' : 'text-slate-300'">冷藏</span>
-                               </div>
-                               <!-- Freezer -->
-                               <div class="flex flex-col items-center gap-1 min-w-[24px]">
-                                   <div class="relative w-6 h-6 flex items-center justify-center">
-                                       <IceCream class="w-full h-full" :class="trip?.campsites?.amenities?.has_freezer ? 'text-indigo-500' : 'text-slate-200'" />
-                                       <div v-if="!trip?.campsites?.amenities?.has_freezer" class="absolute w-[140%] h-[2px] bg-red-400/50 rotate-45 rounded-full z-10"></div>
-                                   </div>
-                                   <span class="text-[10px] font-bold mt-0.5" :class="trip?.campsites?.amenities?.has_freezer ? 'text-indigo-700' : 'text-slate-300'">冷凍</span>
-                               </div>
-                               <!-- Water -->
-                               <div class="flex flex-col items-center gap-1 min-w-[24px]">
-                                   <div class="relative w-6 h-6 flex items-center justify-center">
-                                       <Droplets class="w-full h-full" :class="trip?.campsites?.amenities?.has_water_dispenser ? 'text-teal-500' : 'text-slate-200'" />
-                                       <div v-if="!trip?.campsites?.amenities?.has_water_dispenser" class="absolute w-[140%] h-[2px] bg-red-400/50 rotate-45 rounded-full z-10"></div>
-                                   </div>
-                                   <span class="text-[10px] font-bold mt-0.5" :class="trip?.campsites?.amenities?.has_water_dispenser ? 'text-teal-700' : 'text-slate-300'">飲水</span>
-                               </div>
-                          </div>
-                      </div>
-
-                      <!-- 1.5 Time Info Card (Check-in/out, Night Rush, Shower) -->
-                      <h3 class="col-span-2 text-xs font-bold text-gray-400 uppercase tracking-widest mt-2 px-1" v-if="trip?.campsites">
-                          TIME & RULES
-                      </h3>
-                      <div class="col-span-2 card-organic bg-white p-3 md:p-4 flex items-center gap-3 overflow-hidden" v-if="trip?.campsites">
-                          <!-- Icon -->
-                          <div class="w-10 h-10 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-500 shrink-0">
-                              <AlarmClock class="w-5 h-5" />
-                          </div>
-                          
-                          <!-- Content -->
-                          <div class="flex-1 min-w-0">
-                              <!-- Header Label inside? No, user wanted title outside. Labels for values are okay. -->
-                              <!-- Header Label inside? No, user wanted title outside. Labels for values are okay. -->
-                              <div class="grid grid-cols-3 divide-x divide-gray-100">
-                                  <!-- Check In/Out -->
-                                  <div class="flex flex-col items-center px-1">
-                                      <span class="text-[10px] font-bold text-gray-400 mb-0.5">進場 / 離場</span>
-                                      <div class="flex items-center gap-1 font-black text-gray-800 text-sm md:text-base leading-tight">
-                                          <span>{{ trip.campsites.check_in_time || '--:--' }}</span>
-                                          <span class="text-gray-300">/</span>
-                                          <span>{{ trip.campsites.check_out_time || '--:--' }}</span>
-                                      </div>
-                                  </div>
-
-                                  <!-- Night Rush -->
-                                  <div class="flex flex-col items-center px-1" v-if="trip.campsites.night_rush_time">
-                                      <span class="text-[10px] font-bold text-indigo-300 mb-0.5">夜衝時段</span>
-                                      <div class="flex items-center gap-1 font-black text-indigo-600 text-sm md:text-base leading-tight">
-                                          <Moon class="w-3 h-3" />
-                                          <span>{{ trip.campsites.night_rush_time }}</span>
-                                      </div>
-                                  </div>
-                                  
-                                  <!-- Hot Water -->
-                                  <div class="flex flex-col items-center px-1" v-if="trip.campsites.shower_restrictions">
-                                      <span class="text-[10px] font-bold text-rose-300 mb-0.5">熱水供應</span>
-                                      <div class="flex items-center gap-1 font-black text-rose-500 text-sm md:text-base leading-tight">
-                                          <Droplets class="w-3 h-3" />
-                                          <span>{{ trip.campsites.shower_restrictions }}</span>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-
-                       <!-- 2. Zone -->
-                      <div class="card-organic bg-white p-4 flex items-center gap-3 overflow-hidden">
-                          <div class="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-500 shrink-0">
-                              <Tent class="w-5 h-5" />
-                          </div>
-                          <div class="flex flex-col min-w-0">
-                              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">營位</span>
-                              <input 
-                                v-model="formData.zone" 
-                                type="text" 
-                                placeholder="未指定"
-                                class="bg-transparent border-none p-0 text-base font-black text-gray-800 w-full focus:ring-0 leading-tight"
-                              />
-                          </div>
-                      </div>
-
-                       <!-- 3. Campsite Fee -->
-                      <div class="card-organic bg-white p-4 flex items-center gap-3 overflow-hidden">
-                           <div class="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500 shrink-0">
-                              <span class="font-bold text-lg">$</span>
-                          </div>
-                          <div class="flex flex-col min-w-0">
-                              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">營位費</span>
-                              <input 
-                                v-model.number="formData.cost" 
-                                type="number" 
-                                placeholder="未提供"
-                                class="bg-transparent border-none p-0 text-base font-black text-gray-800 w-full focus:ring-0 leading-tight placeholder:text-gray-300"
-                              />
-                          </div>
-                      </div>
-
-                      <!-- 4. Companions -->
-                      <div class="card-organic bg-white p-4 flex items-center gap-3 overflow-hidden">
-                          <div class="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
-                              <Users class="w-5 h-5" />
-                          </div>
-                          <div class="flex flex-col min-w-0">
-                              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">露友</span>
-                              <input 
-                                v-model="formData.companions" 
-                                type="text" 
-                                placeholder="無"
-                                class="bg-transparent border-none p-0 text-base font-black text-gray-800 w-full focus:ring-0 leading-tight"
-                              />
-                          </div>
-                      </div>
-
-                      <!-- 5. Tent Selection -->
-                      <div class="card-organic bg-white p-4 flex items-center gap-3 overflow-hidden">
-                           <div class="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 shrink-0 overflow-hidden">
-                              <img 
-                                v-if="formData.tent_id && tents.find(t => t.id === formData.tent_id)?.image_url" 
-                                :src="tents.find(t => t.id === formData.tent_id)?.image_url || ''" 
-                                class="w-full h-full object-contain"
-                              />
-                              <Home v-else class="w-5 h-5" />
-                           </div>
-                           <div class="flex flex-col flex-1 min-w-0">
-                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">使用帳篷</span>
-                                <div class="relative w-full">
-                                  <select 
-                                    v-model="formData.tent_id" 
-                                    class="w-full bg-transparent border-none p-0 font-black text-gray-800 focus:ring-0 cursor-pointer appearance-none pr-6 truncate"
-                                    :class="{
-                                       'text-gray-400': !formData.tent_id,
-                                       'text-base': selectedTentNameLength < 8,
-                                       'text-sm': selectedTentNameLength >= 8 && selectedTentNameLength < 14,
-                                       'text-xs': selectedTentNameLength >= 14
-                                    }"
-                                  >
-                                       <option :value="undefined">未選擇</option>
-                                       <option v-for="tent in tents" :key="tent.id" :value="tent.id">{{ tent.name }}</option>
-                                  </select>
-                                  <div class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                     <ChevronLeft class="w-4 h-4 -rotate-90" />
-                                  </div>
-                                </div>
-                           </div>
-                      </div>
+                      <TripGearSection :form="formData" :tents="tents" />
                   </div>
 
                   <!-- Section Header: Conditions & Notes -->
@@ -838,112 +335,7 @@ onMounted(async () => {
                       </div>
                   </div>
 
-                  <!-- Section Header: Ratings -->
-                  <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">評分</h3>
-
-                  <div class="card-organic bg-white p-5 flex flex-col gap-4">
-                      <!-- Scenery -->
-                      <div class="flex items-center justify-between">
-                          <span class="text-sm font-bold text-gray-600">風景</span>
-                          <div class="flex items-center gap-1">
-                              <button 
-                                v-for="i in 5" 
-                                :key="`scenery-${i}`"
-                                type="button"
-                                @click="formData.scenery = i"
-                                class="focus:outline-none transition-transform active:scale-90"
-                              >
-                                  <Star 
-                                    class="w-6 h-6 transition-colors" 
-                                    :class="i <= (formData.scenery || 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'" 
-                                  />
-                              </button>
-                          </div>
-                      </div>
-
-                      <!-- Cleanliness -->
-                      <div class="flex items-center justify-between">
-                          <span class="text-sm font-bold text-gray-600">整潔</span>
-                          <div class="flex items-center gap-1">
-                              <button 
-                                v-for="i in 5" 
-                                :key="`cleanliness-${i}`"
-                                type="button"
-                                @click="formData.cleanliness = i"
-                                class="focus:outline-none transition-transform active:scale-90"
-                              >
-                                  <Star 
-                                    class="w-6 h-6 transition-colors" 
-                                    :class="i <= (formData.cleanliness || 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'" 
-                                  />
-                              </button>
-                          </div>
-                      </div>
-
-                      <!-- Road Condition -->
-                      <div class="flex items-center justify-between">
-                          <span class="text-sm font-bold text-gray-600">路況</span>
-                          <div class="flex items-center gap-1">
-                              <button 
-                                v-for="i in 5" 
-                                :key="`road-${i}`"
-                                type="button"
-                                @click="formData.road_condition = i"
-                                class="focus:outline-none transition-transform active:scale-90"
-                              >
-                                  <Star 
-                                    class="w-6 h-6 transition-colors" 
-                                    :class="i <= (formData.road_condition || 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'" 
-                                  />
-                              </button>
-                          </div>
-                      </div>
-                  </div>
-
-
-
-                  <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">CONDITIONS & NOTES</h3>
-
-                  <!-- Tags (Toggleable Buttons) -->
-                  <div class="flex flex-wrap gap-2 py-2">
-                       <!-- Night Rush moved to header -->
-                       <button type="button" @click="formData.is_rainy = !formData.is_rainy" 
-                         class="px-4 py-2 rounded-xl flex items-center gap-2 transition-all border"
-                         :class="formData.is_rainy ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-100 text-gray-400 grayscale'">
-                           <CloudRain class="w-4 h-4" /> <span class="text-sm font-bold">下雨</span>
-                       </button>
-                       <button type="button" @click="formData.is_windy = !formData.is_windy" 
-                         class="px-4 py-2 rounded-xl flex items-center gap-2 transition-all border"
-                         :class="formData.is_windy ? 'bg-gray-100 border-gray-200 text-gray-600' : 'bg-white border-gray-100 text-gray-400 grayscale'">
-                           <Wind class="w-4 h-4" /> <span class="text-sm font-bold">大風</span>
-                       </button>
-                       <button type="button" @click="formData.is_wet_tent = !formData.is_wet_tent" 
-                         class="px-4 py-2 rounded-xl flex items-center gap-2 transition-all border"
-                         :class="formData.is_wet_tent ? 'bg-orange-50 border-orange-200 text-orange-600' : 'bg-white border-gray-100 text-gray-400 grayscale'">
-                           <Tent class="w-4 h-4" /> <span class="text-sm font-bold">收濕帳</span>
-                       </button>
-                  </div>
-
-                  <!-- Notes -->
-                  <div class="card-organic bg-white p-5">
-                      <div class="flex items-center gap-2 mb-2 text-primary-900 font-bold">
-                         <Pencil class="w-4 h-4" /> 心得筆記
-                      </div>
-                      <textarea 
-                         v-model="formData.notes"
-                         rows="4"
-                         placeholder="寫下這次的回憶..."
-                         class="w-full bg-surface-50/50 border-none rounded-xl p-3 text-primary-900 focus:bg-white focus:ring-2 focus:ring-primary-100 transition-all placeholder-gray-400 text-sm leading-relaxed"
-                      ></textarea>
-                  </div>
-
-                  <!-- Section Header: Gallery -->
-                  <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">GALLERY</h3>
-
-                  <!-- Gallery -->
-                  <div v-if="trip?.id">
-                      <PhotoGallery :tripId="trip.id" :isEditable="true" />
-                  </div>
+                  <TripReviewSection :form="formData" :trip-id="trip?.id" :collapsed="!trip" />
 
 
               </div>
