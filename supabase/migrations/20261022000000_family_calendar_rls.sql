@@ -7,8 +7,10 @@
 -- 前提：20261020000000_enable_rls_core_tables.sql（family_member_ids、profiles 欄位授權）、
 --       20261017000300_calendar_categories.sql（visibility、event_categories）已套用。
 -- 套用後：再跑 `npm run db:types`（join_family_by_code 目前是手動補進 src/types/supabase.ts）。
--- 已知限制：calendar_events 的 UPDATE 授權是表層級，非建立者理論上可改 created_by；
---           WITH CHECK 無法比對舊值，真要擋需另加 trigger，F1 不做。
+-- 安全備註：permissive policy 是 OR。若不鎖 created_by，非建立者可 PATCH {created_by: 自己, visibility: 'private'}：
+--           舊列通過 shared 的 USING、新列通過建立者 policy 的 WITH CHECK，就能偷走並藏起別人的事件。
+--           WITH CHECK 比對不到舊值，所以用 BEFORE UPDATE trigger 讓 created_by 不可變（見第 1e 段）。
+--           auth.uid() 為 null（service_role / SQL Editor）時放行，資料修正仍可進行。
 
 begin;
 
@@ -58,13 +60,38 @@ alter policy "Users can update their own events" on public.calendar_events
     and family_id is not distinct from public.user_family_id()
   );
 
+-- 1e. created_by 不可變（一般使用者）：堵住上面 OR-bypass
+create function public.calendar_events_lock_created_by() returns trigger
+  language plpgsql
+  set search_path = ''
+  as $$
+begin
+  if auth.uid() is not null and new.created_by is distinct from old.created_by then
+    raise exception 'created_by is immutable.' using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger calendar_events_lock_created_by
+  before update on public.calendar_events
+  for each row execute function public.calendar_events_lock_created_by();
+
 -- ---------------------------------------------------------------------------
--- 2. event_categories：SELECT 另允許同家庭成員的分類（對方的全家事件才能顯示分類名稱）
+-- 2. event_categories：同家庭成員只能看到「被同家庭的全家事件引用」的分類
+--    （讓對方的全家事件能顯示分類名稱，但不洩漏只用在私人事件的分類名稱）。
+--    owner_id 也必須是家人，避免有人把別的家庭的分類 id 填進全家事件來讀名稱。
 --    INSERT / UPDATE / DELETE 維持只有擁有者。
 -- ---------------------------------------------------------------------------
-create policy "Family can select member categories" on public.event_categories
+create policy "Family can select categories used by shared events" on public.event_categories
   for select to authenticated using (
     owner_id in (select public.family_member_ids())
+    and exists (
+      select 1 from public.calendar_events e
+      where e.category_id = event_categories.id
+        and e.visibility = 'shared'
+        and e.family_id = public.user_family_id()
+    )
   );
 
 -- ---------------------------------------------------------------------------
@@ -114,7 +141,9 @@ commit;
 -- ---------------------------------------------------------------------------
 -- begin;
 -- drop function if exists public.join_family_by_code(text);
--- drop policy "Family can select member categories" on public.event_categories;
+-- drop trigger if exists calendar_events_lock_created_by on public.calendar_events;
+-- drop function if exists public.calendar_events_lock_created_by();
+-- drop policy "Family can select categories used by shared events" on public.event_categories;
 -- -- alter policy 無法移除 WITH CHECK，用 drop + create 還原成 baseline 原樣：
 -- drop policy "Users can update their own events" on public.calendar_events;
 -- create policy "Users can update their own events" on public.calendar_events for update using (created_by = auth.uid());

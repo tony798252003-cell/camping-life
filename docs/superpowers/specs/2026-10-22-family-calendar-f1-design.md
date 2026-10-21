@@ -49,6 +49,12 @@
 - 盡量使用現有 RPC（`get_family_members`、`get_family_by_invite_code`、`leave_family` 等）；缺少的加入流程才新增。
 - 加入另一個家庭前提示：自己原本的露營行程與事件不會搬過去。
 
+## 已知限制
+
+- 邀請碼沒有嘗試次數限制（6 碼），`join_family_by_code` 可被暴力猜測；目前可接受，之後有需要再加 rate limit。
+- 離開或切換家庭後，原本的全家事件仍留在舊家庭（不會跟著搬走，也不會轉成私人）。
+- `calendar_events.created_by` 以 BEFORE UPDATE trigger 鎖定（`auth.uid()` 為 null 的 service_role／SQL Editor 除外），避免非建立者透過 policy OR 規則偷走並藏起事件。
+
 ## 既有資料
 
 - 現有 55 筆事件都是 `private`。上線後另外詢問使用者是否把「露營」「家庭」分類的事件批次改成全家（正式庫寫入，需同意）。
