@@ -1,5 +1,6 @@
 import type { CalendarEventRow } from '../../types/database'
 import type { TablesInsert } from '../../types/supabase'
+import type { Visibility } from './visibility'
 import { addDays, taipeiIso, taipeiMinutes, taipeiYmd } from '../dateRange'
 
 export interface EventInput {
@@ -12,6 +13,8 @@ export interface EventInput {
   startTime?: string // HH:mm
   endTime?: string
   cpblGameId?: string | null
+  visibility: Visibility
+  familyId: string | null // 使用者目前的家庭；RLS 要求 family_id 等於自己的家庭（沒有家庭就是 null）
 }
 
 // 結束日剛好是開始日隔天、且結束時間早於開始時間 = 目前仍是「跨午夜」的自動隔天
@@ -20,7 +23,7 @@ export const isBumpedRange = (startDate: string, endDate: string, startTime: str
 
 type EventRowInsert = Pick<
   TablesInsert<'calendar_events'>,
-  'title' | 'description' | 'category_id' | 'is_all_day' | 'start_date' | 'end_date' | 'start_time' | 'end_time' | 'cpbl_game_id' | 'visibility'
+  'title' | 'description' | 'category_id' | 'is_all_day' | 'start_date' | 'end_date' | 'start_time' | 'end_time' | 'cpbl_game_id' | 'visibility' | 'family_id'
 >
 
 // 有時段事件的結束日自動調整：
@@ -49,7 +52,8 @@ export function toEventRow(i: EventInput): EventRowInsert {
     category_id: i.categoryId || null,
     is_all_day: i.allDay,
     cpbl_game_id: i.cpblGameId ?? null,
-    visibility: 'private',
+    visibility: i.visibility,
+    family_id: i.familyId,
   }
   if (i.allDay) {
     // start_time/end_time 是 NOT NULL 舊欄位，寫台北 00:00，台北日期必須等於 start_date/end_date
@@ -81,6 +85,8 @@ export function fromEventRow(e: CalendarEventRow): EventInput {
     description: e.description,
     categoryId: e.category_id ?? '',
     cpblGameId: e.cpbl_game_id,
+    visibility: (e.visibility === 'shared' ? 'shared' : 'private') as Visibility,
+    familyId: e.family_id,
   }
   if (e.is_all_day) {
     return {

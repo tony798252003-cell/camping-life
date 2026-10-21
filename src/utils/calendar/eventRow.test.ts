@@ -5,6 +5,7 @@ import { toEventRow, fromEventRow, normalizeTimedRange, isBumpedRange, type Even
 
 const allDay: EventInput = {
   title: 'x', description: null, categoryId: 'c1', allDay: true, startDate: '2026-10-17', endDate: '2026-10-18',
+  visibility: 'private', familyId: null,
 }
 
 describe('toEventRow', () => {
@@ -36,10 +37,28 @@ describe('toEventRow', () => {
   })
 })
 
+describe('toEventRow visibility', () => {
+  // 為什麼：可見性決定家人看不看得到；過去硬寫 private，改成使用者選擇後必須真的寫進 DB
+  it('寫入使用者選的 visibility 與 family_id', () => {
+    const shared = toEventRow({ ...allDay, visibility: 'shared', familyId: 'fam1' })
+    expect(shared).toMatchObject({ visibility: 'shared', family_id: 'fam1' })
+    expect(toEventRow({ ...allDay, visibility: 'private', familyId: 'fam1' })).toMatchObject({ visibility: 'private', family_id: 'fam1' })
+  })
+  // 為什麼：RLS 的 WITH CHECK 要求 family_id 等於自己的家庭；沒有家庭的人必須送 null 而不是 undefined
+  it('沒有家庭 -> family_id null', () => {
+    expect(toEventRow(allDay).family_id).toBeNull()
+  })
+  // 為什麼：編輯時表單要還原原本的可見性，否則存回會悄悄把全家事件改成只有我
+  it('fromEventRow 還原 visibility', () => {
+    const row = { id: 'e', ...toEventRow({ ...allDay, visibility: 'shared', familyId: 'fam1' }) } as unknown as CalendarEventRow
+    expect(fromEventRow(row)).toMatchObject({ visibility: 'shared', familyId: 'fam1' })
+  })
+})
+
 describe('null category 與跨夜時間', () => {
   const row = (o: Partial<CalendarEventRow>) => ({
     id: 'e1', title: 't', description: null, category_id: null, is_all_day: true, start_date: '2026-10-17', end_date: '2026-10-17',
-    start_time: '2026-10-17T00:00:00+08:00', end_time: '2026-10-17T00:00:00+08:00', cpbl_game_id: null, ...o,
+    start_time: '2026-10-17T00:00:00+08:00', end_time: '2026-10-17T00:00:00+08:00', cpbl_game_id: null, visibility: 'private', family_id: null, ...o,
   }) as CalendarEventRow
   // 為什麼：舊資料 category_id 為 null，送 '' 會讓 Postgres 22P02 導致永遠存不了
   it('null category 往返不會送出空字串', () => {
