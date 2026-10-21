@@ -10,6 +10,14 @@ describe('defaultVisibility', () => {
   })
 })
 
+describe('沒有家庭', () => {
+  // 為什麼：沒有家庭就沒有人能看到「全家」事件，預設全家只會讓使用者以為有分享出去
+  it('不論分類都預設 private', () => {
+    expect(defaultVisibility('family', false)).toBe('private')
+    expect(nextVisibility({ touched: false, current: 'shared', systemKey: 'camping', hasFamily: false })).toBe('private')
+  })
+})
+
 describe('nextVisibility', () => {
   // 為什麼：沒手動選過時，換分類要跟著預設，使用者才不用每次改
   it('未手動切換：跟著分類預設', () => {

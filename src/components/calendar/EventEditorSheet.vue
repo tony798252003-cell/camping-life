@@ -23,7 +23,7 @@ const PALETTE = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899
 
 const { isOpen, editing, initialDate, presetGame, close } = useEventEditor()
 const { create, update } = useCalendarEvents()
-const { myCategories: categories, bySystemKey, load: loadCategories, create: createCategory } = useEventCategories()
+const { categories: allCategories, myCategories: categories, bySystemKey, load: loadCategories, create: createCategory } = useEventCategories()
 const { openNew: openNewTrip } = useTripModal()
 const { error: notifyError } = useNotification()
 const { session } = useAuth()
@@ -52,6 +52,13 @@ const game = ref<CpblSchedule | null>(null)
 
 const isEdit = computed(() => editing.value !== null)
 const campingId = computed(() => bySystemKey.value.camping?.id)
+const hasFamily = computed(() => !!familyId())
+// 編輯別人的全家事件時，事件的分類屬於對方，不在自己的選單裡：另外顯示成唯讀的已選標籤
+const foreignCategory = computed(() =>
+  categoryId.value && !categories.value.some((c) => c.id === categoryId.value)
+    ? allCategories.value.find((c) => c.id === categoryId.value)
+    : undefined,
+)
 // 別人建立的全家事件：可以改內容，但不能改成「只有我」（避免把別人的事件藏起來）
 const lockedShared = computed(
   () => !!editing.value && editing.value.visibility === 'shared' && editing.value.created_by !== session.value?.user?.id,
@@ -91,7 +98,7 @@ watch(isOpen, (open) => {
     description.value = ''
     cpblGameId.value = null
     visibilityTouched.value = false
-    visibility.value = nextVisibility({ touched: false, current: 'private', systemKey: bySystemKey.value.personal?.system_key })
+    visibility.value = nextVisibility({ touched: false, current: 'private', systemKey: bySystemKey.value.personal?.system_key, hasFamily: hasFamily.value })
     if (presetGame.value) apply(presetGame.value)
   }
 })
@@ -108,11 +115,13 @@ watch(categoryId, (id) => {
     touched: visibilityTouched.value,
     current: visibility.value,
     systemKey: categories.value.find((c) => c.id === id)?.system_key,
+    hasFamily: hasFamily.value,
   })
 })
 
 function pickVisibility(v: Visibility) {
   if (v === 'private' && lockedShared.value) return
+  if (v === 'shared' && !hasFamily.value) return
   visibility.value = v
   visibilityTouched.value = true
 }
@@ -268,6 +277,11 @@ async function saveCategory() {
         <section>
           <p class="text-[11px] font-semibold text-slate-500 mb-2">分類</p>
           <div class="flex flex-wrap gap-2">
+            <span
+              v-if="foreignCategory"
+              class="px-3 min-h-[44px] rounded-full text-[13px] font-bold flex items-center text-white"
+              :style="{ backgroundColor: foreignCategory.color }"
+            >{{ foreignCategory.name }}</span>
             <button
               v-for="c in categories"
               :key="c.id"
@@ -299,10 +313,11 @@ async function saveCategory() {
               class="flex-1 min-h-[44px] rounded-[11px] text-[13px] font-extrabold transition-colors disabled:opacity-40"
               :class="visibility === o.value ? 'bg-white text-primary-900 shadow-sm' : 'text-primary-700 font-bold'"
               :aria-pressed="visibility === o.value"
-              :disabled="o.value === 'private' && lockedShared"
+              :disabled="(o.value === 'private' && lockedShared) || (o.value === 'shared' && !hasFamily)"
               @click="pickVisibility(o.value)"
             >{{ o.label }}</button>
           </div>
+          <p v-if="!hasFamily" class="text-[11px] text-slate-500 mt-1.5">加入家庭後才能分享</p>
           <p v-if="lockedShared" class="text-[11px] text-slate-500 mt-1.5">這是家人新增的全家事件，不能改成只有我</p>
         </section>
 

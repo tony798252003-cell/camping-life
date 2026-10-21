@@ -8,12 +8,18 @@ export const OWNER_LABEL: Record<Owner, string> = { family: '全家', me: '我' 
 export const ownerOf = (visibility: string | null | undefined): Owner => (visibility === 'shared' ? 'family' : 'me')
 
 // 露營、家庭分類預設全家；其他（含自訂分類、沒有分類）預設只有我
-export const defaultVisibility = (systemKey: string | null | undefined): Visibility =>
-  systemKey === 'camping' || systemKey === 'family' ? 'shared' : 'private'
+// 沒有家庭時一律只有我（沒有家人可分享）
+export const defaultVisibility = (systemKey: string | null | undefined, hasFamily = true): Visibility =>
+  hasFamily && (systemKey === 'camping' || systemKey === 'family') ? 'shared' : 'private'
 
 // 使用者手動切換過就不再被「換分類」覆蓋
-export function nextVisibility(i: { touched: boolean; current: Visibility; systemKey: string | null | undefined }): Visibility {
-  return i.touched ? i.current : defaultVisibility(i.systemKey)
+export function nextVisibility(i: {
+  touched: boolean
+  current: Visibility
+  systemKey: string | null | undefined
+  hasFamily?: boolean
+}): Visibility {
+  return i.touched ? i.current : defaultVisibility(i.systemKey, i.hasFamily)
 }
 
 // 只有「全家事件、建立者不是自己」才需要標示是誰新增的；名稱查不到時用「家人」
