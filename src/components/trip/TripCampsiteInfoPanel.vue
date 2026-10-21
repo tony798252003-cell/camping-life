@@ -7,11 +7,15 @@ const props = defineProps<{
   altitude?: number | null
 }>()
 
-const facilities = () => [
-  { label: '冷藏', on: !!props.trip?.campsites?.amenities?.has_fridge },
-  { label: '冷凍', on: !!props.trip?.campsites?.amenities?.has_freezer },
-  { label: '飲水', on: !!props.trip?.campsites?.amenities?.has_water_dispenser },
-]
+// 欄位不存在＝營區還沒填這項，只顯示有填的（true ✓、false ✕），避免把「未填」畫成「沒有」
+const facilities = () => {
+  const a = props.trip?.campsites?.amenities ?? {}
+  return [
+    { label: '冷藏', on: a.has_fridge },
+    { label: '冷凍', on: a.has_freezer },
+    { label: '飲水', on: a.has_water_dispenser },
+  ].filter((f): f is { label: string; on: boolean } => typeof f.on === 'boolean')
+}
 </script>
 
 <template>
@@ -39,7 +43,8 @@ const facilities = () => [
     <!-- 海拔與設施 -->
     <div class="flex items-center justify-between gap-3 py-3.5">
       <span class="text-[13px] text-slate-500">海拔 <b class="text-[15px] text-primary-900">{{ altitude ? `${altitude} m` : '--' }}</b></span>
-      <div class="flex gap-3.5">
+      <span v-if="facilities().length === 0" class="text-[13px] text-slate-400">設施未填</span>
+      <div v-else class="flex gap-3.5">
         <span
           v-for="f in facilities()"
           :key="f.label"
