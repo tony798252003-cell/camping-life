@@ -791,6 +791,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_push_subscription: {
+        Args: { p_endpoint: string; p_p256dh: string; p_auth: string }
+        Returns: undefined
+      }
       get_family_members: {
         Args: never
         Returns: {
