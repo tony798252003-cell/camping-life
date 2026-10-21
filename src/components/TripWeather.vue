@@ -210,14 +210,14 @@ const chartDataWind = computed(() => {
     <div v-else-if="weatherDays.length > 0" class="flex flex-col gap-4">
         
         <!-- Day Selector (Cards) -->
-        <div class="flex overflow-x-auto gap-3 pb-2 px-1 snap-x hide-scrollbar">
+        <div class="flex overflow-x-auto gap-2.5 pb-2 snap-x hide-scrollbar">
            <button 
              type="button"
              v-for="day in weatherDays" 
              :key="day.date"
              @click="selectDay(day)"
-             class="flex-shrink-0 snap-start flex flex-col items-center justify-center min-w-[5rem] h-[5.5rem] rounded-2xl border transition-all duration-300 relative overflow-hidden group"
-             :class="selectedDay?.date === day.date ? 'bg-primary-600 text-white shadow-lg border-primary-600' : 'bg-white text-primary-900 border-primary-100 hover:border-primary-300 hover:bg-surface-50'"
+             class="flex-1 snap-start flex flex-col items-center justify-center min-w-[5rem] h-[84px] rounded-[18px] shadow-sm transition-all duration-300 relative overflow-hidden group"
+             :class="selectedDay?.date === day.date ? 'bg-primary-600 text-white' : 'bg-white text-primary-900 hover:bg-surface-50'"
            >
               <!-- Date -->
               <span class="text-[10px] font-bold mb-1 opacity-80">{{ day.dateLabel }}</span>
@@ -235,44 +235,35 @@ const chartDataWind = computed(() => {
         </div>
 
         <!-- Packing Status Bar (Rich Analysis) -->
-        <div v-if="packingStatus" 
-             class="flex items-center rounded-xl px-4 py-3 gap-3 border transition-colors shadow-sm"
+        <div v-if="packingStatus"
+             class="flex items-center rounded-[18px] px-4 py-3 gap-3 transition-colors"
              :class="{
-                'bg-emerald-50 border-emerald-100': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
-                'bg-red-50 border-red-100': packingStatus.status === 'wet',
-                'bg-orange-50 border-orange-100': packingStatus.status === 'damp',
-                'bg-yellow-50 border-yellow-100': packingStatus.status === 'drying',
+                'bg-emerald-50': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
+                'bg-red-50': packingStatus.status === 'wet',
+                'bg-orange-50': packingStatus.status === 'damp',
+                'bg-yellow-50': packingStatus.status === 'drying',
              }"
         >
-             <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+             <component :is="packingStatus.status === 'wet' || packingStatus.status === 'damp' ? CloudRain : Sun" class="w-5 h-5 shrink-0"
                   :class="{
-                     'bg-emerald-100/50 text-emerald-600': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
-                'bg-red-100/50 text-red-600': packingStatus.status === 'wet',
-                'bg-orange-100/50 text-orange-600': packingStatus.status === 'damp' || packingStatus.status === 'risk',
-                'bg-yellow-100/50 text-yellow-600': packingStatus.status === 'drying' || packingStatus.status === 'chance',
+                     'text-emerald-600': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
+                     'text-red-600': packingStatus.status === 'wet',
+                     'text-orange-600': packingStatus.status === 'damp' || packingStatus.status === 'risk',
+                     'text-yellow-600': packingStatus.status === 'drying' || packingStatus.status === 'chance',
                   }"
-             >
-                <component :is="packingStatus.status === 'wet' || packingStatus.status === 'damp' ? CloudRain : Sun" class="w-5 h-5" />
-             </div>
-             
-             <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1">
-                   <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/60 tracking-wide text-gray-600">
-                     收帳預測
-                   </span>
-                   <span class="font-black text-sm tracking-tight"
-                         :class="{
-                            'text-emerald-800': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
-                            'text-red-800': packingStatus.status === 'wet',
-                            'text-orange-800': packingStatus.status === 'damp',
-                            'text-yellow-800': packingStatus.status === 'drying',
-                         }"
-                   >
-                     {{ packingStatus.label }}
-                   </span>
-                </div>
-                
-                <p class="text-[11px] leading-snug font-medium opacity-90"
+             />
+             <div class="flex-1 min-w-0 flex flex-col gap-px">
+                <span class="font-bold text-sm"
+                      :class="{
+                         'text-emerald-800': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
+                         'text-red-800': packingStatus.status === 'wet',
+                         'text-orange-800': packingStatus.status === 'damp',
+                         'text-yellow-800': packingStatus.status === 'drying',
+                      }"
+                >
+                  收帳預測：{{ packingStatus.label }}
+                </span>
+                <p class="text-xs"
                    :class="{
                       'text-emerald-700': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
                       'text-red-700': packingStatus.status === 'wet',

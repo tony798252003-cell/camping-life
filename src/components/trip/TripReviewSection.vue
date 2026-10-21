@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CloudRain, Wind, Tent, Star, Pencil } from 'lucide-vue-next'
+import { CloudRain, Wind, Tent, Star, Pencil, ChevronRight } from 'lucide-vue-next'
 import type { NewCampingTrip } from '../../types/database'
 import PhotoGallery from '../PhotoGallery.vue'
 
@@ -13,13 +13,16 @@ defineProps<{
 
 <template>
   <component :is="collapsed ? 'details' : 'div'">
-    <summary v-if="collapsed" class="cursor-pointer text-sm font-bold text-gray-500 px-1 py-2 mt-6 select-none">出發後再填（評分、心得、照片）</summary>
+    <summary v-if="collapsed" class="list-none [&::-webkit-details-marker]:hidden cursor-pointer flex items-center justify-between min-h-[52px] mt-3 px-4 rounded-[20px] border-[1.5px] border-dashed border-primary-200 select-none">
+      <span class="text-sm text-slate-500">出發後再填：評分、心得、照片</span>
+      <ChevronRight class="w-[18px] h-[18px] text-slate-400" />
+    </summary>
     <!-- Safari 不支援 <details> 的 display:flex，間距放內層 div -->
     <div class="flex flex-col gap-4">
                   <!-- Section Header: Ratings -->
-                  <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">評分</h3>
+                  <h3 class="text-sm font-bold text-primary-900 mt-3 px-1">評分</h3>
 
-                  <div class="card-organic bg-white p-5 flex flex-col gap-4">
+                  <div class="bg-white rounded-[20px] shadow-sm p-5 flex flex-col gap-4">
                       <!-- Scenery -->
                       <div class="flex items-center justify-between">
                           <span class="text-sm font-bold text-gray-600">風景</span>
@@ -80,7 +83,7 @@ defineProps<{
 
 
 
-                  <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">CONDITIONS & NOTES</h3>
+                  <h3 class="text-sm font-bold text-primary-900 mt-3 px-1">心得與狀況</h3>
 
                   <!-- Tags (Toggleable Buttons) -->
                   <div class="flex flex-wrap gap-2 py-2">
@@ -103,7 +106,7 @@ defineProps<{
                   </div>
 
                   <!-- Notes -->
-                  <div class="card-organic bg-white p-5">
+                  <div class="bg-white rounded-[20px] shadow-sm p-5">
                       <div class="flex items-center gap-2 mb-2 text-primary-900 font-bold">
                          <Pencil class="w-4 h-4" /> 心得筆記
                       </div>
@@ -116,7 +119,7 @@ defineProps<{
                   </div>
 
                   <!-- Section Header: Gallery -->
-                  <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">GALLERY</h3>
+                  <h3 class="text-sm font-bold text-primary-900 mt-3 px-1">照片</h3>
 
                   <!-- Gallery -->
                   <div v-if="tripId">

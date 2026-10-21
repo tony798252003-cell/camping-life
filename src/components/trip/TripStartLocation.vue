@@ -26,11 +26,11 @@ const handlePlaceSelected = (place: PlaceResult) => {
 <template>
   <div class="flex flex-col gap-4">
                   <!-- Section Header: Basic Info -->
-                  <div class="flex items-center justify-between mt-4 px-1 mb-2">
-                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">CAMPSITE INFO</h3>
+                  <div class="flex items-center justify-between mt-3 px-1">
+                     <h3 class="text-sm font-bold text-primary-900">營區資訊</h3>
                      
                      <!-- Collapsible Start Location Trigger -->
-                     <button type="button" @click="isExpanded = !isExpanded" class="flex items-center gap-1 text-[10px] bg-white border border-gray-100 px-2 py-1 rounded-full text-gray-500 hover:text-primary-600 transition-colors">
+                     <button type="button" @click="isExpanded = !isExpanded" class="flex items-center gap-1 text-xs font-bold text-primary-600 min-h-[44px] pl-3 hover:text-primary-700 transition-colors">
                         <MapPin class="w-3 h-3" />
                         <span class="max-w-[150px] truncate">
                            {{ form.start_location ? `自訂出發地：${form.start_location}` : '自訂出發地' }}
@@ -41,7 +41,7 @@ const handlePlaceSelected = (place: PlaceResult) => {
                   
                   <!-- Collapsible Start Location Input -->
                   <div v-if="isExpanded" class="px-1 mb-4 animate-in slide-in-from-top-2 fade-in duration-200">
-                     <div class="card-organic bg-white p-3 border-l-4 border-l-blue-400">
+                     <div class="bg-white rounded-[20px] shadow-sm p-3 border-l-4 border-l-primary-400">
                         <div class="flex justify-between items-center mb-2">
                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">自訂本次出發地</label> 
                            <span v-if="userProfile?.location_name && !form.start_location" class="text-[10px] text-gray-400 truncate max-w-[150px]">
