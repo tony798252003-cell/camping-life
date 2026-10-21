@@ -38,6 +38,11 @@ const routes = [
                 component: () => import('../components/campsite/AddCampsiteView.vue')
             },
             {
+                path: 'lists/:id',
+                name: 'family-list',
+                component: () => import('../views/FamilyListView.vue')
+            },
+            {
                 path: 'settings',
                 name: 'settings',
                 component: () => import('../views/SettingsView.vue')
