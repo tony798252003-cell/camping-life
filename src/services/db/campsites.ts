@@ -43,4 +43,31 @@ export const campsiteQueries = {
     if (error) throw error
     return data ?? []
   },
+
+  // 新增營區（AddCampsiteFlow）：帶入登入者為 created_by，回傳新列；錯誤原樣丟出（呼叫端依 error.code 判斷重複）
+  async insertWithCreator(payload: Record<string, unknown>): Promise<Tables<'campsites'>> {
+    const { data: { session } } = await supabase.auth.getSession()
+    const insert = { ...payload, ...(session ? { created_by: session.user.id } : {}) }
+    const { data, error } = await (supabase.from('campsites') as any).insert(insert).select().single()
+    if (error) throw error
+    return data as Tables<'campsites'>
+  },
+
+  // 以 id 或 google_place_id 抓單一營區；place id 查詢排除已合併的列（它們已被併入另一筆）
+  async findOne(filter: { id: number } | { googlePlaceId: string }): Promise<Tables<'campsites'> | null> {
+    const q = supabase.from('campsites').select('*')
+    const { data, error } = await ('id' in filter ? q.eq('id', filter.id) : q.eq('google_place_id', filter.googlePlaceId).is('merged_into_id', null)).limit(1).maybeSingle()
+    if (error) throw error
+    return data
+  },
+
+  // 新增營區前的重複檢查用；失敗回 null（呼叫端顯示警告但流程照走）
+  async listForMatching(): Promise<Pick<Tables<'campsites'>, 'id' | 'name' | 'district' | 'latitude' | 'longitude' | 'google_place_id' | 'phone' | 'merged_into_id'>[] | null> {
+    const { data, error } = await supabase
+      .from('campsites')
+      .select('id,name,district,latitude,longitude,google_place_id,phone,merged_into_id')
+      .is('merged_into_id', null)
+      .limit(5000)
+    return error ? null : data
+  },
 }
