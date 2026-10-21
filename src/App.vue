@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter, useRoute, RouterView } from 'vue-router'
+import { computed, onMounted, watch } from 'vue'
+import { useRoute, RouterView } from 'vue-router'
 import type { NewCampingTrip, CampingTripWithCampsite } from './types/database'
 
 // Components
@@ -19,7 +19,6 @@ import { supabase } from './lib/supabase'
 import { buildTripSavePayload } from './utils/tripPayload'
 
 // Router
-const router = useRouter()
 const route = useRoute()
 
 // Initialize composables
@@ -31,8 +30,6 @@ const calendarEventsStore = useCalendarEvents()
 
 // Modal state
 const { isOpen: isModalOpen, activeTrip, initialDate, close: closeTripModal } = useTripModal()
-
-const inviteCode = ref('')
 
 // Navigation
 const sortedTrips = computed(() => {
@@ -57,13 +54,6 @@ const navigateTrip = (direction: 'prev' | 'next') => {
     activeTrip.value = sortedTrips.value[newIndex] as CampingTripWithCampsite
   }
 }
-
-// Auto-navigate to settings if invite code exists
-watch(() => [isAuthReady.value, session.value], ([ready, sess]) => {
-  if (ready && sess && inviteCode.value) {
-    router.push('/settings?invite_code=' + inviteCode.value)
-  }
-})
 
 // Actions
 const handleSubmit = async (tripData: NewCampingTrip) => {
@@ -101,23 +91,6 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
 onMounted(async () => {
   console.log('[App] Mounted')
   
-  // Check URL params for invite code
-  const params = new URLSearchParams(window.location.search)
-  let code = params.get('invite_code')
-  
-  if (!code && window.location.hash.includes('invite_code')) {
-     const hashParts = window.location.hash.split('?')
-     if (hashParts.length > 1) {
-        const hashParams = new URLSearchParams(hashParts[1])
-        code = hashParams.get('invite_code')
-     }
-  }
-
-  if (code) {
-    inviteCode.value = code
-    localStorage.setItem('pending_invite_code', code)
-  }
-
   // 登出（含 SettingsView 直接呼叫 signOut）一律清掉所有 singleton 狀態，避免下一位使用者看到舊資料
   supabase.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_OUT') {
@@ -136,11 +109,6 @@ onMounted(async () => {
   // doesn't retrigger a full refetch and unmount the current view
   watch([() => session.value?.user?.id, isAuthReady], async ([userId, ready]) => {
     if (ready && userId) {
-      const pendingCode = localStorage.getItem('pending_invite_code')
-      if (pendingCode) {
-        inviteCode.value = pendingCode
-        localStorage.removeItem('pending_invite_code')
-     }
       await fetchProfile(userId)
       await fetchTrips(userId, familyId())
     } else if (ready && !userId) {

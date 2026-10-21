@@ -7,6 +7,9 @@ export type CpblRecord = {
 }
 
 const BASE = 'https://cpbl.com.tw'
+// 部分主機會擋沒有瀏覽器 UA 的請求
+const UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
 
 // 取得 anti-forgery token → getgamedatas → 轉成 records（由 src/services/cpblService.ts 搬來，欄位對應不變）
 export async function fetchCpblMonth(
@@ -14,7 +17,7 @@ export async function fetchCpblMonth(
   month: number,
   fetchImpl: typeof fetch = fetch,
 ): Promise<CpblRecord[]> {
-  const htmlResponse = await fetchImpl(`${BASE}/schedule`)
+  const htmlResponse = await fetchImpl(`${BASE}/schedule`, { headers: { 'User-Agent': UA } })
   if (!htmlResponse.ok) {
     throw new Error(`Failed to fetch CPBL HTML: ${htmlResponse.status} ${htmlResponse.statusText}`)
   }
@@ -40,6 +43,7 @@ export async function fetchCpblMonth(
   const apiResponse = await fetchImpl(`${BASE}/schedule/getgamedatas`, {
     method: 'POST',
     headers: {
+      'User-Agent': UA,
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
       RequestVerificationToken: headerToken,
       'X-Requested-With': 'XMLHttpRequest',
@@ -57,13 +61,14 @@ export async function fetchCpblMonth(
   if (data && data.Success && data.GameDatas) {
     const games = JSON.parse(data.GameDatas) as any[]
     for (const game of games) {
-      const d = new Date(game.GameDate)
-      const yyyy = d.getFullYear()
-      const m = d.getMonth() + 1
+      // 直接切字串，不經 Date，避免系統時區造成差一天
+      const dateStr = String(game.GameDate).slice(0, 10)
+      const yyyy = Number(dateStr.slice(0, 4))
+      const m = Number(dateStr.slice(5, 7))
       if (yyyy === year && m === month) {
         records.push({
           game_sno: parseInt(game.GameSno, 10),
-          game_date: `${yyyy}-${String(m).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+          game_date: dateStr,
           home_team_name: game.HomeTeamName,
           visiting_team_name: game.VisitingTeamName,
           field_abbe: game.FieldAbbe,

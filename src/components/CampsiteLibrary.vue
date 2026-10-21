@@ -14,7 +14,6 @@ const { isAdmin } = useUserProfile()
 const route = useRoute()
 const router = useRouter()
 const campsites = ref<Campsite[]>([])
-const usageCounts = ref<Record<number, number>>({}) // campsite_id -> count
 const visitedIds = ref<Set<number>>(new Set()) // completed or booked campsite_ids
 const hideVisited = ref(true)
 const loading = ref(false)
@@ -105,7 +104,7 @@ const handleEditSaved = () => {
 const fetchCampsites = async () => {
   loading.value = true
   try {
-    let query = supabase
+    const query = supabase
       .from('campsites')
       .select('*') // This already selects all columns including new ones
       .is('merged_into_id', null)
@@ -115,20 +114,18 @@ const fetchCampsites = async () => {
     if (error) throw error
     campsites.value = toCampsites(data)
 
-    // Fetch usage counts + visited/booked ids
+    // Fetch visited/booked ids
     const { data: tripData, error: tripError } = await supabase
       .from('camping_trips')
       .select('campsite_id, campsite_name, status')
       .is('merged_into_id', null)
 
     if (!tripError && tripData) {
-      const counts: Record<number, number> = {}
       const visited = new Set<number>()
       const visitedNames = new Set<string>()
       ;(tripData as any[]).forEach(t => {
         const isVisited = t.status === 'completed' || t.status === 'booked'
         if (t.campsite_id) {
-          counts[t.campsite_id] = (counts[t.campsite_id] || 0) + 1
           if (isVisited) visited.add(t.campsite_id)
         } else if (t.campsite_name && isVisited) {
           visitedNames.add(t.campsite_name.trim())
@@ -140,7 +137,6 @@ const fetchCampsites = async () => {
           visited.add(site.id)
         }
       }
-      usageCounts.value = counts
       visitedIds.value = visited
     }
   } catch (e) {

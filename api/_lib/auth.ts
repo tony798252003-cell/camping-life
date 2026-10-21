@@ -14,7 +14,7 @@ export async function requireUser(
   req: Request,
   deps: { getUser?: GetUser } = {},
 ): Promise<{ userId: string }> {
-  const match = /^Bearer (.+)$/.exec(req.headers.get('Authorization') ?? '')
+  const match = /^Bearer\s+(\S+)$/i.exec(req.headers.get('Authorization') ?? '')
   if (!match) throw new HttpError(401, 'Unauthorized')
 
   let user: { id: string } | null

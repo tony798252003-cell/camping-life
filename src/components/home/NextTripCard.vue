@@ -190,9 +190,9 @@ const navUrl = computed(() => {
         <div class="w-16 shrink-0 flex flex-col items-center gap-1" data-testid="tent-slot">
           <div class="w-16 h-16 rounded-[16px] bg-primary-50 border border-primary-100 overflow-hidden flex items-center justify-center">
             <img v-if="trip.tent?.image_url" :src="trip.tent.image_url" :alt="trip.tent.name" class="w-full h-full object-contain p-1" />
-            <Tent v-else class="w-8 h-8 text-primary-300" aria-label="尚未選帳篷" />
+            <Tent v-else class="w-8 h-8 text-primary-300" role="img" aria-label="尚未選帳篷" />
           </div>
-          <span v-if="trip.tent?.name" class="w-full text-[10px] font-bold text-slate-500 text-center truncate">{{ trip.tent.name }}</span>
+          <span v-if="trip.tent?.name" class="w-full text-[11px] font-bold text-slate-500 text-center truncate">{{ trip.tent.name }}</span>
         </div>
         <div class="min-w-0 flex flex-col gap-0.5">
           <span v-if="countdown.tag" class="text-[11px] font-bold text-primary-700">{{ countdown.tag }}</span>

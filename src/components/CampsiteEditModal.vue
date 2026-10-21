@@ -72,6 +72,12 @@ watch(() => props.campsite, (newVal) => {
   }
 }, { immediate: true })
 
+// 取消新增時一併清掉草稿，否則下次開新增表單會被帶出舊內容（既有營區的草稿保留，讓編輯到一半可以續）
+function cancel() {
+  if (props.campsite?.id === 0) clearDraft()
+  emit('close')
+}
+
 const save = async () => {
   isSaving.value = true
   const isNew = form.value.id === 0
@@ -111,13 +117,13 @@ const save = async () => {
 </script>
 
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" @click.self="$emit('close')">
+  <div v-if="isOpen" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" @click.self="cancel">
     <div class="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
       
       <!-- Header -->
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
         <h3 class="font-bold text-gray-800">{{ isEditable ? '編輯營地資料' : '營地詳細資訊' }}</h3>
-        <button @click="$emit('close')" class="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-white transition">
+        <button @click="cancel" class="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-white transition">
            <X class="w-5 h-5" />
         </button>
       </div>
@@ -170,22 +176,6 @@ const save = async () => {
 
          <CampsiteLayoutImage :form="form" :is-editable="isEditable" />
 
-         <!-- Verified -->
-         <div class="flex items-center gap-2">
-            <template v-if="isEditable">
-               <input id="verified" v-model="form.is_verified" type="checkbox" class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-               <label for="verified" class="text-sm font-medium text-gray-700">已審核確認</label>
-            </template>
-            <template v-else>
-               <div v-if="form.is_verified" class="px-2 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-lg flex items-center gap-1">
-                  ✓ 已審核
-               </div>
-               <div v-else class="px-2 py-1 bg-orange-50 text-orange-700 text-xs font-bold rounded-lg flex items-center gap-1">
-                  ⚠ 待審核
-               </div>
-            </template>
-         </div>
-
          <CampsiteBookingInfo :form="form" :is-editable="isEditable" />
 
          <p class="text-xs text-gray-400 text-center">其他資料可請 Claude 幫忙補</p>
@@ -194,7 +184,7 @@ const save = async () => {
 
       <!-- Footer -->
       <div class="p-4 border-t border-gray-100 flex justify-end gap-2 bg-gray-50">
-         <button @click="$emit('close')" class="px-4 py-2 text-gray-600 font-bold hover:bg-white rounded-lg transition">{{ isEditable ? '取消' : '關閉' }}</button>
+         <button @click="cancel" class="px-4 py-2 text-gray-600 font-bold hover:bg-white rounded-lg transition">{{ isEditable ? '取消' : '關閉' }}</button>
          <button 
            v-if="isEditable"
            @click="save" 

@@ -9,8 +9,6 @@ export interface PlaceLite {
   address: string
   lat: number
   lng: number
-  rating?: number
-  ratingCount?: number
   mapsUrl?: string
   businessStatus?: BusinessStatus
   typeLabel?: string
