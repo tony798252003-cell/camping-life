@@ -73,7 +73,6 @@ export function tripToView(
     startDate,
     endDate: end,
     past: end < today,
-    tripStatus: t.status === 'planning' ? 'planning' : 'booked',
   }
   if (nightRush) v.nightRushDate = startDate
   return v

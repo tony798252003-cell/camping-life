@@ -73,11 +73,6 @@ const countdown = computed(() => {
 
 const title = computed(() => (isPast.value ? '過去的露營' : isDefault.value ? '下一趟露營' : '露營行程'))
 
-const statusText = computed(() => {
-  const s = trip.value?.status
-  return s === 'planning' ? '規劃中' : s === 'booked' ? '已訂位' : s === 'completed' ? '已完成' : '—'
-})
-
 // 溫度已是海拔校正後的數字；夜間（20:00–06:00）最低溫低於 10°C 時標出
 const nightLow = (d: WeatherDay) => {
   const temps = d.hours
@@ -185,7 +180,7 @@ const navUrl = computed(() => {
     tabindex="0"
     data-testid="next-trip"
     class="rounded-[30px] p-4 text-left cursor-pointer shadow-[0_8px_24px_-12px_rgba(14,165,233,0.35)] flex flex-col gap-2.5"
-    :class="[trip.status === 'planning' ? 'border border-dashed border-primary-300' : 'border border-white/70', isPast ? 'bg-white/60' : 'bg-white/85']"
+    :class="['border border-white/70', isPast ? 'bg-white/60' : 'bg-white/85']"
     @click="openEdit(trip)"
     @keydown.enter="openEdit(trip)"
   >
@@ -214,7 +209,7 @@ const navUrl = computed(() => {
       </div>
     </div>
 
-    <div class="grid grid-cols-3 gap-2">
+    <div class="grid grid-cols-2 gap-2">
       <div class="bg-primary-50 rounded-[14px] p-2 text-center">
         <div class="text-[11px] font-semibold text-slate-500">天氣</div>
         <div class="text-[13px] font-extrabold text-primary-900">{{ weatherText }}</div>
@@ -225,10 +220,6 @@ const navUrl = computed(() => {
       <div class="bg-primary-50 rounded-[14px] p-2 text-center">
         <div class="text-[11px] font-semibold text-slate-500">車程</div>
         <div class="text-[13px] font-extrabold text-primary-900">{{ travelText ?? '—' }}</div>
-      </div>
-      <div class="bg-primary-50 rounded-[14px] p-2 text-center">
-        <div class="text-[11px] font-semibold text-slate-500">狀態</div>
-        <div class="text-[13px] font-extrabold" :class="trip.status === 'booked' ? 'text-green-800' : 'text-primary-900'">{{ statusText }}</div>
       </div>
     </div>
 

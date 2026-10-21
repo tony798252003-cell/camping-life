@@ -27,12 +27,11 @@ const inMonth = (ymd: string) => Number(ymd.slice(5, 7)) === props.month
 
 const barStyle = (b: WeekBar) => {
   const e = b.event
-  const planning = e.tripStatus === 'planning'
   return {
     top: `${BAR_TOP + b.row * BAR_H}px`,
     left: `calc(${(b.startCol / 7) * 100}% + 3px)`,
     width: `calc(${(b.span / 7) * 100}% - 6px)`,
-    backgroundColor: planning ? `${e.color}55` : e.color,
+    backgroundColor: e.color,
   }
 }
 // 夜衝：第一格（出發前一晚）顏色較淡

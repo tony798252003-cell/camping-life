@@ -61,10 +61,10 @@ describe('tripToView', () => {
     expect(tripToView(trip({ duration_days: 0 }), '#10b981', 'c-camp', today).endDate).toBe('2026-10-20')
     expect(tripToView(trip({ duration_days: null }), '#10b981', 'c-camp', today).endDate).toBe('2026-10-20')
   })
-  it('夜衝 startDate 為前一天；planning 帶 tripStatus', () => {
+  it('夜衝 startDate 為前一天', () => {
     // 前一晚就要出發，月曆空白會讓人排到別的事
-    const v = tripToView(trip({ trip_date: '2026-10-23', night_rush: true, status: 'planning' }), '#10b981', 'c-camp', today)
-    expect(v).toMatchObject({ startDate: '2026-10-22', nightRushDate: '2026-10-22', tripStatus: 'planning', allDay: true })
+    const v = tripToView(trip({ trip_date: '2026-10-23', night_rush: true }), '#10b981', 'c-camp', today)
+    expect(v).toMatchObject({ startDate: '2026-10-22', nightRushDate: '2026-10-22', allDay: true })
     expect(feed({ trips: [trip({ trip_date: '2026-10-23', night_rush: true })] })[0]?.startDate).toBe('2026-10-22')
   })
   it('campsite_id 為 null 用快照名，都空則「露營」', () => {
