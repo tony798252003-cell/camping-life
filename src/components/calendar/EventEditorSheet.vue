@@ -39,6 +39,7 @@ const endTime = ref('10:00')
 const description = ref('')
 const cpblGameId = ref<string | null>(null)
 const visibility = ref<Visibility>('private')
+const yearly = ref(false)
 // 使用者手動切換過「誰看得到」之後，換分類不再覆蓋
 const visibilityTouched = ref(false)
 const clamped = ref(false)
@@ -77,6 +78,7 @@ watch(isOpen, (open) => {
     title.value = f.title
     categoryId.value = f.categoryId
     allDay.value = f.allDay
+    yearly.value = f.recurrence === 'yearly'
     startDate.value = f.startDate
     endDate.value = f.endDate
     startTime.value = f.startTime ?? '09:00'
@@ -91,6 +93,7 @@ watch(isOpen, (open) => {
     title.value = ''
     categoryId.value = bySystemKey.value.personal?.id ?? ''
     allDay.value = true
+    yearly.value = false
     startDate.value = initialDate.value ?? todayYmd()
     endDate.value = startDate.value
     startTime.value = '09:00'
@@ -125,6 +128,11 @@ function pickVisibility(v: Visibility) {
   visibility.value = v
   visibilityTouched.value = true
 }
+
+// 關掉全天就不能每年重複
+watch(allDay, (v) => {
+  if (!v) yearly.value = false
+})
 
 // 結束日期早於開始日期：自動改成開始日期，只在表單上提示（規格 §5.5）
 // selfClamp：改 endDate 會再觸發本 watcher，要略過那一次，否則提示會被立刻清掉
@@ -203,6 +211,7 @@ async function save() {
     endDate: range.endDate,
     ...(allDay.value ? {} : { startTime: startTime.value, endTime: endTime.value }),
     cpblGameId: cpblGameId.value,
+    recurrence: allDay.value && yearly.value ? 'yearly' : null,
     visibility: visibility.value,
     familyId: familyId() ?? null,
   }
@@ -325,6 +334,10 @@ async function saveCategory() {
           <label class="flex items-center justify-between text-[15px] text-primary-900 font-bold min-h-[44px]">
             全天
             <input v-model="allDay" type="checkbox" class="w-5 h-5 accent-primary-600" />
+          </label>
+          <label v-if="allDay" class="flex items-center justify-between text-[15px] text-primary-900 font-bold min-h-[44px]">
+            每年重複
+            <input v-model="yearly" type="checkbox" class="w-5 h-5 accent-primary-600" />
           </label>
           <div class="grid grid-cols-2 gap-3">
             <label class="text-[11px] font-semibold text-slate-500">

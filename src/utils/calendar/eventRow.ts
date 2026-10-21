@@ -13,6 +13,7 @@ export interface EventInput {
   startTime?: string // HH:mm
   endTime?: string
   cpblGameId?: string | null
+  recurrence?: 'yearly' | null // 只有全天事件能重複
   visibility: Visibility
   familyId: string | null // 使用者目前的家庭；RLS 要求 family_id 等於自己的家庭（沒有家庭就是 null）
 }
@@ -23,7 +24,7 @@ export const isBumpedRange = (startDate: string, endDate: string, startTime: str
 
 type EventRowInsert = Pick<
   TablesInsert<'calendar_events'>,
-  'title' | 'description' | 'category_id' | 'is_all_day' | 'start_date' | 'end_date' | 'start_time' | 'end_time' | 'cpbl_game_id' | 'visibility' | 'family_id'
+  'title' | 'description' | 'category_id' | 'is_all_day' | 'start_date' | 'end_date' | 'start_time' | 'end_time' | 'cpbl_game_id' | 'visibility' | 'family_id' | 'recurrence'
 >
 
 // 有時段事件的結束日自動調整：
@@ -54,6 +55,7 @@ export function toEventRow(i: EventInput): EventRowInsert {
     cpbl_game_id: i.cpblGameId ?? null,
     visibility: i.visibility,
     family_id: i.familyId,
+    recurrence: i.allDay && i.recurrence === 'yearly' ? ('yearly' as const) : null,
   }
   if (i.allDay) {
     // start_time/end_time 是 NOT NULL 舊欄位，寫台北 00:00，台北日期必須等於 start_date/end_date
@@ -92,6 +94,7 @@ export function fromEventRow(e: CalendarEventRow): EventInput {
     return {
       ...common,
       allDay: true,
+      ...(e.recurrence === 'yearly' ? { recurrence: 'yearly' as const } : {}),
       startDate: e.start_date ?? taipeiYmd(e.start_time),
       endDate: e.end_date ?? taipeiYmd(e.end_time),
     }

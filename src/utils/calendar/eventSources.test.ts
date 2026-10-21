@@ -142,3 +142,61 @@ describe('buildFeed', () => {
     expect(f.map((x) => x.sourceId)).toEqual(['d', 'a', 'b'])
   })
 })
+
+describe('每年重複事件（F3）', () => {
+  const yearly = (o: Partial<CalendarEventRow> = {}) =>
+    ev({ id: 'b1', title: '媽媽生日', is_all_day: true, start_date: '2024-12-31', end_date: '2024-12-31', recurrence: 'yearly', ...o })
+  const run = (e: CalendarEventRow, from: string, to: string) =>
+    feed({ events: [e], range: { from, to } }).filter((v) => v.sourceId === e.id)
+
+  it('範圍跨年（12/31 到 1/1）時兩個年度的出現都要在', () => {
+    // 為什麼：展開若只看 from 的年份，跨年週會漏掉隔年 1/1 的事件
+    const r = run(yearly({ start_date: '2024-01-01', end_date: '2024-01-01' }), '2026-12-31', '2027-01-01')
+    expect(r.map((v) => v.startDate)).toEqual(['2027-01-01'])
+    const r2 = run(yearly(), '2026-12-31', '2027-01-01')
+    expect(r2.map((v) => v.startDate)).toEqual(['2026-12-31'])
+  })
+  it('2/29 在非閏年顯示於 2/28，閏年維持 2/29', () => {
+    // 為什麼：閏日生日每年都要有一天可看，不能整年消失
+    const e = yearly({ start_date: '2024-02-29', end_date: '2024-02-29' })
+    expect(run(e, '2024-01-01', '2028-12-31').map((v) => v.startDate)).toEqual([
+      '2024-02-29', '2025-02-28', '2026-02-28', '2027-02-28', '2028-02-29',
+    ])
+  })
+  it('標題帶第 N 年，起始年當年不加', () => {
+    const r = run(yearly({ start_date: '2020-10-22', end_date: '2020-10-22' }), '2020-01-01', '2022-12-31')
+    expect(r.map((v) => v.title)).toEqual(['媽媽生日', '媽媽生日（第 1 年）', '媽媽生日（第 2 年）'])
+  })
+  it('起始年之前不會出現', () => {
+    // 為什麼：2026 才建立的紀念日，不能回溯顯示在 2020 年
+    const r = run(yearly({ start_date: '2026-05-01', end_date: '2026-05-01' }), '2020-01-01', '2026-12-31')
+    expect(r.map((v) => v.startDate)).toEqual(['2026-05-01'])
+  })
+  it('多天事件每年保持原本天數，含跨年的出現', () => {
+    // 為什麼：12/30–1/2 的旅行紀念，在 1/1 的範圍內仍要顯示前一年開始的那一次
+    const e = yearly({ start_date: '2024-12-30', end_date: '2025-01-02' })
+    const r = run(e, '2026-01-01', '2026-12-31')
+    expect(r.map((v) => [v.startDate, v.endDate])).toEqual([
+      ['2025-12-30', '2026-01-02'],
+      ['2026-12-30', '2027-01-02'],
+    ])
+  })
+  it('每次出現 key 不同，但 sourceId 都指向原系列', () => {
+    // 為什麼：Vue v-for 需要唯一 key；點開要編輯整個系列（原 id）
+    const r = run(yearly({ start_date: '2024-10-22', end_date: '2024-10-22' }), '2024-01-01', '2026-12-31')
+    expect(new Set(r.map((v) => v.key)).size).toBe(3)
+    expect(r.every((v) => v.sourceId === 'b1')).toBe(true)
+  })
+  it('past 以每次出現自己的結束日判斷', () => {
+    const r = run(yearly({ start_date: '2024-10-17', end_date: '2024-10-17' }), '2025-01-01', '2027-12-31')
+    expect(r.map((v) => v.past)).toEqual([true, false, false]) // 2025 已過；2026 結束日 = 今天，不算過去；2027 未到
+  })
+  it('沒有 recurrence 的事件維持單一 key 不展開', () => {
+    const r = feed({ events: [ev({ is_all_day: true, start_date: '2024-10-17', end_date: '2024-10-17' })] })
+    expect(r.map((v) => v.key)).toEqual(['event:e1'])
+  })
+  it('預設範圍涵蓋今年與未來，月曆翻頁看得到', () => {
+    const r = feed({ events: [yearly({ start_date: '2020-10-22', end_date: '2020-10-22' })] })
+    expect(r.map((v) => v.startDate)).toContain('2027-10-22')
+  })
+})

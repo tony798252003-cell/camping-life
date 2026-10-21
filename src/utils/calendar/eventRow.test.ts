@@ -89,3 +89,17 @@ describe('null category 與跨夜時間', () => {
     expect(normalizeTimedRange('2026-10-17', '2026-10-20', '14:00', '15:00', true)).toEqual({ endDate: '2026-10-20', bumped: false })
   })
 })
+
+describe('recurrence 寫入與還原', () => {
+  // 為什麼：編輯時若沒還原 recurrence，儲存一次就會悄悄把每年重複洗掉
+  it('全天每年重複寫入 yearly 並能還原', () => {
+    const row = toEventRow({ ...allDay, recurrence: 'yearly' })
+    expect(row.recurrence).toBe('yearly')
+    expect(fromEventRow({ ...row, id: 'x', created_by: null } as unknown as CalendarEventRow).recurrence).toBe('yearly')
+  })
+  it('沒設定或非全天一律寫 null', () => {
+    expect(toEventRow(allDay).recurrence).toBeNull()
+    // 為什麼：資料庫與展開都只支援全天重複，timed 事件帶著 yearly 會變成無法顯示的髒資料
+    expect(toEventRow({ ...allDay, allDay: false, endDate: '2026-10-17', recurrence: 'yearly' }).recurrence).toBeNull()
+  })
+})
