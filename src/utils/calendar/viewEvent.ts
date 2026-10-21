@@ -15,6 +15,5 @@ export interface ViewEvent {
   startMin?: number // 只有 timed 事件有：startDate 當日分鐘數
   endMin?: number // endDate 當日分鐘數
   past: boolean // endDate < today
-  tripStatus?: 'planning' | 'booked' // 只有 trip 有；planning 用虛線/淡色（規格 §5.3）
   nightRushDate?: string // 只有夜衝的 trip 有 = trip_date - 1；此時 startDate 也等於它
 }

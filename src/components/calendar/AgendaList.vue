@@ -50,14 +50,13 @@ const dayNo = (e: ViewEvent, day: string) =>
         <li v-for="e in g.events" :key="e.key + g.day">
           <button
             class="w-full flex items-center gap-3 text-left rounded-[18px] bg-white px-3.5 py-3 min-h-[56px]"
-            :class="{ 'opacity-50': e.past, 'border border-dashed border-primary-300': e.tripStatus === 'planning' }"
+            :class="{ 'opacity-50': e.past }"
             @click="emit('open', e)"
           >
             <span class="w-1 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
             <span class="flex flex-col min-w-0 flex-1">
               <span class="text-[15px] font-bold text-primary-900 truncate">
                 {{ displayTitle(e) }}
-                <span v-if="e.tripStatus === 'planning'" class="text-[11px] font-semibold text-slate-500 ml-1">規劃中</span>
               </span>
               <span class="text-[11px] font-semibold text-slate-500 truncate">
                 {{ time(e) }}<template v-if="dayNo(e, g.day)"> · {{ dayNo(e, g.day) }}</template><template v-if="e.source === 'cpbl' || catName(e.categoryId)"> · {{ e.source === 'cpbl' ? '桃猿賽程' : catName(e.categoryId) }}</template>
