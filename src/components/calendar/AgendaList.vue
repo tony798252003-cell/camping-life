@@ -5,14 +5,11 @@ import { eachDay, diffDays, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
 import { eventsOnDay } from '../../utils/calendar/agendaRange'
 import { isHoliday } from '../../utils/holidays'
-import { displayTitle } from '../../utils/calendar/glance'
-import { useEventCategories } from '../../composables/useEventCategories'
+import { displayTitle, subtitle } from '../../utils/calendar/glance'
+import { OWNER_LABEL } from '../../utils/calendar/visibility'
 
 const props = defineProps<{ items: ViewEvent[]; from: string; to: string; highlight?: string }>()
 const emit = defineEmits<{ (e: 'open', ev: ViewEvent): void }>()
-
-const { categories } = useEventCategories()
-const catName = (id: string | null) => (id ? categories.value.find((c) => c.id === id)?.name : undefined) ?? ''
 
 const WEEK = ['一', '二', '三', '四', '五', '六', '日']
 const today = useToday()
@@ -53,15 +50,16 @@ const dayNo = (e: ViewEvent, day: string) =>
             :class="{ 'opacity-50': e.past }"
             @click="emit('open', e)"
           >
-            <span class="w-1 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
+            <span class="w-1.5 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
             <span class="flex flex-col min-w-0 flex-1">
               <span class="text-[15px] font-bold text-primary-900 truncate">
                 {{ displayTitle(e) }}
               </span>
               <span class="text-[11px] font-semibold text-slate-500 truncate">
-                {{ time(e) }}<template v-if="dayNo(e, g.day)"> · {{ dayNo(e, g.day) }}</template><template v-if="e.source === 'cpbl' || catName(e.categoryId)"> · {{ e.source === 'cpbl' ? '桃猿賽程' : catName(e.categoryId) }}</template>
+                {{ subtitle(e, [time(e), dayNo(e, g.day)].filter(Boolean).join(' · ')) }}
               </span>
             </span>
+            <span class="text-xs font-black shrink-0" :style="{ color: e.color }">{{ OWNER_LABEL[e.owner] }}</span>
           </button>
         </li>
       </ul>

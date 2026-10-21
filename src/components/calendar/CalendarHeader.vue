@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import CpblToggle from './CpblToggle.vue'
+import OwnerLegend from './OwnerLegend.vue'
 import type { EventCategory } from '../../types/database'
 
 export type CalendarViewMode = 'month' | 'week' | 'day'
@@ -65,5 +66,6 @@ const VIEWS: { key: CalendarViewMode; label: string }[] = [
         </span>
       </button>
     </div>
+    <OwnerLegend class="pb-1" />
   </div>
 </template>
