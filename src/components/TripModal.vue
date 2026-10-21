@@ -14,6 +14,7 @@ import { useNotification } from '../composables/useNotification'
 import { useAuth } from '../composables/useAuth'
 import { isOwnRow } from '../utils/familyJourney'
 import type { UserProfileState } from '../composables/useUserProfile'
+import { shouldCollapseReview } from '../utils/tripReviewCollapse'
 import { useTripForm } from '../composables/useTripForm'
 
 import TripWeather from './TripWeather.vue'
@@ -333,7 +334,7 @@ onMounted(() => {
                       </div>
                   </div>
 
-                  <TripReviewSection :form="formData" :trip-id="trip?.id" :collapsed="!trip" />
+                  <TripReviewSection :form="formData" :trip-id="trip?.id" :collapsed="shouldCollapseReview(trip?.trip_date, !trip)" />
 
 
               </div>
