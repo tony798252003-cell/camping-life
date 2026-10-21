@@ -85,8 +85,8 @@ const db: ReminderDb = {
     },
 };
 
-const send: SendFn = async (sub, payload) => {
-    await webpush.sendNotification(sub, payload, { TTL: 6 * 3600 });
+const send: SendFn = async (sub, payload, topic) => {
+    await webpush.sendNotification(sub, payload, { TTL: 6 * 3600, topic });
 };
 
 const handler = withErrors(async (req: Request): Promise<Response> => {

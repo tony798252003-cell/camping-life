@@ -106,6 +106,7 @@ export interface ReminderDb {
 export type SendFn = (
   sub: { endpoint: string; keys: { p256dh: string; auth: string } },
   payload: string,
+  topic: string,
 ) => Promise<void>
 
 export interface ReminderDeps {
@@ -124,10 +125,10 @@ export interface ReminderResult {
   failed: number
 }
 
-// 404／410：訂閱已失效，該刪
+// 404／410：訂閱已失效；401／403：推播服務拒絕（VAPID 金鑰換過，舊訂閱永遠無法送達），都該刪
 const isGone = (e: unknown) => {
   const s = (e as { statusCode?: number } | null)?.statusCode
-  return s === 404 || s === 410
+  return s === 404 || s === 410 || s === 401 || s === 403
 }
 
 export async function runReminders(deps: ReminderDeps): Promise<ReminderResult> {
@@ -159,10 +160,12 @@ export async function runReminders(deps: ReminderDeps): Promise<ReminderResult> 
         result.skipped += mine.length
         continue
       }
-      const payload = JSON.stringify({ ...summary, url: '/' })
+      // tag／topic 以日期固定：同一天重複跑 cron，通知與推播服務端都是取代而不是疊加
+      const tag = `reminder-${day}`
+      const payload = JSON.stringify({ ...summary, url: '/', tag })
       for (const s of mine) {
         try {
-          await deps.send({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload)
+          await deps.send({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, tag)
           ok.push(s.id)
           result.sent++
         } catch (e) {

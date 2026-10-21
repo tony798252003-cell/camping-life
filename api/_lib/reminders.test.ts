@@ -174,7 +174,8 @@ describe('runReminders', () => {
       openPackItems: async () => new Map([['f1', 4]]),
     })
     await runReminders({ db, send, now })
-    expect(JSON.parse(send.mock.calls[0]![1] as string)).toEqual({ title: '明天的提醒', body: '明天出發：山上營地\n還有 4 項沒帶', url: '/' })
+    expect(JSON.parse(send.mock.calls[0]![1] as string)).toEqual({ title: '明天的提醒', body: '明天出發：山上營地\n還有 4 項沒帶', url: '/', tag: 'reminder-2026-10-23' })
+    expect(send.mock.calls[0]![2]).toBe('reminder-2026-10-23')
   })
   // 為什麼：404/410 代表裝置已取消訂閱，不清掉每天都會失敗；其他錯誤不能誤刪訂閱
   it('410／404 刪除該訂閱，其他錯誤只記錄、不刪、不中斷其他人', async () => {
@@ -201,6 +202,18 @@ describe('runReminders', () => {
     expect(db.marked).toEqual([['ok']])
     expect(r).toMatchObject({ sent: 1, removed: 2, failed: 1 })
     err.mockRestore()
+  })
+  // 為什麼：VAPID 金鑰換過後舊訂閱會一直被 401/403 拒絕，不清掉每天都白送
+  it('401／403 也視為失效訂閱而刪除', async () => {
+    const send = vi.fn<SendFn>(async (s) => {
+      throw Object.assign(new Error('x'), { statusCode: s.endpoint.endsWith('/a') ? 401 : 403 })
+    })
+    const db = makeDb({
+      listSubscriptions: async () => [{ ...sub('a', 'u1'), endpoint: 'https://push/a' }, { ...sub('b', 'u1'), endpoint: 'https://push/b' }],
+      listEvents: async () => [ev({ id: 'a' })],
+    })
+    await runReminders({ db, send, now })
+    expect(db.deleted).toEqual([['a', 'b']])
   })
   it('清理 DB 失敗不會讓整個排程丟錯', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})
