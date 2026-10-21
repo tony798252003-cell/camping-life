@@ -1,4 +1,4 @@
-import { TAIWAN_LOCATIONS } from '../constants/locations'
+import { TAIWAN_LOCATIONS } from '../constants/locations.js'
 
 interface AddressComponent {
     long_name: string

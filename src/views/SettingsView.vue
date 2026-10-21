@@ -133,10 +133,9 @@
             <div class="space-y-3">
               <div>
                  <label class="block text-xs text-gray-500 mb-1">搜尋地點 (輸入地址或地標)</label>
-                 <GooglePlaceSearch
+                 <PlaceSearchInput
                    v-model="formData.location_name"
                    @place-selected="handlePlaceSelected"
-                   class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-gray-400"
                    placeholder="例如: 台北車站"
                  />
                  <p v-if="formData.latitude && formData.longitude" class="mt-2 text-xs text-green-600 flex items-center gap-1 font-mono">
@@ -251,7 +250,7 @@ import { supabase } from '../lib/supabase'
 import type { CampingTripWithCampsite } from '../types/database'
 import GearROIView from '../components/GearROIView.vue'
 import TentManagement from '../components/TentManagement.vue'
-import GooglePlaceSearch from '../components/GooglePlaceSearch.vue'
+import PlaceSearchInput from '../components/settings/PlaceSearchInput.vue'
 import CategorySettings from '../components/settings/CategorySettings.vue'
 import SystemAssetManager from '../components/SystemAssetManager.vue'
 import { syncCpblScheduleForYear, resyncCpblYear } from '../services/cpblService'

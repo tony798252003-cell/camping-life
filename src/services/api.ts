@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 
-export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+export async function apiPost<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
 
@@ -11,6 +11,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(body),
+    signal,
   })
 
   if (!res.ok) {

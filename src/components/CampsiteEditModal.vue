@@ -1,19 +1,18 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { X, MapPin, Loader2, Navigation, Snowflake, IceCream, Droplets, Upload, Image as ImageIcon, Plus, Trash2 } from 'lucide-vue-next'
+import { X, MapPin, Loader2, Snowflake, IceCream, Droplets, Upload, Image as ImageIcon, Plus, Trash2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
-import { parseTaiwanLocation } from '../utils/googleMaps'
-import type { Campsite, CapacityZone } from '../types/database'
+import type { Campsite } from '../types/database'
+import {
+  PLAYGROUND_OPTIONS,
+  WATER_OPTIONS,
+  SCENERY_OPTIONS,
+  SPOT_TYPE_OPTIONS,
+  ZONE_TYPE_OPTIONS,
+  BOOKING_METHOD_OPTIONS,
+} from '../constants/campsiteOptions'
 
-const ZONE_TYPE_OPTIONS: CapacityZone['type'][] = ['草地', '碎石', '雨棚', '棧板', '其他']
-
-// Facility options constants
-const PLAYGROUND_OPTIONS = ['沙坑', '溜滑梯', '盪鞦韆', '遊戲室', '氣墊城堡', '滑草', '彈簧床', '兒童攀岩', '棒球九宮格']
-const WATER_OPTIONS = ['戲水池', '溪流', '河流', '瀑布', '湖泊', '溫泉', '滑水道', '海邊']
-const SCENERY_OPTIONS = ['櫻花', '落羽松', '桐花', '楓葉', '螢火蟲', '雲海', '夜景', '山景', '海景', '湖景', '森林']
-const SPOT_TYPE_OPTIONS = ['草地', '碎石', '草地混碎石', '棧板', '雨棚', '免搭帳']
-const BOOKING_METHOD_OPTIONS = ['電話', 'FB', 'Line', '官網']
 const isFacilityOpen = ref(true)
 
 const props = defineProps<{
@@ -26,7 +25,6 @@ const emit = defineEmits(['close', 'saved'])
 
 const form = ref<Partial<Campsite>>({})
 const isSaving = ref(false)
-const isSearchingCoordinates = ref(false)
 const isUploadingMap = ref(false)
 const mapFileInput = ref<HTMLInputElement | null>(null)
 const tagsString = ref('') // Edit tags as comma-separated string for simplicity
@@ -284,54 +282,6 @@ const save = async () => {
   }
 }
 
-const autoFetchCoordinates = () => {
-  if (!form.value.name) return
-  
-  if (!window.google || !window.google.maps || !window.google.maps.places) {
-    alert('Google Maps API 尚未載入，請稍後再試')
-    return
-  }
-
-  isSearchingCoordinates.value = true
-  
-  // Use current city info to help search if available, otherwise just name
-  const query = `${form.value.city || ''}${form.value.district || ''} ${form.value.name}`.trim()
-  const service = new google.maps.places.PlacesService(document.createElement('div'))
-
-   service.findPlaceFromQuery({
-    query,
-    fields: ['place_id', 'name', 'geometry']
-  }, (results, status) => {
-    if (status === google.maps.places.PlacesServiceStatus.OK && results && results[0] && results[0].place_id) {
-       // Get Details to search for Address Components (City/District)
-       service.getDetails({
-         placeId: results[0].place_id,
-         fields: ['name', 'geometry', 'address_components']
-       }, (place, detailStatus) => {
-          isSearchingCoordinates.value = false
-          if (detailStatus === google.maps.places.PlacesServiceStatus.OK && place && place.geometry && place.geometry.location) {
-             const location = place.geometry.location
-             form.value.latitude = location.lat()
-             form.value.longitude = location.lng()
-             
-             // Extract City and District from address components
-             if (place.address_components) {
-                const { cityId, districtId } = parseTaiwanLocation(place.address_components as any)
-                
-                if (cityId) form.value.city = cityId
-                if (districtId) form.value.district = districtId
-             }
-          } else {
-             alert('無法取得詳細地點資訊')
-          }
-       })
-    } else {
-       isSearchingCoordinates.value = false
-       alert('找不到此地點，請檢查名稱是否正確')
-    }
-  })
-}
-
 const generateTimeRange = (startHour: number, endHour: number) => {
   const times = []
   for (let i = startHour; i <= endHour; i++) {
@@ -429,18 +379,6 @@ const showerEndOptions = computed(() => generateTimeRange(20, 24))
                <h4 class="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1">
                   <MapPin class="w-3 h-3" /> GPS 座標
                </h4>
-               <button
-                 v-if="isEditable"
-                 type="button"
-                 @click="autoFetchCoordinates"
-                 :disabled="isSearchingCoordinates || !form.name"
-                 class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                 title="根據營地名稱自動搜尋座標"
-               >
-                 <Navigation v-if="!isSearchingCoordinates" class="w-3.5 h-3.5" />
-                 <Loader2 v-else class="w-3.5 h-3.5 animate-spin" />
-                 {{ isSearchingCoordinates ? '搜尋中...' : '自動取得' }}
-               </button>
             </div>
             <div class="grid grid-cols-2 gap-3" v-if="isEditable">
                <div>

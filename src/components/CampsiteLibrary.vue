@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight, Settings2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import type { Campsite } from '../types/database'
@@ -10,12 +11,15 @@ const props = defineProps<{
   isAdmin: boolean
 }>()
 
+const route = useRoute()
+const router = useRouter()
 const campsites = ref<Campsite[]>([])
 const usageCounts = ref<Record<number, number>>({}) // campsite_id -> count
 const visitedIds = ref<Set<number>>(new Set()) // completed or booked campsite_ids
 const hideVisited = ref(true)
 const loading = ref(false)
-const searchQuery = ref('')
+// 新增營區流程的「查看」會帶 ?q= 過來
+const searchQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const editingCampsite = ref<Campsite | null>(null)
 const isEditModalOpen = ref(false)
 const isFilterOpen = ref(false)
@@ -94,30 +98,6 @@ const handleEdit = (site: Campsite) => {
   isEditModalOpen.value = true
 }
 
-const handleAddNew = () => {
-  editingCampsite.value = {
-    id: 0,
-    name: '',
-    city: '',
-    district: '',
-    altitude: null,
-    latitude: null,
-    longitude: null,
-    phone: null,
-    tags: [],
-    amenities: { has_fridge: false, has_freezer: false, has_water_dispenser: false },
-    is_verified: false,
-    created_at: new Date().toISOString(),
-    playground_features: [],
-    water_features: [],
-    scenery_features: [],
-    spot_types: [],
-    booking_method: [],
-    booking_difficulty: 'normal',
-  } as any
-  isEditModalOpen.value = true
-}
-
 const handleEditSaved = () => {
   fetchCampsites() // Refresh list
 }
@@ -128,6 +108,7 @@ const fetchCampsites = async () => {
     let query = supabase
       .from('campsites')
       .select('*') // This already selects all columns including new ones
+      .is('merged_into_id', null)
       .order('created_at', { ascending: false })
 
     const { data, error } = await query
@@ -138,6 +119,7 @@ const fetchCampsites = async () => {
     const { data: tripData, error: tripError } = await supabase
       .from('camping_trips')
       .select('campsite_id, campsite_name, status')
+      .is('merged_into_id', null)
 
     if (!tripError && tripData) {
       const counts: Record<number, number> = {}
@@ -276,6 +258,10 @@ onMounted(() => {
           <Search class="w-5 h-5 text-accent-sky" />
           找營地
         </h2>
+        <button
+          @click="router.push({ name: 'library-discover' })"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border border-emerald-600 text-emerald-700 bg-white"
+        >找新營區</button>
       </div>
 
       <!-- Search Bar + Filter Button -->
@@ -396,12 +382,13 @@ onMounted(() => {
        </div>
     </div>
 
-    <!-- Admin Add Buttons (Floating) -->
-    <div v-if="isAdmin" class="fixed bottom-24 right-6 flex flex-col gap-3 z-30">
+    <!-- Add Buttons (Floating) -->
+    <div class="fixed bottom-24 right-6 flex flex-col gap-3 z-30">
       <button
-        @click="handleAddNew"
+        @click="router.push({ name: 'library-new' })"
         class="bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 active:scale-90 transition-all z-40 flex items-center justify-center border-4 border-surface-50 w-14 h-14"
-        title="新增營地 (管理員)"
+        title="新增營區"
+        aria-label="新增營區"
       >
         <Plus class="w-8 h-8" />
       </button>

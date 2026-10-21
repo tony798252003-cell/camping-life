@@ -2,7 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { Plus, Trash2, Calculator, RotateCcw } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
-import type { CampingGear, NewGearItem, CampingTripWithCampsite } from '../types/database'
+import type { CampingGear, CampingTripWithCampsite } from '../types/database'
+import { buildNewGearPayload, buildExamplePayloads } from '../utils/gearPayload'
 
 const props = defineProps<{
   trips?: CampingTripWithCampsite[]
@@ -11,14 +12,6 @@ const props = defineProps<{
 const items = ref<CampingGear[]>([])
 const loading = ref(false)
 const isSubmitting = ref(false)
-
-// Default examples for reset
-// TODO(types): M5 purchase_date 欄位不存在（camping_gear 無此欄），先轉型保留現有行為
-const defaultExamples = [
-  { name: '屋脊13', base_usage_count: 19, cost: 8992, rental_price: 1400, type: 'tent', category: 'tent', purchase_date: new Date().toISOString() },
-  { name: 'CC3', base_usage_count: 12, cost: 34400, rental_price: 2700, type: 'tent', category: 'tent', purchase_date: new Date().toISOString() },
-  { name: '天幕', base_usage_count: 13, cost: 4400, rental_price: 800, type: 'tarp', category: 'tarp', purchase_date: new Date().toISOString() },
-] as unknown as NewGearItem[]
 
 // Fetch Data
 const fetchGear = async () => {
@@ -52,17 +45,7 @@ const addItem = async () => {
 
   isSubmitting.value = true
   try {
-    // TODO(types): M5 purchase_date 欄位不存在（camping_gear 無此欄），先轉型保留現有行為
-    const newItem = {
-      name: '新裝備',
-      base_usage_count: 0,
-      cost: 0,
-      rental_price: 0,
-      type: 'other',
-      category: 'other',
-      purchase_date: new Date().toISOString(),
-      user_id: session.user.id
-    } as NewGearItem
+    const newItem = buildNewGearPayload(session.user.id)
 
     const { data, error } = await supabase
       .from('camping_gear')
@@ -145,7 +128,10 @@ const resetData = async () => {
   })
   
   if (!confirmed) return
-  
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return
+
   loading.value = true
   try {
     // 1. Delete all existing
@@ -158,10 +144,10 @@ const resetData = async () => {
        if (delError) throw delError
     }
 
-    // 2. Insert defaults
+    // 2. Insert defaults（RLS 需要 user_id）
     const { data, error: insError } = await supabase
       .from('camping_gear')
-      .insert(defaultExamples)
+      .insert(buildExamplePayloads(session.user.id))
       .select()
 
     
@@ -199,13 +185,14 @@ const getTotalUsage = (item: CampingGear) => {
 
 const calculateSavings = (item: CampingGear) => {
   const total = getTotalUsage(item)
-  return (total * item.rental_price) - item.cost
+  return (total * (item.rental_price ?? 0)) - (item.cost ?? 0)
 }
 
 const calculateAvgPerUse = (item: CampingGear) => {
   const total = getTotalUsage(item)
-  if (total === 0) return item.cost
-  return Math.round(item.cost / total)
+  const cost = item.cost ?? 0
+  if (total === 0) return cost
+  return Math.round(cost / total)
 }
 
 const totalSavings = computed(() => {
@@ -213,7 +200,7 @@ const totalSavings = computed(() => {
 })
 
 const totalCost = computed(() => {
-  return items.value.reduce((sum, item) => sum + item.cost, 0)
+  return items.value.reduce((sum, item) => sum + (item.cost ?? 0), 0)
 })
 
 onMounted(() => {

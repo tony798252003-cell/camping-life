@@ -24,6 +24,7 @@ export const tripQueries = {
         let query = supabase
             .from('camping_trips')
             .select('*, campsites(*), tent:camping_gear!tent_id(name, image_url, brand)')
+            .is('merged_into_id', null)
             .order('trip_date', { ascending: false })
 
         if (familyId) {

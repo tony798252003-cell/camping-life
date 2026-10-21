@@ -55,3 +55,8 @@ export function tripRange(trip_date: string, duration_days: number | null): { st
   const days = duration_days != null && duration_days > 0 ? duration_days : 1
   return { start: trip_date, end: addDays(trip_date, days - 1) }
 }
+
+// 新增行程的日期：已有值就保留，空白才退回 initialDate／今天（台北）
+export function resolveTripDate(current: string | null | undefined, initialDate?: string | null, now: Date = new Date()): string {
+  return current || initialDate || todayYmd(now)
+}
