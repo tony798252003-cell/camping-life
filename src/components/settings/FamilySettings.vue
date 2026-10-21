@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Copy } from 'lucide-vue-next'
 import { useAuth } from '../../composables/useAuth'
 import { useCalendarEvents } from '../../composables/useCalendarEvents'
@@ -9,6 +10,7 @@ import { useFamilyLists } from '../../composables/useFamilyLists'
 import { useFamily } from '../../composables/useFamily'
 import { useNotification } from '../../composables/useNotification'
 import { useTrips } from '../../composables/useTrips'
+import { buildInviteLink, normalizeJoinCode } from '../../utils/familyJourney'
 import { useUserProfile } from '../../composables/useUserProfile'
 
 const { session } = useAuth()
@@ -21,7 +23,9 @@ const { reload: reloadLists } = useFamilyLists()
 const { confirm } = useConfirm()
 const { success, error: notifyError } = useNotification()
 
-const code = ref('')
+const route = useRoute()
+// 邀請連結 /join?code=XXXX 帶進來的邀請碼：只預填，不自動加入
+const code = ref(normalizeJoinCode(route.query.code))
 const joining = ref(false)
 
 onMounted(() => {
@@ -38,6 +42,16 @@ const copyCode = async () => {
   }
 }
 
+const copyInviteLink = async () => {
+  if (!family.value) return
+  try {
+    await navigator.clipboard.writeText(buildInviteLink(location.origin, family.value.invite_code))
+    success('已複製邀請連結')
+  } catch {
+    notifyError('複製失敗，請改用邀請碼')
+  }
+}
+
 const handleJoin = async () => {
   const input = code.value.trim()
   const userId = session.value?.user?.id
@@ -47,8 +61,10 @@ const handleJoin = async () => {
     return
   }
   const ok = await confirm({
-    title: '加入另一個家庭',
-    message: '加入後會改看對方家庭的行事曆與行程。你原本的露營行程與事件不會搬過去。',
+    title: family.value ? '加入另一個家庭' : '加入家庭',
+    message: family.value
+      ? '加入後會改看對方家庭的行事曆與行程。你原本的露營行程與事件不會搬過去。'
+      : '加入後可以看到這個家庭的行事曆、行程與裝備。你原本的露營行程與事件不會搬過去。',
     confirmText: '加入',
     type: 'warning',
   })
@@ -96,6 +112,9 @@ const handleJoin = async () => {
           <Copy class="w-5 h-5" />
         </button>
       </div>
+      <button class="w-full min-h-[44px] font-bold text-primary-700 bg-primary-100 rounded-[14px]" @click="copyInviteLink">
+        複製邀請連結
+      </button>
       <p class="text-[11px] text-slate-500">把邀請碼給家人，對方在自己的設定頁輸入就能加入</p>
     </section>
 

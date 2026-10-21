@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { tripScopeFilter } from '../utils/familyJourney'
 import type {
     CampingTripWithCampsite,
     NewCampingTrip,
@@ -27,11 +28,8 @@ export const tripQueries = {
             .is('merged_into_id', null)
             .order('trip_date', { ascending: false })
 
-        if (familyId) {
-            query = query.eq('family_id', familyId)
-        } else {
-            query = query.eq('user_id', userId)
-        }
+        // 自己的 + 同家庭的（加入家庭前自己建立的行程 family_id 為 null，只看 family_id 會消失）
+        query = query.or(tripScopeFilter(userId, familyId))
 
         const { data, error } = await query
 

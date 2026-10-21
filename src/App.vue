@@ -18,6 +18,7 @@ import { useCalendarEvents } from './composables/useCalendarEvents'
 import { useFamily } from './composables/useFamily'
 import { useFamilyLists } from './composables/useFamilyLists'
 import { supabase } from './lib/supabase'
+import { profileQueries } from './services/db/profile'
 import { buildTripSavePayload } from './utils/tripPayload'
 import { todayYmd } from './utils/dateRange'
 import { timelineOrder } from './utils/tripTimeline'
@@ -115,6 +116,8 @@ onMounted(async () => {
   // doesn't retrigger a full refetch and unmount the current view
   watch([() => session.value?.user?.id, isAuthReady], async ([userId, ready]) => {
     if (ready && userId) {
+      // 新使用者沒有 profiles 列（沒有 auth trigger），先補一列再讀；失敗不擋載入
+      try { await profileQueries.ensure(userId) } catch (e) { console.warn('[App] ensure profile failed:', e) }
       await fetchProfile(userId)
       await fetchTrips(userId, familyId())
       familyStore.load()

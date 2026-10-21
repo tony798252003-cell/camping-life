@@ -26,6 +26,12 @@ export const profileQueries = {
     await supabase.from('profiles').update({ campsite_quick_chips: chips }).eq('id', userId)
   },
 
+  // 登入後確保有 profiles 列：只送 {id}、衝突就忽略（ON CONFLICT DO NOTHING），不覆蓋既有欄位
+  async ensure(userId: string): Promise<void> {
+    const { error } = await supabase.from('profiles').upsert({ id: userId }, { onConflict: 'id', ignoreDuplicates: true })
+    if (error) throw error
+  },
+
   async upsert(row: TablesInsert<'profiles'>): Promise<void> {
     const { error } = await supabase.from('profiles').upsert(row)
     if (error) throw error

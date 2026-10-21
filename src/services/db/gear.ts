@@ -11,6 +11,15 @@ export const gearQueries = {
     return data ?? []
   },
 
+  // RLS 放行的裝備（自己的 + 同家庭成員的），行程編輯的帳篷選單用
+  async listVisible(type?: string): Promise<Tables<'camping_gear'>[]> {
+    let q = supabase.from('camping_gear').select('*')
+    if (type) q = q.eq('type', type)
+    const { data, error } = await q.order('created_at', { ascending: true })
+    if (error) throw error
+    return data ?? []
+  },
+
   async insert(payload: TablesInsert<'camping_gear'>): Promise<Tables<'camping_gear'> | null> {
     const { data, error } = await supabase.from('camping_gear').insert([payload]).select().single()
     if (error) throw error

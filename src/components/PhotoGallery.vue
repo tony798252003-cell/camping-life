@@ -3,6 +3,8 @@ import { ref, onMounted } from 'vue'
 import { Trash2, X, ZoomIn } from 'lucide-vue-next'
 import { useTripPhotos } from '../composables/useTripPhotos'
 import PhotoUpload from './PhotoUpload.vue'
+import { useAuth } from '../composables/useAuth'
+import { isOwnRow } from '../utils/familyJourney'
 
 const props = defineProps<{
   tripId: number
@@ -10,6 +12,8 @@ const props = defineProps<{
 }>()
 
 const { photos, fetchPhotos, deletePhoto, loading } = useTripPhotos()
+// RLS 只允許刪自己上傳的照片
+const { session } = useAuth()
 const selectedPhoto = ref<string | null>(null)
 
 onMounted(() => {
@@ -96,7 +100,7 @@ const closeLightbox = () => {
 
            <!-- Actions -->
            <button 
-             v-if="isEditable"
+             v-if="isEditable && isOwnRow(photo.user_id, session?.user?.id)"
              @click.stop="handleDelete(photo.id)"
              class="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-sm"
              title="刪除"
