@@ -19,9 +19,6 @@ import { dayLabel, weekAgenda, weekRow } from '../utils/calendar/glance'
 import { addDays } from '../utils/dateRange'
 import { isHoliday } from '../utils/holidays'
 
-// App.vue 會把 trips、session 等 props 全部丟給 router-view，這裡都不需要
-defineOptions({ inheritAttrs: false })
-
 const STORAGE_KEY = 'home.glanceExpanded'
 const router = useRouter()
 const today = useToday()

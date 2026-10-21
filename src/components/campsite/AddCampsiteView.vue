@@ -6,9 +6,6 @@ import { useConfirm } from '../../composables/useConfirm'
 import { useNotification } from '../../composables/useNotification'
 import type { Campsite } from '../../types/database'
 
-// App.vue 的 router-view 會傳一堆 props，這頁不吃
-defineOptions({ inheritAttrs: false })
-
 const route = useRoute()
 const router = useRouter()
 const { confirm } = useConfirm()

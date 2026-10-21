@@ -4,6 +4,7 @@ import {
   MapPin, Moon, Save, RotateCcw, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { toGearItems } from '../utils/dbRows'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { resolveTripDate } from '../utils/dateRange'
@@ -81,7 +82,7 @@ const fetchTents = async () => {
       .order('created_at', { ascending: true })
 
     if (error) throw error
-    tents.value = (data || []) as CampingGear[] // TODO(types): M5 DB 欄位可空
+    tents.value = toGearItems(data)
   } catch (error) {
     console.error('Error fetching tents:', error)
   }

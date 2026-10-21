@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { supabase } from '../../lib/supabase'
+import { toCampsites } from '../../utils/dbRows'
 import type { NewCampingTrip, Campsite } from '../../types/database'
 
 // 營區標題輸入 + 搜尋下拉；只搜 campsites，選到才有 campsite_id（規格 §5.6）
@@ -28,7 +29,7 @@ const searchCampsites = async (query: string) => {
   searchDebounce = setTimeout(async () => {
     try {
       const { data } = await supabase.from('campsites').select('*').is('merged_into_id', null).ilike('name', `%${query}%`).limit(5)
-      results.value = (data || []) as unknown as Campsite[] // TODO(types): M5 JSONB 欄位收窄
+      results.value = toCampsites(data)
       showDropdown.value = true
     } catch (e) { console.error(e) }
   }, 300)

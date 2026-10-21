@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { Plus, Trash2, Tent, X, Check, Edit2, Search, Library } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { toGearItem, toGearItems } from '../utils/dbRows'
 import type { CampingGear, CampingTripWithCampsite, SystemAsset } from '../types/database'
 import { buildNewTentPayload } from '../utils/gearPayload'
 import SystemAssetManager from './SystemAssetManager.vue'
@@ -69,7 +70,7 @@ const fetchTents = async () => {
       .order('created_at', { ascending: true })
 
     if (error) throw error
-    tents.value = (data as any) || []
+    tents.value = toGearItems(data)
   } catch (error) {
     console.error('Error fetching tents:', error)
     alert('無法載入帳篷資料')
@@ -86,7 +87,7 @@ const fetchSystemImages = async () => {
         .eq('type', 'tent_image')
         .order('created_at', { ascending: false })
     
-    if (data) systemImages.value = (data as any)
+    if (data) systemImages.value = data
 }
 
 // Filtered Images
@@ -160,7 +161,7 @@ const saveTent = async () => {
 
         if (error) throw error
         if (data) {
-            tents.value.push(data as CampingGear) // TODO(types): M5 DB 欄位可空
+            tents.value.push(toGearItem(data))
         }
     }
 

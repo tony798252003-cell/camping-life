@@ -75,7 +75,7 @@
               <ChevronRight class="w-5 h-5 text-gray-300" />
            </button>
 
-           <button v-if="isAdmin" @click="isAssetManagerOpen = true" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
+           <button v-if="isAdmin()" @click="isAssetManagerOpen = true" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
               <div class="flex items-center gap-3">
                  <div class="w-10 h-10 rounded-full bg-cyan-50 flex items-center justify-center text-cyan-600">
                     <Images class="w-5 h-5" />
@@ -88,7 +88,7 @@
               <ChevronRight class="w-5 h-5 text-gray-300" />
            </button>
 
-           <button v-if="isAdmin" @click="currentView = 'advanced-gear'" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
+           <button v-if="isAdmin()" @click="currentView = 'advanced-gear'" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
               <div class="flex items-center gap-3">
                  <div class="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
                     <TentIcon class="w-5 h-5" />
@@ -137,7 +137,7 @@
       
       <!-- System Asset Manager Modal -->
       <SystemAssetManager 
-          v-if="isAdmin"
+          v-if="isAdmin()"
           :is-open="isAssetManagerOpen" 
           @close="isAssetManagerOpen = false" 
       />
@@ -149,7 +149,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Settings, MapPin, LogOut, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Images, Tags } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
-import type { CampingTripWithCampsite } from '../types/database'
+import { useAuth } from '../composables/useAuth'
+import { useTrips } from '../composables/useTrips'
+import { useUserProfile } from '../composables/useUserProfile'
 import OriginSettings from '../components/settings/OriginSettings.vue'
 import GearSettings from '../components/settings/GearSettings.vue'
 import CpblSettings from '../components/settings/CpblSettings.vue'
@@ -158,16 +160,13 @@ import SystemAssetManager from '../components/SystemAssetManager.vue'
 
 const router = useRouter()
 
-// 由 App.vue 透過 <router-view> 傳入；直接進入頁面時 userId 會退回由 session 取得
-const props = defineProps<{
-  userId?: string
-  isAdmin?: boolean
-  trips?: CampingTripWithCampsite[]
-  initialInviteCode?: string
-}>()
+// session 來自 singleton；直接進入頁面、尚未初始化時 userId 會退回由 getSession 取得
+const { session: authSession } = useAuth()
+const { trips } = useTrips()
+const { isAdmin } = useUserProfile()
 
 const internalUserId = ref<string>('')
-const effectiveUserId = computed(() => props.userId || internalUserId.value)
+const effectiveUserId = computed(() => authSession.value?.user?.id || internalUserId.value)
 
 type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'categories' | 'admin'
 const currentView = ref<ViewState>('menu')
@@ -179,7 +178,7 @@ const handleLogout = async () => {
 }
 
 onMounted(async () => {
-  if (props.userId) return
+  if (authSession.value?.user?.id) return
   const { data: { session } } = await supabase.auth.getSession()
   if (session) internalUserId.value = session.user.id
   else router.push('/auth')

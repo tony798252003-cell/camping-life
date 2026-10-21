@@ -30,9 +30,6 @@ import { apiPost } from '../../services/api'
 import { TAIWAN_LOCATIONS } from '../../constants/locations'
 import { PLAYGROUND_OPTIONS, WATER_OPTIONS, SCENERY_OPTIONS, SPOT_TYPE_OPTIONS } from '../../constants/campsiteOptions'
 
-// App.vue 的 router-view 會傳一堆 props，這頁不吃
-defineOptions({ inheritAttrs: false })
-
 const route = useRoute()
 const router = useRouter()
 

@@ -3,13 +3,13 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight, Settings2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { toCampsites } from '../utils/dbRows'
+import { useUserProfile } from '../composables/useUserProfile'
 import type { Campsite } from '../types/database'
 import CampsiteEditModal from './CampsiteEditModal.vue'
 import CampsiteFilterSheet, { type CampsiteFilters } from './CampsiteFilterSheet.vue'
 
-const props = defineProps<{
-  isAdmin: boolean
-}>()
+const { isAdmin } = useUserProfile()
 
 const route = useRoute()
 const router = useRouter()
@@ -113,7 +113,7 @@ const fetchCampsites = async () => {
 
     const { data, error } = await query
     if (error) throw error
-    campsites.value = (data || []) as unknown as Campsite[] // TODO(types): M5 JSONB 欄位收窄
+    campsites.value = toCampsites(data)
 
     // Fetch usage counts + visited/booked ids
     const { data: tripData, error: tripError } = await supabase
@@ -364,7 +364,7 @@ onMounted(() => {
               class="text-[10px] text-indigo-500 font-medium"
             >{{ site.total_capacity }}帳</span>
             <span
-              v-else-if="isAdmin"
+              v-else-if="isAdmin()"
               class="text-[10px] text-gray-300 font-medium"
             >?帳</span>
             <ChevronRight class="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
@@ -388,7 +388,7 @@ onMounted(() => {
       v-if="isEditModalOpen && editingCampsite"
       :is-open="isEditModalOpen"
       :campsite="editingCampsite"
-      :is-editable="props.isAdmin"
+      :is-editable="isAdmin()"
       @close="isEditModalOpen = false"
       @saved="handleEditSaved"
     />

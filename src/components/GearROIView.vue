@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Plus, Trash2, Calculator, RotateCcw } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { toGearItem, toGearItems } from '../utils/dbRows'
 import type { CampingGear, CampingTripWithCampsite } from '../types/database'
 import { buildNewGearPayload, buildExamplePayloads } from '../utils/gearPayload'
 
@@ -27,7 +28,7 @@ const fetchGear = async () => {
       .order('created_at', { ascending: true })
 
     if (error) throw error
-    items.value = (data || []) as CampingGear[] // TODO(types): M5 DB 欄位可空
+    items.value = toGearItems(data)
   } catch (error) {
     console.error('Error fetching gear:', error)
     alert('無法載入裝備資料')
@@ -56,7 +57,7 @@ const addItem = async () => {
 
     if (error) throw error
     if (data) {
-      items.value.push(data as CampingGear) // TODO(types): M5 DB 欄位可空
+      items.value.push(toGearItem(data))
     }
   } catch (error) {
     console.error('Error adding item:', error)
@@ -152,7 +153,7 @@ const resetData = async () => {
 
     
     if (insError) throw insError
-    items.value = (data || []) as CampingGear[] // TODO(types): M5 DB 欄位可空
+    items.value = toGearItems(data)
     
   } catch (error) {
     console.error('Error resetting data:', error)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterView } from 'vue-router'
-import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './types/database'
+import type { NewCampingTrip, CampingTripWithCampsite } from './types/database'
 
 // Components
 import TripModal from './components/TripModal.vue'
@@ -23,14 +23,14 @@ const router = useRouter()
 const route = useRoute()
 
 // Initialize composables
-const { session, isAuthReady, initAuth, logout } = useAuth()
-const { userProfile, fetchProfile, clearProfile, familyId, isAdmin, userOrigin } = useUserProfile()
-const { trips, loading, fetchTrips, createTrip, updateTrip, deleteTrip, updateNightRush, findTripById, clearTrips } = useTrips()
+const { session, isAuthReady, initAuth } = useAuth()
+const { userProfile, fetchProfile, clearProfile, familyId } = useUserProfile()
+const { trips, loading, fetchTrips, createTrip, updateTrip, deleteTrip, findTripById, clearTrips } = useTrips()
 const categoriesStore = useEventCategories()
 const calendarEventsStore = useCalendarEvents()
 
 // Modal state
-const { isOpen: isModalOpen, activeTrip, initialDate, openNew, openEdit, close: closeTripModal } = useTripModal()
+const { isOpen: isModalOpen, activeTrip, initialDate, close: closeTripModal } = useTripModal()
 
 const inviteCode = ref('')
 
@@ -66,25 +66,6 @@ watch(() => [isAuthReady.value, session.value], ([ready, sess]) => {
 })
 
 // Actions
-const handleViewDetail = (trip: CampingTrip) => {
-  openEdit(trip as CampingTripWithCampsite)
-}
-
-const handleAdd = () => {
-  openNew()
-}
-
-const handleEdit = (trip: CampingTrip) => {
-  openEdit(trip as CampingTripWithCampsite)
-}
-
-const handleDeleteTrip = async (id: number) => {
-  const success = await deleteTrip(id)
-  if (success) {
-    await fetchTrips(session.value!.user.id, familyId())
-  }
-}
-
 const handleSubmit = async (tripData: NewCampingTrip) => {
   if (!session.value) return
 
@@ -115,25 +96,6 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
     closeTripModal()
     activeTrip.value = null
   }
-}
-
-const handleUpdateNightRush = async ({ id, value }: { id: number, value: boolean }) => {
-  const success = await updateNightRush(id, value)
-  if (success && session.value) {
-    await fetchTrips(session.value.user.id, familyId())
-  }
-}
-
-const handleSettingsSaved = () => {
-  if (session.value) {
-    fetchProfile(session.value.user.id)
-  }
-}
-
-const handleLogout = async () => {
-  await logout()
-  clearTrips()
-  clearProfile()
 }
 
 onMounted(async () => {
@@ -206,21 +168,7 @@ onMounted(async () => {
       <main v-if="!loading || route.name === 'auth'" class="flex-1 overflow-hidden relative bg-surface-50">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
-            <component :is="Component" 
-              :trips="trips"
-              :user-origin="userOrigin()"
-              :loading="loading"
-              :user-id="session?.user?.id"
-              :session="session"
-              :is-admin="isAdmin()"
-              @view-detail="handleViewDetail"
-              @update-night-rush="handleUpdateNightRush"
-              @add="handleAdd"
-              @edit="handleEdit"
-              @delete="handleDeleteTrip"
-              @saved="handleSettingsSaved"
-              @logout="handleLogout"
-            />
+            <component :is="Component" />
           </transition>
         </router-view>
       </main>

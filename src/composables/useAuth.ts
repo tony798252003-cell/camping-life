@@ -2,15 +2,16 @@ import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
 import type { Session } from '@supabase/supabase-js'
 
+// 模組層級 ref（singleton）：App.vue 初始化一次，各頁面直接取用同一份 session
+const session = ref<Session | null>(null)
+const isAuthReady = ref(false)
+const loading = ref(false)
+
 /**
  * Authentication state management
  * Handles user session, login/logout, and auth state changes
  */
 export function useAuth() {
-    const session = ref<Session | null>(null)
-    const isAuthReady = ref(false)
-    const loading = ref(false)
-
     /**
      * Initialize auth state and set up listener
      */
