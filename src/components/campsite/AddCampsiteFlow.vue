@@ -66,6 +66,8 @@ const DISPLAY_ROWS: Array<{ key: string; label: string; kind?: Kind; unit?: stri
   { key: 'playground_features', label: '遊樂設施', kind: 'tags' },
   { key: 'campsite_notes', label: 'AI 摘要', kind: 'textarea' },
 ]
+// AI 關閉時補成空白可編輯欄位的 key（Gemini 開啟時由 mergeGemini 產生）
+const AI_KEYS = DISPLAY_ROWS.slice(DISPLAY_ROWS.findIndex((r) => r.key === 'spot_types')).map((r) => r.key)
 
 const visibleRows = computed(() => DISPLAY_ROWS.filter((r) => rows.value[r.key]))
 const unconfirmed = computed(
@@ -147,6 +149,12 @@ async function searchByName() {
 function showDraft(d: CampsiteDraft) {
   const out: Record<string, Row> = {}
   for (const [k, f] of Object.entries(d.fields)) out[k] = { ...(f as DraftField<unknown>), confirmed: false }
+  if (d.aiMode === 'off') {
+    // 關閉 AI：這些欄位是「還沒填」而不是「查無資料」，不計入待確認
+    for (const k of AI_KEYS) {
+      out[k] ??= { value: null, source: 'manual', confidence: 'none', urls: [], needsReview: false, confirmed: false }
+    }
+  }
   draft.value = d
   rows.value = out
   alreadyExists.value = false
@@ -238,6 +246,8 @@ function buildInsert() {
   const sources: FieldSources = {}
   for (const [k, r] of Object.entries(rows.value)) {
     if (r.value !== null && r.value !== undefined) row[k] = r.value
+    // 沒填的空欄位不寫 field_sources，之後 Claude 補資料才看得出哪些還沒處理
+    else if (r.source === 'manual' && r.confidence === 'none' && !r.confirmed) continue
     sources[k] = {
       source: r.source,
       confidence: r.confidence,
@@ -426,6 +436,7 @@ onBeforeUnmount(() => {
         <p class="text-[15px] font-bold text-slate-900">{{ draft.rawName }}</p>
         <p class="text-[13px] text-slate-500">{{ rows.address?.value ?? '' }}</p>
         <p class="mt-1 text-[12px] text-slate-500">很多營區的設施只在 FB 粉專，查不到的欄位請自己確認</p>
+        <p v-if="draft.aiMode === 'off'" class="mt-1 text-[12px] text-slate-500">其他資料可之後請 Claude 幫忙補</p>
         <p v-if="draft.warnings.includes('gemini_failed')" class="mt-1 text-[12px] text-amber-700">AI 查詢沒有成功，其他欄位請手動補。</p>
         <p v-if="draft.aiMode === 'ungrounded'" class="mt-1 text-[12px] font-bold text-amber-700">AI 未上網查證，以下資料僅供參考，請逐項確認</p>
         <p v-if="unconfirmed > 0" class="mt-1 text-[12px] font-bold text-amber-700">有 {{ unconfirmed }} 個欄位請確認</p>

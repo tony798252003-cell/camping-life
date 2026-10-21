@@ -42,6 +42,6 @@ export interface CampsiteDraft {
     business_status: DraftField<BusinessStatusValue>
   } & Record<string, DraftField<any>> // Gemini 填的欄位（Task 4.4）
   warnings: string[]
-  // AI 是否有上網查證；沒有時前端要提示（沒帶＝沒跑 AI）
-  aiMode?: 'grounded' | 'ungrounded'
+  // AI 是否有上網查證；沒有時前端要提示（沒帶＝沒跑 AI；off＝伺服器關閉 AI）
+  aiMode?: 'grounded' | 'ungrounded' | 'off'
 }

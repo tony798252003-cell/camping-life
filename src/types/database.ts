@@ -14,7 +14,7 @@ export interface CapacityZone {
 }
 
 export type FieldSource = {
-    source: 'places' | 'elevation' | 'gemini' | 'manual'
+    source: 'places' | 'elevation' | 'gemini' | 'claude' | 'manual'
     confidence: 'high' | 'low' | 'none'
     urls: string[]
     confirmed: boolean

@@ -185,6 +185,8 @@ export async function handleCampsiteDraft(req: Request, deps: { fetchImpl?: type
     info = { name: draft.fields.name.value ?? detail.name, address: detail.address, mapsUrl: detail.mapsUrl }
   }
   if (body.skipAi === true) return json(200, draft)
+  // 預設不用 AI（沒有付費 key）；設 CAMPSITE_AI=on 才會呼叫 Gemini，營區其餘欄位改由 Claude Code 事後補
+  if (process.env.CAMPSITE_AI !== 'on') return json(200, { ...draft, aiMode: 'off' })
   try {
     const { fields, aiMode } = await researchCampsiteAuto(info, deps.fetchImpl, {
       // maxDuration 60 s：Gemini 階段最多 45 s，且整體不超過 50 s（Places／海拔已用掉的時間要扣）

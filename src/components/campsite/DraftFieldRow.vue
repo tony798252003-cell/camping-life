@@ -29,6 +29,7 @@ const PILL: Record<string, string> = {
   places: '📍Google',
   elevation: '⛰️計算',
   gemini: '✨AI',
+  claude: '🔎Claude 查詢',
   manual: '✍️自填',
 }
 
@@ -91,13 +92,13 @@ function commit() {
       <span class="text-[13px] font-bold text-primary-900">{{ label }}</span>
       <span
         class="text-[11px] px-2 py-0.5 rounded-full"
-        :class="field.source === 'gemini' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'"
+        :class="field.source === 'gemini' || field.source === 'claude' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'"
       >{{ PILL[field.source] }}</span>
     </div>
 
     <template v-if="!editing">
       <p class="mt-1 text-[15px] whitespace-pre-line break-words" :class="display ? 'text-slate-900' : 'text-slate-400'">
-        {{ display ?? '？查無資料' }}
+        {{ display ?? (field.source === 'manual' && field.confidence === 'none' ? '尚未填寫' : '？查無資料') }}
       </p>
 
       <div v-if="safeUrls.length" class="mt-1">

@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { mergeGemini, researchCampsite, researchCampsiteAuto, HIGH_RISK_FIELDS } from './gemini.js'
 import { placeToDraft, fetchElevations, resolveMapsUrl, handleCampsiteDraft } from './draft.js'
 import type { PlaceDetail } from './places.js'
@@ -285,6 +285,7 @@ describe('Gemini 來源網址 scheme', () => {
 describe('handleCampsiteDraft baseDraft', () => {
   // 為什麼：第二段只該跑 Gemini，Place Details 重打一次是多花一次 Google 費用
   it('帶相符的 baseDraft 時不再呼叫 Places', async () => {
+    process.env.CAMPSITE_AI = 'on'
     process.env.GEMINI_MODEL = 'm'
     process.env.GEMINI_API_KEY = 'k'
     const base = placeToDraft(detail(), 1200)
@@ -300,6 +301,7 @@ describe('handleCampsiteDraft baseDraft', () => {
     expect(res.status).toBe(200)
     expect(urls.some((u) => u.includes('places.googleapis.com'))).toBe(false)
     expect(urls.some((u) => u.includes('generativelanguage'))).toBe(true)
+    delete process.env.CAMPSITE_AI
   })
 })
 
@@ -362,7 +364,39 @@ describe('handleCampsiteDraft + Gemini', () => {
       return { ok: true, status: 200, json: async () => rawDetail }
     }) as unknown as typeof fetch
 
+  const savedAi = process.env.CAMPSITE_AI
+  afterEach(() => {
+    if (savedAi === undefined) delete process.env.CAMPSITE_AI
+    else process.env.CAMPSITE_AI = savedAi
+  })
+
+  it('CAMPSITE_AI 未設（預設 off）→ 不呼叫 Gemini、aiMode off、無警告 — 沒有付費 key 時不該每次白打一次並顯示失敗', async () => {
+    delete process.env.CAMPSITE_AI
+    let called = false
+    const res = await handleCampsiteDraft(post({ placeId: 'pid1' }), {
+      fetchImpl: mk(async () => { called = true; return {} }),
+    })
+    const body = (await res.json()) as { aiMode: string; warnings: string[]; fields: { altitude: { value: number } } }
+    expect(called).toBe(false)
+    expect(body.aiMode).toBe('off')
+    expect(body.warnings).toEqual([])
+    expect(body.fields.altitude.value).toBe(100)
+  })
+
+  it('CAMPSITE_AI=on → 走原本的 Gemini 流程', async () => {
+    process.env.CAMPSITE_AI = 'on'
+    process.env.GEMINI_MODEL = 'm1'
+    process.env.GEMINI_API_KEY = 'k'
+    let called = false
+    const res = await handleCampsiteDraft(post({ placeId: 'pid1' }), {
+      fetchImpl: mk(async () => { called = true; throw new Error('x') }),
+    })
+    expect(called).toBe(true)
+    expect(((await res.json()) as { warnings: string[] }).warnings).toContain('gemini_failed')
+  })
+
   it('Gemini 失敗仍回 200 且 warnings 含 gemini_failed — Places 資料不能因 AI 掛掉而丟失', async () => {
+    process.env.CAMPSITE_AI = 'on'
     process.env.GEMINI_MODEL = 'm1'
     process.env.GEMINI_API_KEY = 'k'
     const res = await handleCampsiteDraft(post({ placeId: 'pid1' }), {
@@ -385,6 +419,9 @@ describe('handleCampsiteDraft + Gemini', () => {
 })
 
 describe('Gemini 無搜尋 fallback', () => {
+  // 這組測的是 AI 開啟時的行為
+  beforeEach(() => { process.env.CAMPSITE_AI = 'on' })
+  afterEach(() => { delete process.env.CAMPSITE_AI })
   const saved = { m: process.env.GEMINI_MODEL, k: process.env.GEMINI_API_KEY, g: process.env.GEMINI_GROUNDING }
   afterEach(() => {
     for (const [name, v] of [['GEMINI_MODEL', saved.m], ['GEMINI_API_KEY', saved.k], ['GEMINI_GROUNDING', saved.g]] as const) {
