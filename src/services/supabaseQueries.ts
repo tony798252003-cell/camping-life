@@ -17,6 +17,8 @@ import type {
 
 // ============ Trip Queries ============
 
+export const TRIP_DELETE_DENIED = '只有建立者可以刪除這個行程'
+
 export const tripQueries = {
     /**
      * Fetch all trips for a user or family
@@ -70,12 +72,15 @@ export const tripQueries = {
      * Delete a trip
      */
     async delete(tripId: number) {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('camping_trips')
             .delete()
             .eq('id', tripId)
+            .select('id')
 
         if (error) throw error
+        // RLS 擋下時不會報錯而是刪 0 筆
+        if (!data || data.length === 0) throw new Error(TRIP_DELETE_DENIED)
     }
 }
 

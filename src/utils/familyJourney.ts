@@ -19,14 +19,25 @@ export const normalizeJoinCode = (raw: unknown): string => {
 
 // 登入前被導去 /auth 時暫存要回去的邀請連結（OAuth 會整頁跳轉，只能放 sessionStorage）
 const PENDING_KEY = 'pendingJoinCode'
-export const savePendingJoinCode = (code: string): void => {
-  try { sessionStorage.setItem(PENDING_KEY, code) } catch { /* 私密模式等：退回手動輸入 */ }
+export const PENDING_TTL_MS = 30 * 60 * 1000
+export const savePendingJoinCode = (code: string, now: number = Date.now()): void => {
+  try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ code, at: now })) } catch { /* 私密模式等：退回手動輸入 */ }
 }
-export const takePendingJoinCode = (): string => {
+// 超過 30 分鐘視為過期；相容舊格式（純字串，無時間戳，照收）
+export const takePendingJoinCode = (now: number = Date.now()): string => {
   try {
-    const v = sessionStorage.getItem(PENDING_KEY) ?? ''
+    const raw = sessionStorage.getItem(PENDING_KEY)
     sessionStorage.removeItem(PENDING_KEY)
-    return normalizeJoinCode(v)
+    if (!raw) return ''
+    let code: unknown = raw
+    try {
+      const v = JSON.parse(raw)
+      if (v && typeof v === 'object') {
+        if (typeof v.at !== 'number' || now - v.at > PENDING_TTL_MS) return ''
+        code = v.code
+      }
+    } catch { /* 純字串 */ }
+    return normalizeJoinCode(code)
   } catch {
     return ''
   }

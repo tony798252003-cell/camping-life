@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { tripQueries } from '../services/supabaseQueries'
+import { tripQueries, TRIP_DELETE_DENIED } from '../services/supabaseQueries'
 import type { CampingTripWithCampsite, NewCampingTrip } from '../types/database'
 import { useNotification } from './useNotification'
 
@@ -86,7 +86,7 @@ export function useTrips() {
             return true
         } catch (error) {
             console.error('[useTrips] Delete error:', error)
-            notifyError('刪除失敗，請稍後再試')
+            notifyError(error instanceof Error && error.message === TRIP_DELETE_DENIED ? TRIP_DELETE_DENIED : '刪除失敗，請稍後再試')
             return false
         }
     }
