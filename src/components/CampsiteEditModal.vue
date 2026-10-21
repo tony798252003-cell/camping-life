@@ -1,19 +1,16 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { X, MapPin, Loader2, Snowflake, IceCream, Droplets, Upload, Image as ImageIcon, Plus, Trash2 } from 'lucide-vue-next'
+import { X, Loader2, Navigation, Phone } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
-import { TAIWAN_LOCATIONS } from '../constants/locations'
+import { useCampsiteForm } from '../composables/useCampsiteForm'
+import { campsiteNavUrl, campsiteTelUrl, FIELD_LABEL, FIELD_SOURCE_LABEL } from '../utils/campsiteNav'
 import type { Campsite } from '../types/database'
-import {
-  PLAYGROUND_OPTIONS,
-  WATER_OPTIONS,
-  SCENERY_OPTIONS,
-  SPOT_TYPE_OPTIONS,
-  ZONE_TYPE_OPTIONS,
-  BOOKING_METHOD_OPTIONS,
-} from '../constants/campsiteOptions'
-
-const isFacilityOpen = ref(true)
+import CampsiteBasicFields from './campsite/CampsiteBasicFields.vue'
+import CampsiteAmenities from './campsite/CampsiteAmenities.vue'
+import CampsiteRules from './campsite/CampsiteRules.vue'
+import CampsiteCapacityZones from './campsite/CampsiteCapacityZones.vue'
+import CampsiteLayoutImage from './campsite/CampsiteLayoutImage.vue'
+import CampsiteBookingInfo from './campsite/CampsiteBookingInfo.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -23,115 +20,34 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'saved'])
 
-const form = ref<Partial<Campsite>>({})
+const {
+  form, tagsString, nightRushStart, nightRushEnd, showerStart, showerEnd, isShower24H,
+  unconfirmedKeys, init, snapshot, applySnapshot, confirmField, toPayload,
+} = useCampsiteForm()
 const isSaving = ref(false)
-const isUploadingMap = ref(false)
-const mapFileInput = ref<HTMLInputElement | null>(null)
-const tagsString = ref('') // Edit tags as comma-separated string for simplicity
 
-const handleMapUpload = async (event: Event) => {
-   const input = event.target as HTMLInputElement
-   if (!input.files || input.files.length === 0) return
+const navUrl = computed(() => campsiteNavUrl({
+  name: form.value.name ?? '',
+  google_place_id: form.value.google_place_id,
+  latitude: typeof form.value.latitude === 'number' ? form.value.latitude : null,
+  longitude: typeof form.value.longitude === 'number' ? form.value.longitude : null,
+}))
+const telUrl = computed(() => campsiteTelUrl(form.value.phone))
 
-   const file = input.files ? input.files[0] : null
-   if (!file) return
-   
-   // Basic validation
-   if (!file.type.startsWith('image/')) {
-      alert('請上傳圖片格式 (JPG, PNG)')
-      return
-   }
-   if (file.size > 5 * 1024 * 1024) {
-      alert('圖片大小請勿超過 5MB')
-      return
-   }
-
-   isUploadingMap.value = true
-   try {
-      // 1. Upload to Supabase Storage
-      const fileExt = file.name.split('.').pop()
-      const fileName = `map-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-      const filePath = `${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-         .from('campsite-maps') // Bucket name
-         .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      // 2. Get Public URL
-      const { data } = supabase.storage
-         .from('campsite-maps')
-         .getPublicUrl(filePath)
-      
-      // 3. Update Form
-      form.value.layout_image_url = data.publicUrl
-      
-   } catch (e: any) {
-      console.error('Map upload failed:', e)
-      alert(`上傳失敗: ${e.message}`)
-   } finally {
-      isUploadingMap.value = false
-      if (input) input.value = '' // Reset input
-   }
+function reviewValue(key: string): string {
+  const v = (form.value as Record<string, unknown>)[key]
+  if (v === null || v === undefined || v === '') return '？查無資料'
+  if (Array.isArray(v)) return v.map(x => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join('、')
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
 }
-
-const triggerMapUpload = () => {
-   mapFileInput.value?.click()
-}
-
-const removeMap = () => {
-   if (confirm('確定要移除這張營區配置圖嗎？')) {
-      form.value.layout_image_url = ''
-   }
-}
-
-const availableDistricts = computed(() => {
-  if (!form.value.city) return []
-  const city = TAIWAN_LOCATIONS.find(c => c.id === form.value.city)
-  return city ? city.districts : []
-})
-
-// Display Helpers
-const formCityName = computed(() => {
-  const c = TAIWAN_LOCATIONS.find(loc => loc.id === form.value.city)
-  return c ? c.name : '未設定'
-})
-
-const formDistrictName = computed(() => {
-  const c = TAIWAN_LOCATIONS.find(loc => loc.id === form.value.city)
-  if (!c) return '未設定'
-  const d = c.districts.find(dist => dist.id === form.value.district)
-  return d ? d.name : '未設定'
-})
-
-
-
-// Reset district when city changes (unless it's the initial load)
-const handleCityChange = () => {
-  form.value.district = ''
-}
-
-const nightRushStart = ref('')
-const nightRushEnd = ref('')
-const showerStart = ref('')
-const showerEnd = ref('')
-const isShower24H = ref(false)
 
 // localStorage draft key per campsite
 const draftKey = computed(() => `campsite-draft-${props.campsite?.id}`)
 
 function saveDraft() {
   if (!props.isEditable) return
-  localStorage.setItem(draftKey.value, JSON.stringify({
-    form: form.value,
-    tagsString: tagsString.value,
-    nightRushStart: nightRushStart.value,
-    nightRushEnd: nightRushEnd.value,
-    showerStart: showerStart.value,
-    showerEnd: showerEnd.value,
-    isShower24H: isShower24H.value,
-  }))
+  localStorage.setItem(draftKey.value, JSON.stringify(snapshot()))
 }
 
 function clearDraft() {
@@ -143,119 +59,30 @@ watch([form, tagsString, nightRushStart, nightRushEnd, showerStart, showerEnd, i
   saveDraft, { deep: true })
 
 watch(() => props.campsite, (newVal) => {
-  if (newVal) {
-    // Check for saved draft first
-    const saved = localStorage.getItem(`campsite-draft-${newVal.id}`)
-    if (saved && props.isEditable) {
-      try {
-        const draft = JSON.parse(saved)
-        form.value = draft.form
-        tagsString.value = draft.tagsString ?? ''
-        nightRushStart.value = draft.nightRushStart ?? ''
-        nightRushEnd.value = draft.nightRushEnd ?? ''
-        showerStart.value = draft.showerStart ?? ''
-        showerEnd.value = draft.showerEnd ?? ''
-        isShower24H.value = draft.isShower24H ?? false
-        return
-      } catch {
-        clearDraft()
-      }
-    }
-
-    form.value = {
-      ...newVal,
-      amenities: newVal.amenities || {
-         has_fridge: false,
-         has_freezer: false,
-         has_water_dispenser: false
-      },
-      playground_features: newVal.playground_features ?? [],
-      water_features: newVal.water_features ?? [],
-      scenery_features: newVal.scenery_features ?? [],
-      spot_types: newVal.spot_types ?? [],
-      booking_method: newVal.booking_method ?? [],
-      booking_difficulty: newVal.booking_difficulty ?? 'normal',
-      capacity_zones: newVal.capacity_zones ?? [],
-    }
-    tagsString.value = newVal.tags ? newVal.tags.join(', ') : ''
-
-    // Parse Night Rush
-    const rushTime = newVal.night_rush_time
-    if (rushTime && rushTime.includes('-')) {
-       // Handle "18:00-22:00" or "18:00 - 22:00"
-       const parts = rushTime.split('-')
-       const start = parts[0]
-       const end = parts[1]
-       if (parts.length === 2 && start && end) {
-          nightRushStart.value = start.trim()
-          nightRushEnd.value = end.trim()
-       }
-    } else {
-       nightRushStart.value = ''
-       nightRushEnd.value = ''
-    }
-
-    // Parse Shower
-    if (newVal.shower_restrictions === '24H') {
-       isShower24H.value = true
-       showerStart.value = ''
-       showerEnd.value = ''
-    } else if (newVal.shower_restrictions && newVal.shower_restrictions.includes('-')) {
-       isShower24H.value = false
-       const showerTime = newVal.shower_restrictions
-       const parts = showerTime.split('-')
-       const start = parts[0]
-       const end = parts[1]
-       if (parts.length === 2 && start && end) {
-          showerStart.value = start.trim()
-          showerEnd.value = end.trim()
-       }
-    } else {
-       isShower24H.value = false
-       showerStart.value = ''
-       showerEnd.value = ''
+  if (!newVal) return
+  init(newVal)
+  // Check for saved draft first
+  const saved = localStorage.getItem(`campsite-draft-${newVal.id}`)
+  if (saved && props.isEditable) {
+    try {
+      applySnapshot(JSON.parse(saved))
+    } catch {
+      clearDraft()
     }
   }
 }, { immediate: true })
-
-// Sync back to form
-watch([nightRushStart, nightRushEnd], () => {
-   if (nightRushStart.value && nightRushEnd.value) {
-      form.value.night_rush_time = `${nightRushStart.value} - ${nightRushEnd.value}`
-   } else {
-      form.value.night_rush_time = ''
-   }
-})
-
-watch([showerStart, showerEnd, isShower24H], () => {
-   if (isShower24H.value) {
-      form.value.shower_restrictions = '24H'
-   } else if (showerStart.value && showerEnd.value) {
-      form.value.shower_restrictions = `${showerStart.value} - ${showerEnd.value}`
-   } else {
-      form.value.shower_restrictions = ''
-   }
-})
 
 const save = async () => {
   isSaving.value = true
   const isNew = form.value.id === 0
 
   try {
-    const updates = {
-      ...form.value,
-      tags: tagsString.value.split(/[,，]/).map(t => t.trim()).filter(Boolean)
-    }
-
-    // Remove protected fields
-    delete (updates as any).id
-    delete (updates as any).created_at
-    delete (updates as any).created_by
+    const updates = toPayload()
 
     // For new campsites, set created_by to current user
     if (isNew) {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session) (updates as any).created_by = session.user.id
+      if (session) updates.created_by = session.user.id
     }
 
     console.log('Sending updates:', updates)
@@ -281,30 +108,6 @@ const save = async () => {
     isSaving.value = false
   }
 }
-
-const generateTimeRange = (startHour: number, endHour: number) => {
-  const times = []
-  for (let i = startHour; i <= endHour; i++) {
-    const padded = i.toString().padStart(2, '0')
-    if (i === 24) {
-       times.push('24:00') // Handle end of day explicitly if needed
-       continue
-    }
-    times.push(`${padded}:00`)
-    if (i !== endHour) {
-       times.push(`${padded}:30`)
-    }
-  }
-  return times
-}
-
-const checkInOptions = computed(() => generateTimeRange(8, 14))
-const checkOutOptions = computed(() => generateTimeRange(11, 15))
-const nightRushStartOptions = computed(() => generateTimeRange(15, 18))
-const nightRushEndOptions = computed(() => generateTimeRange(22, 24))
-const showerStartOptions = computed(() => generateTimeRange(7, 10))
-const showerEndOptions = computed(() => generateTimeRange(20, 24))
-
 </script>
 
 <template>
@@ -319,340 +122,54 @@ const showerEndOptions = computed(() => generateTimeRange(20, 24))
         </button>
       </div>
 
+
       <!-- Form -->
       <div class="p-6 space-y-5 overflow-y-auto">
-         
-         <div class="grid grid-cols-2 gap-4">
-            <div class="col-span-2">
-               <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">名稱</label>
-               <input v-if="isEditable" v-model="form.name" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500" />
-               <div v-else class="text-lg font-bold text-gray-900 px-1">{{ form.name }}</div>
-            </div>
 
-            <div class="col-span-1">
-               <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">縣市</label>
-               <select 
-                  v-if="isEditable"
-                  v-model="form.city" 
-                  @change="handleCityChange"
-                  class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.5rem_center] bg-[length:1.5em_1.5em]"
-               >
-                  <option value="" disabled>請選擇縣市</option>
-                  <option v-for="city in TAIWAN_LOCATIONS" :key="city.id" :value="city.id">
-                     {{ city.name }}
-                  </option>
-               </select>
-               <div v-else class="text-gray-900 font-medium px-1">{{ formCityName }}</div>
-            </div>
-             <div class="col-span-1">
-               <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">鄉鎮</label>
-               <select 
-                  v-if="isEditable"
-                  v-model="form.district" 
-                  :disabled="!form.city"
-                  class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:1.5em_1.5em] bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')]"
-                  :class="{'opacity-50 cursor-not-allowed': !form.city}"
-               >
-                  <option value="" disabled>請選擇鄉鎮</option>
-                   <option v-for="dist in availableDistricts" :key="dist.id" :value="dist.id">
-                     {{ dist.name }}
-                  </option>
-               </select>
-               <div v-else class="text-gray-900 font-medium px-1">{{ formDistrictName }}</div>
-            </div>
-            
-            <div class="col-span-1">
-               <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">海拔 (m)</label>
-               <input v-if="isEditable" v-model.number="form.altitude" type="number" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500" />
-               <div v-else class="text-gray-900 font-medium px-1">{{ form.altitude ? `${form.altitude}m` : '未設定' }}</div>
-            </div>
-            <div class="col-span-1">
-               <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">電話</label>
-               <input v-if="isEditable" v-model="form.phone" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500" />
-               <div v-else class="text-gray-900 font-medium px-1 font-mono">{{ form.phone || '未設定' }}</div>
-            </div>
+         <!-- 導航 / 撥號 -->
+         <div v-if="navUrl || telUrl" class="flex gap-2">
+            <a v-if="navUrl" :href="navUrl" target="_blank" rel="noopener noreferrer" class="flex-1 min-h-[44px] rounded-[14px] bg-primary-600 text-white text-sm font-bold flex items-center justify-center gap-1.5">
+               <Navigation class="w-4 h-4" /> 導航
+            </a>
+            <a v-if="telUrl" :href="telUrl" class="flex-1 min-h-[44px] rounded-[14px] bg-white border border-gray-200 text-gray-700 text-sm font-bold flex items-center justify-center gap-1.5">
+               <Phone class="w-4 h-4" /> 撥號
+            </a>
          </div>
 
-         <!-- Coordinates -->
-         <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-            <div class="flex items-center justify-between mb-2">
-               <h4 class="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1">
-                  <MapPin class="w-3 h-3" /> GPS 座標
-               </h4>
-            </div>
-            <div class="grid grid-cols-2 gap-3" v-if="isEditable">
-               <div>
-                  <label class="text-xs text-blue-600 block mb-1">緯度</label>
-                  <input v-model.number="form.latitude" type="number" step="0.000001" class="w-full p-2 bg-white border border-blue-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
-               </div>
-               <div>
-                  <label class="text-xs text-blue-600 block mb-1">經度</label>
-                  <input v-model.number="form.longitude" type="number" step="0.000001" class="w-full p-2 bg-white border border-blue-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
-               </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3" v-else>
-               <div>
-                  <label class="text-xs text-blue-600/70 block mb-1">緯度</label>
-                  <div class="text-blue-900 font-mono font-medium">{{ form.latitude || '未設定' }}</div>
-               </div>
-               <div>
-                  <label class="text-xs text-blue-600/70 block mb-1">經度</label>
-                  <div class="text-blue-900 font-mono font-medium">{{ form.longitude || '未設定' }}</div>
-               </div>
-            </div>
-            <p v-if="(!form.latitude || !form.longitude) && isEditable" class="text-xs text-orange-600 mt-2 font-bold flex items-center gap-1">
-               ⚠️ 尚未設定座標，無法使用地圖導航功能
-            </p>
-         </div>
-
-         <!-- Tags -->
-         <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">標籤</label>
-            <input v-if="isEditable" v-model="tagsString" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="草地, 雲海, 戲水池" />
-            <div v-else class="flex flex-wrap gap-2 mt-1">
-               <span v-for="tag in (form.tags || [])" :key="tag" class="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm">
-                 {{ tag }}
-               </span>
-               <span v-if="(!form.tags || form.tags.length === 0)" class="text-gray-400 text-sm">無標籤</span>
-            </div>
-         </div>
-
-         <!-- Amenities (v2) -->
-         <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">營地設施</label>
-            
-            <div v-if="isEditable" class="grid grid-cols-2 gap-3">
-               <!-- Checkboxes for Edit -->
-               <div class="flex items-center gap-2">
-                  <input type="checkbox" v-model="form.amenities!.has_fridge" class="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500" />
-                  <span class="text-sm text-gray-700">冰箱 (冷藏)</span>
-               </div>
-               <div class="flex items-center gap-2">
-                  <input type="checkbox" v-model="form.amenities!.has_freezer" class="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500" />
-                  <span class="text-sm text-gray-700">冷凍櫃</span>
-               </div>
-               <div class="flex items-center gap-2">
-                  <input type="checkbox" v-model="form.amenities!.has_water_dispenser" class="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500" />
-                  <span class="text-sm text-gray-700">飲水機</span>
-               </div>
-            </div>
-            
-            <div v-else class="flex flex-wrap gap-4 py-1">
-               <!-- Read-Only Icons -->
-               <div :class="{'opacity-100 text-blue-700': form.amenities?.has_fridge, 'opacity-30 text-gray-400': !form.amenities?.has_fridge}" class="flex flex-col items-center gap-1">
-                  <div class="p-2 rounded-full bg-gray-100"><Snowflake class="w-5 h-5" /></div>
-                  <span class="text-[10px] font-bold">冰箱</span>
-               </div>
-               <div :class="{'opacity-100 text-blue-700': form.amenities?.has_freezer, 'opacity-30 text-gray-400': !form.amenities?.has_freezer}" class="flex flex-col items-center gap-1">
-                  <div class="p-2 rounded-full bg-gray-100"><IceCream class="w-5 h-5" /></div>
-                  <span class="text-[10px] font-bold">冷凍</span>
-               </div>
-               <div :class="{'opacity-100 text-cyan-600': form.amenities?.has_water_dispenser, 'opacity-30 text-gray-400': !form.amenities?.has_water_dispenser}" class="flex flex-col items-center gap-1">
-                  <div class="p-2 rounded-full bg-gray-100"><Droplets class="w-5 h-5" /></div>
-                  <span class="text-[10px] font-bold">飲水機</span>
-               </div>
-            </div>
-         </div>
-
-         <!-- Rules & Timings (v2) -->
-         <div>
-             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">時間與規範</label>
-             <div class="grid grid-cols-2 gap-4">
-                  <!-- Check In -->
-                  <div>
-                      <label class="text-xs text-gray-400 block mb-1">一般進場</label>
-                      <select v-if="isEditable" v-model="form.check_in_time" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
-                         <option value="" disabled>請選擇</option>
-                         <option v-for="t in checkInOptions" :key="t" :value="t">{{ t }}</option>
-                      </select>
-                      <div v-else class="text-sm font-bold text-gray-900">{{ form.check_in_time || '--:--' }}</div>
+         <!-- 待確認欄位（field_sources.confirmed = false） -->
+         <div v-if="unconfirmedKeys.length" class="rounded-xl bg-amber-50 border-l-4 border-amber-400 p-3 space-y-2">
+            <p class="text-xs font-bold text-amber-900">⚠️ 以下 {{ unconfirmedKeys.length }} 個欄位尚未確認</p>
+            <div v-for="key in unconfirmedKeys" :key="key" class="flex items-start justify-between gap-2">
+               <div class="min-w-0">
+                  <div class="text-[13px] font-bold text-gray-800">
+                     {{ FIELD_LABEL[key] ?? key }}
+                     <span class="ml-1 text-[11px] font-normal text-gray-500">{{ FIELD_SOURCE_LABEL[form.field_sources![key]!.source] ?? form.field_sources![key]!.source }}</span>
                   </div>
-                  <!-- Check Out -->
-                  <div>
-                      <label class="text-xs text-gray-400 block mb-1">一般離場</label>
-                      <select v-if="isEditable" v-model="form.check_out_time" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
-                         <option value="" disabled>請選擇</option>
-                         <option v-for="t in checkOutOptions" :key="t" :value="t">{{ t }}</option>
-                      </select>
-                      <div v-else class="text-sm font-bold text-gray-900">{{ form.check_out_time || '--:--' }}</div>
-                  </div>
-                  <!-- Night Rush -->
-                  <div class="col-span-2">
-                      <label class="text-xs text-gray-400 block mb-1">夜衝時段</label>
-                      <div v-if="isEditable" class="flex items-center gap-2">
-                        <select v-model="nightRushStart" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
-                           <option value="" disabled>開始</option>
-                           <option v-for="t in nightRushStartOptions" :key="t" :value="t">{{ t }}</option>
-                        </select>
-                        <span class="text-gray-400">-</span>
-                        <select v-model="nightRushEnd" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
-                           <option value="" disabled>結束</option>
-                           <option v-for="t in nightRushEndOptions" :key="t" :value="t">{{ t }}</option>
-                        </select>
-                      </div>
-                      <div v-else class="text-sm font-bold text-indigo-700">{{ form.night_rush_time || '未提供' }}</div>
-                  </div>
-                  <!-- Shower -->
-                  <div class="col-span-2">
-                      <div class="flex items-center justify-between mb-1">
-                          <label class="text-xs text-gray-400">熱水供應</label>
-                          <div v-if="isEditable" class="flex items-center gap-1">
-                             <input type="checkbox" v-model="isShower24H" id="shower24h" class="rounded text-primary-600 focus:ring-primary-500 w-3 h-3" />
-                             <label for="shower24h" class="text-xs text-gray-500 cursor-pointer">24H</label>
-                          </div>
-                      </div>
-                      <div v-if="isEditable">
-                          <div v-if="!isShower24H" class="flex items-center gap-2">
-                             <select v-model="showerStart" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
-                                <option value="" disabled>開始</option>
-                                <option v-for="t in showerStartOptions" :key="t" :value="t">{{ t }}</option>
-                             </select>
-                             <span class="text-gray-400">-</span>
-                             <select v-model="showerEnd" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm appearance-none">
-                                <option value="" disabled>結束</option>
-                                <option v-for="t in showerEndOptions" :key="t" :value="t">{{ t }}</option>
-                             </select>
-                          </div>
-                          <div v-else class="p-2 bg-gray-100 text-gray-500 text-sm rounded-lg text-center">
-                             全天候供應
-                          </div>
-                      </div>
-                      <div v-else class="text-sm font-bold text-gray-900">{{ form.shower_restrictions || '未提供' }}</div>
-                  </div>
-             </div>
-         </div>
-
-         <!-- Zone Config -->
-         <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">營位配置說明</label>
-            <textarea v-if="isEditable" v-model="form.zone_config" rows="3" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
-            <div v-else class="text-gray-800 whitespace-pre-wrap leading-relaxed py-1">{{ form.zone_config || '無說明' }}</div>
-         </div>
-
-         <!-- Capacity Zones -->
-         <div>
-            <div class="flex items-center justify-between mb-2">
-               <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">營區帳數</label>
-               <span v-if="(form.capacity_zones?.length ?? 0) > 0" class="text-xs text-gray-400">
-                 共 {{ (form.capacity_zones ?? []).reduce((s, z) => s + z.tents, 0) }} 帳
-               </span>
-            </div>
-
-            <!-- Edit Mode -->
-            <div v-if="isEditable" class="space-y-2">
-               <div
-                 v-for="(zone, idx) in (form.capacity_zones ?? [])"
-                 :key="idx"
-                 class="flex items-center gap-2"
-               >
-                 <input
-                   v-model="zone.name"
-                   placeholder="區域名稱（選填）"
-                   class="flex-1 min-w-0 p-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                 />
-                 <select
-                   v-model="zone.type"
-                   class="w-20 p-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                 >
-                   <option v-for="t in ZONE_TYPE_OPTIONS" :key="t" :value="t">{{ t }}</option>
-                 </select>
-                 <input
-                   v-model.number="zone.tents"
-                   type="number"
-                   min="1"
-                   placeholder="帳"
-                   class="w-16 p-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-center"
-                 />
-                 <span class="text-xs text-gray-400 flex-shrink-0">帳</span>
-                 <button @click="form.capacity_zones!.splice(idx, 1)" class="text-red-400 hover:text-red-600 flex-shrink-0">
-                   <Trash2 class="w-4 h-4" />
-                 </button>
+                  <div class="text-sm text-gray-700 break-words">{{ reviewValue(key) }}</div>
                </div>
-               <button
-                 @click="form.capacity_zones = [...(form.capacity_zones ?? []), { name: '', type: '草地', tents: 1 }]"
-                 class="w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-primary-400 hover:text-primary-500 transition flex items-center justify-center gap-1"
-               >
-                 <Plus class="w-4 h-4" /> 新增區域
-               </button>
+               <button v-if="isEditable" type="button" @click="confirmField(key)" class="flex-shrink-0 min-h-[36px] px-3 rounded-[12px] bg-amber-400 text-amber-950 text-xs font-bold">確認</button>
             </div>
-
-            <!-- Read-Only Mode -->
-            <div v-else>
-               <div v-if="(form.capacity_zones?.length ?? 0) === 0" class="text-gray-400 text-sm py-1">未設定</div>
-               <div v-else class="flex flex-wrap gap-2 py-1">
-                 <span
-                   v-for="(zone, idx) in form.capacity_zones"
-                   :key="idx"
-                   class="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm"
-                 >
-                   <span v-if="zone.name" class="font-medium">{{ zone.name }} </span>
-                   <span class="text-gray-500 text-xs">{{ zone.type }}</span>
-                   <span class="font-bold ml-1">{{ zone.tents }}帳</span>
-                 </span>
-               </div>
-            </div>
+            <p v-if="isEditable" class="text-[11px] text-amber-800">按「確認」後記得按下方「儲存變更」；直接修改欄位也會視為已確認。</p>
          </div>
 
-         <!-- Campsite Map -->
-         <div>
-             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">營區配置圖</label>
-             
-             <!-- Hidden Input -->
-             <input
-               ref="mapFileInput"
-               type="file"
-               accept="image/*"
-               class="hidden"
-               @change="handleMapUpload"
-             />
+         <CampsiteBasicFields v-model:tags-string="tagsString" :form="form" :is-editable="isEditable" />
 
-             <!-- Edit Mode -->
-             <div v-if="isEditable">
-                 <div 
-                   v-if="form.layout_image_url" 
-                   class="relative w-full rounded-xl overflow-hidden border border-gray-200 group"
-                 >
-                    <img :src="form.layout_image_url" class="w-full h-auto object-contain bg-gray-50" />
-                    <!-- Overlay Actions -->
-                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-3">
-                        <button @click="triggerMapUpload" class="px-3 py-1.5 bg-white text-gray-700 text-sm font-bold rounded-lg shadow hover:bg-gray-100 flex items-center gap-1">
-                           <Upload class="w-4 h-4" /> 更換
-                        </button>
-                        <button @click="removeMap" class="px-3 py-1.5 bg-red-500 text-white text-sm font-bold rounded-lg shadow hover:bg-red-600 flex items-center gap-1">
-                           <X class="w-4 h-4" /> 移除
-                        </button>
-                    </div>
-                 </div>
-                 
-                 <button 
-                   v-else
-                   @click="triggerMapUpload"
-                   :disabled="isUploadingMap"
-                   class="w-full h-40 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:bg-blue-50/50 transition cursor-pointer text-gray-500 hover:text-blue-600"
-                 >
-                     <Loader2 v-if="isUploadingMap" class="w-8 h-8 animate-spin text-blue-500" />
-                     <template v-else>
-                         <div class="p-3 bg-gray-100 rounded-full">
-                            <ImageIcon class="w-6 h-6" />
-                         </div>
-                         <div class="text-sm font-bold">點擊上傳配置圖</div>
-                         <div class="text-xs text-gray-400">支援 JPG, PNG (Max 5MB)</div>
-                     </template>
-                 </button>
-             </div>
+         <CampsiteAmenities :form="form" :is-editable="isEditable" />
 
-             <!-- View Mode -->
-             <div v-else>
-                 <div v-if="form.layout_image_url" class="rounded-xl overflow-hidden border border-gray-200">
-                    <img :src="form.layout_image_url" class="w-full h-auto object-contain bg-gray-50 cursor-zoom-in" onclick="window.open(this.src)" title="點擊放大" />
-                 </div>
-                 <div v-else class="flex items-center gap-2 text-gray-400 py-2">
-                    <ImageIcon class="w-5 h-5 opacity-50" />
-                    <span class="text-sm">未提供配置圖</span>
-                 </div>
-             </div>
-         </div>
-         
+         <CampsiteRules
+           v-model:night-rush-start="nightRushStart"
+           v-model:night-rush-end="nightRushEnd"
+           v-model:shower-start="showerStart"
+           v-model:shower-end="showerEnd"
+           v-model:isShower24H="isShower24H"
+           :form="form"
+           :is-editable="isEditable"
+         />
+
+         <CampsiteCapacityZones :form="form" :is-editable="isEditable" />
+
+         <CampsiteLayoutImage :form="form" :is-editable="isEditable" />
+
          <!-- Verified -->
          <div class="flex items-center gap-2">
             <template v-if="isEditable">
@@ -669,266 +186,9 @@ const showerEndOptions = computed(() => generateTimeRange(20, 24))
             </template>
          </div>
 
-         <!-- 設施與訂位資訊 Accordion -->
-         <div class="border border-gray-200 rounded-xl overflow-hidden mb-4">
-           <button
-             type="button"
-             @click="isFacilityOpen = !isFacilityOpen"
-             class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
-           >
-             <span class="font-bold text-primary-900 text-sm">設施與訂位資訊</span>
-             <svg
-               class="w-4 h-4 text-gray-500 transition-transform"
-               :class="{ 'rotate-180': isFacilityOpen }"
-               fill="none" viewBox="0 0 24 24" stroke="currentColor"
-             >
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-             </svg>
-           </button>
+         <CampsiteBookingInfo :form="form" :is-editable="isEditable" />
 
-           <div v-show="isFacilityOpen" class="p-4 space-y-5">
-            <template v-if="isEditable">
-
-             <!-- 遊樂設施 -->
-             <div>
-               <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">遊樂設施</p>
-               <div class="flex flex-wrap gap-2">
-                 <label
-                   v-for="opt in PLAYGROUND_OPTIONS"
-                   :key="opt"
-                   class="flex items-center gap-1.5 cursor-pointer"
-                 >
-                   <input
-                     type="checkbox"
-                     :value="opt"
-                     v-model="form.playground_features"
-                     class="w-4 h-4 rounded accent-sky-500"
-                   />
-                   <span class="text-sm text-gray-700">{{ opt }}</span>
-                 </label>
-               </div>
-             </div>
-
-             <!-- 水域設施 -->
-             <div>
-               <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">水域設施</p>
-               <div class="flex flex-wrap gap-2">
-                 <label
-                   v-for="opt in WATER_OPTIONS"
-                   :key="opt"
-                   class="flex items-center gap-1.5 cursor-pointer"
-                 >
-                   <input
-                     type="checkbox"
-                     :value="opt"
-                     v-model="form.water_features"
-                     class="w-4 h-4 rounded accent-sky-500"
-                   />
-                   <span class="text-sm text-gray-700">{{ opt }}</span>
-                 </label>
-               </div>
-             </div>
-
-             <!-- 自然景觀 -->
-             <div>
-               <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">自然景觀</p>
-               <div class="flex flex-wrap gap-2">
-                 <label
-                   v-for="opt in SCENERY_OPTIONS"
-                   :key="opt"
-                   class="flex items-center gap-1.5 cursor-pointer"
-                 >
-                   <input
-                     type="checkbox"
-                     :value="opt"
-                     v-model="form.scenery_features"
-                     class="w-4 h-4 rounded accent-sky-500"
-                   />
-                   <span class="text-sm text-gray-700">{{ opt }}</span>
-                 </label>
-               </div>
-             </div>
-
-             <!-- 營位類型 -->
-             <div>
-               <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">營位類型</p>
-               <div class="flex flex-wrap gap-2">
-                 <label
-                   v-for="opt in SPOT_TYPE_OPTIONS"
-                   :key="opt"
-                   class="flex items-center gap-1.5 cursor-pointer"
-                 >
-                   <input
-                     type="checkbox"
-                     :value="opt"
-                     v-model="form.spot_types"
-                     class="w-4 h-4 rounded accent-sky-500"
-                   />
-                   <span class="text-sm text-gray-700">{{ opt }}</span>
-                 </label>
-               </div>
-             </div>
-
-             <hr class="border-gray-100" />
-
-             <!-- 訂位資訊 -->
-             <div class="space-y-3">
-               <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">訂位資訊</p>
-
-               <!-- 訂位方式 -->
-               <div>
-                 <p class="text-sm text-gray-600 mb-1.5">訂位方式</p>
-                 <div class="flex flex-wrap gap-3">
-                   <label
-                     v-for="opt in BOOKING_METHOD_OPTIONS"
-                     :key="opt"
-                     class="flex items-center gap-1.5 cursor-pointer"
-                   >
-                     <input
-                       type="checkbox"
-                       :value="opt"
-                       v-model="form.booking_method"
-                       class="w-4 h-4 rounded accent-sky-500"
-                     />
-                     <span class="text-sm text-gray-700">{{ opt }}</span>
-                   </label>
-                 </div>
-               </div>
-
-               <!-- 訂位平台連結 -->
-               <div class="grid grid-cols-2 gap-3">
-                 <div>
-                   <label class="block text-sm text-gray-600 mb-1">訂位平台</label>
-                   <select
-                     v-model="form.booking_platform"
-                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none"
-                   >
-                     <option :value="null">無</option>
-                     <option value="icamping">愛露營</option>
-                     <option value="campingfun">露營樂</option>
-                   </select>
-                 </div>
-                 <div>
-                   <label class="block text-sm text-gray-600 mb-1">平台連結</label>
-                   <input
-                     v-model="form.booking_platform_url"
-                     type="url"
-                     placeholder="https://..."
-                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none"
-                   />
-                 </div>
-               </div>
-
-               <!-- 可訂到期日 + 訂位規則 -->
-               <div class="grid grid-cols-2 gap-3">
-                 <div>
-                   <label class="block text-sm text-gray-600 mb-1">可訂到期日</label>
-                   <input
-                     v-model="form.booking_available_until"
-                     type="date"
-                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none"
-                   />
-                 </div>
-                 <div>
-                   <label class="block text-sm text-gray-600 mb-1">訂位規則說明</label>
-                   <input
-                     v-model="form.booking_timing"
-                     type="text"
-                     placeholder="例：每月1號、年底"
-                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none"
-                   />
-                 </div>
-               </div>
-
-               <!-- 搶位難度 -->
-               <div>
-                 <label class="block text-sm text-gray-600 mb-1.5">搶位難度</label>
-                 <div class="flex gap-4">
-                   <label class="flex items-center gap-1.5 cursor-pointer">
-                     <input type="radio" value="normal" v-model="form.booking_difficulty" class="accent-sky-500" />
-                     <span class="text-sm text-gray-700">不難</span>
-                   </label>
-                   <label class="flex items-center gap-1.5 cursor-pointer">
-                     <input type="radio" value="moderate" v-model="form.booking_difficulty" class="accent-orange-500" />
-                     <span class="text-sm text-gray-700">稍難搶</span>
-                   </label>
-                   <label class="flex items-center gap-1.5 cursor-pointer">
-                     <input type="radio" value="hard" v-model="form.booking_difficulty" class="accent-red-500" />
-                     <span class="text-sm text-gray-700">需要搶</span>
-                   </label>
-                 </div>
-               </div>
-
-               <!-- 推薦營位 -->
-               <div>
-                 <label class="block text-sm text-gray-600 mb-1">推薦營位</label>
-                 <input
-                   v-model="form.recommended_spots"
-                   type="text"
-                   placeholder="例：A1、B2~B5"
-                   class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none"
-                 />
-               </div>
-
-               <!-- 其他備注 -->
-               <div>
-                 <label class="block text-sm text-gray-600 mb-1">其他備注</label>
-                 <textarea
-                   v-model="form.campsite_notes"
-                   rows="3"
-                   placeholder="其他資訊..."
-                   class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent-sky outline-none resize-none"
-                 />
-               </div>
-             </div>
-            </template>
-            <template v-else>
-              <div class="space-y-3 text-sm text-gray-700">
-                <div v-if="form.scenery_features?.length">
-                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">景觀　</span>
-                  <span v-for="t in form.scenery_features" :key="t" class="inline-block bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full text-xs mr-1 mb-1">{{ t }}</span>
-                </div>
-                <div v-if="form.water_features?.length">
-                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">水域　</span>
-                  <span v-for="t in form.water_features" :key="t" class="inline-block bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full text-xs mr-1 mb-1">{{ t }}</span>
-                </div>
-                <div v-if="form.playground_features?.length">
-                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">遊樂　</span>
-                  <span v-for="t in form.playground_features" :key="t" class="inline-block bg-yellow-50 text-yellow-600 px-1.5 py-0.5 rounded-full text-xs mr-1 mb-1">{{ t }}</span>
-                </div>
-                <div v-if="form.spot_types?.length">
-                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">營位　</span>
-                  <span v-for="t in form.spot_types" :key="t" class="inline-block bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full text-xs mr-1 mb-1">{{ t }}</span>
-                </div>
-                <div v-if="form.booking_method?.length || form.booking_timing || form.booking_platform">
-                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide block mb-1">訂位</span>
-                  <div class="text-xs text-gray-600 space-y-0.5">
-                    <div v-if="form.booking_platform">
-                      平台：{{ form.booking_platform === 'icamping' ? '愛露營' : '露營樂' }}
-                      <a v-if="form.booking_platform_url" :href="form.booking_platform_url" target="_blank" class="ml-1 text-sky-500 hover:underline">前往訂位 ↗</a>
-                    </div>
-                    <div v-if="form.booking_method?.length">訂位方式：{{ form.booking_method.join('、') }}</div>
-                    <div v-if="form.booking_timing">規則：{{ form.booking_timing }}</div>
-                    <div v-if="form.booking_available_until">可訂到：{{ form.booking_available_until }}</div>
-                    <div v-if="form.booking_difficulty && form.booking_difficulty !== 'normal'">
-                      難度：<span :class="form.booking_difficulty === 'hard' ? 'text-red-600 font-bold' : 'text-orange-500'">
-                        {{ form.booking_difficulty === 'hard' ? '需要搶' : '稍難搶' }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div v-if="form.recommended_spots">
-                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">推薦營位　</span>{{ form.recommended_spots }}
-                </div>
-                <div v-if="form.campsite_notes">
-                  <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">備注　</span>{{ form.campsite_notes }}
-                </div>
-                <p v-if="!form.scenery_features?.length && !form.water_features?.length && !form.playground_features?.length && !form.spot_types?.length && !form.booking_platform && !form.recommended_spots && !form.campsite_notes" class="text-gray-400 text-xs">尚無設施資訊</p>
-              </div>
-            </template>
-
-           </div>
-         </div>
+         <p class="text-xs text-gray-400 text-center">其他資料可請 Claude 幫忙補</p>
 
       </div>
 

@@ -234,15 +234,6 @@ function toggleChipKey(key: string) {
   saveChipPrefs()
 }
 
-const isNewlyOpened = (lastAvailableDate: string | null | undefined, scrapedAt: string | null | undefined) => {
-  if (!lastAvailableDate || !scrapedAt) return false
-  const scraped = new Date(scrapedAt)
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-  return scraped > sevenDaysAgo
-}
-
-
 onMounted(() => {
   fetchCampsites()
   loadChipPrefs()
@@ -356,7 +347,6 @@ onMounted(() => {
               <span class="font-semibold text-sm text-primary-900 group-hover:text-accent-sky transition-colors truncate">{{ site.name }}</span>
               <span v-if="site.booking_difficulty === 'hard'" class="flex-shrink-0 text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full font-bold">需搶</span>
               <span v-else-if="site.booking_difficulty === 'moderate'" class="flex-shrink-0 text-[10px] bg-orange-50 text-orange-400 px-1.5 py-0.5 rounded-full">稍難</span>
-              <span v-if="site.booking_last_available_date && isNewlyOpened(site.booking_last_available_date, site.booking_scraped_at)" class="flex-shrink-0 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse">剛開放</span>
             </div>
             <div class="flex items-center gap-2 mt-0.5">
               <span class="text-xs text-gray-400 truncate">{{ site.city }}{{ site.district }}</span>
