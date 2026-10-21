@@ -171,6 +171,7 @@ onMounted(() => {
            <div class="flex items-center gap-2">
               <button 
                 @click="handleClose" 
+                aria-label="返回"
                 class="w-11 h-11 -ml-2 flex items-center justify-center text-primary-600 hover:bg-surface-100 rounded-full transition-colors active:scale-95 bg-white/50"
               >
                 <ChevronLeft class="w-6 h-6" />
@@ -186,6 +187,7 @@ onMounted(() => {
                <div class="flex items-center bg-gray-100 rounded-full p-0.5" v-if="hasPrev || hasNext">
                   <button 
                     @click="emit('prev')" 
+                    aria-label="上一趟"
                     :disabled="!hasPrev"
                     class="w-10 h-11 flex items-center justify-center rounded-full hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
                   >
@@ -194,6 +196,7 @@ onMounted(() => {
                   <div class="w-px h-3 bg-gray-300 mx-0.5"></div>
                   <button 
                     @click="emit('next')" 
+                    aria-label="下一趟"
                     :disabled="!hasNext"
                     class="w-10 h-11 flex items-center justify-center rounded-full hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
                   >
@@ -206,6 +209,7 @@ onMounted(() => {
                   @click="handleDelete" 
                   class="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
                   title="刪除行程"
+                  aria-label="刪除行程"
                >
                    <Trash2 class="w-5 h-5" />
                </button>
@@ -336,7 +340,7 @@ onMounted(() => {
         <!-- Sticky Footer for Save -->
         <div v-if="hasChanges" class="absolute bottom-6 left-0 right-0 px-4 flex justify-center z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
              <div class="bg-white/90 backdrop-blur-md p-2 pr-6 pl-2 rounded-full shadow-2xl border border-primary-100 flex items-center gap-3">
-                 <button @click="cancelEdit" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors">
+                 <button @click="cancelEdit" aria-label="還原變更" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors">
                      <RotateCcw class="w-5 h-5" />
                  </button>
                  <button

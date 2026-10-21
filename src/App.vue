@@ -17,6 +17,8 @@ import { useEventCategories } from './composables/useEventCategories'
 import { useCalendarEvents } from './composables/useCalendarEvents'
 import { supabase } from './lib/supabase'
 import { buildTripSavePayload } from './utils/tripPayload'
+import { todayYmd } from './utils/dateRange'
+import { timelineOrder } from './utils/tripTimeline'
 
 // Router
 const route = useRoute()
@@ -32,24 +34,22 @@ const calendarEventsStore = useCalendarEvents()
 const { isOpen: isModalOpen, activeTrip, initialDate, close: closeTripModal } = useTripModal()
 
 // Navigation
-const sortedTrips = computed(() => {
-  return [...trips.value].sort((a, b) => new Date(b.trip_date).getTime() - new Date(a.trip_date).getTime())
-})
+// 與行程列表時間軸同一個順序：即將出發（由近到遠）→ 已去過（由新到舊）
+const sortedTrips = computed(() => timelineOrder(trips.value, todayYmd()))
 
 const currentTripIndex = computed(() => {
   if (!activeTrip.value) return -1
   return sortedTrips.value.findIndex(t => t.id === activeTrip.value?.id)
 })
 
-const hasPrevTrip = computed(() => currentTripIndex.value !== -1 && currentTripIndex.value < sortedTrips.value.length - 1)
-const hasNextTrip = computed(() => currentTripIndex.value > 0)
+const hasPrevTrip = computed(() => currentTripIndex.value > 0)
+const hasNextTrip = computed(() => currentTripIndex.value !== -1 && currentTripIndex.value < sortedTrips.value.length - 1)
 
 const navigateTrip = (direction: 'prev' | 'next') => {
   if (currentTripIndex.value === -1) return
   
-  // Prev (Left) -> Older (Higher Index)
-  // Next (Right) -> Newer (Lower Index)
-  const newIndex = direction === 'prev' ? currentTripIndex.value + 1 : currentTripIndex.value - 1
+  // Prev -> 時間軸上方的卡片、Next -> 下方的卡片
+  const newIndex = direction === 'prev' ? currentTripIndex.value - 1 : currentTripIndex.value + 1
   if (newIndex >= 0 && newIndex < sortedTrips.value.length) {
     activeTrip.value = sortedTrips.value[newIndex] as CampingTripWithCampsite
   }

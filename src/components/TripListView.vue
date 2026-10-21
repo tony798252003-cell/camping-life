@@ -54,14 +54,16 @@ const dateParts = (t: (typeof trips.value)[number]) => ({
       <div class="bg-surface-100 p-1 rounded-xl flex items-center border border-primary-100">
         <button
           @click="viewMode = 'list'"
-          class="p-2 rounded-lg transition-all"
+          aria-label="列表檢視"
+          class="w-11 h-11 flex items-center justify-center rounded-lg transition-all"
           :class="viewMode === 'list' ? 'bg-white text-primary-600 shadow-sm' : 'text-primary-400 hover:text-primary-600'"
         >
           <List class="w-5 h-5" />
         </button>
         <button
           @click="viewMode = 'map'"
-          class="p-2 rounded-lg transition-all"
+          aria-label="地圖檢視"
+          class="w-11 h-11 flex items-center justify-center rounded-lg transition-all"
           :class="viewMode === 'map' ? 'bg-white text-primary-600 shadow-sm' : 'text-primary-400 hover:text-primary-600'"
         >
           <Map class="w-5 h-5" />

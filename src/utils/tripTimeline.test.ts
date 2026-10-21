@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import {
-  tripNights, isUpcoming, upcomingBadge, tripYears, summarizeYear, searchTrips, groupTimeline,
+  tripNights, isUpcoming, upcomingBadge, tripYears, summarizeYear, searchTrips, groupTimeline, timelineOrder,
   type TimelineTrip,
 } from './tripTimeline'
 
 const trip = (o: Partial<TimelineTrip> & { id: number; trip_date: string }): TimelineTrip => ({
-  duration_days: 2, campsite_name: `營區${o.id}`, campsites: null, ...o,
+  duration_days: 2, status: 'booked', night_rush: false, merged_into_id: null, campsite_name: `營區${o.id}`, campsites: null, ...o,
 })
 
 describe('tripNights', () => {
@@ -19,10 +19,10 @@ describe('tripNights', () => {
 
 describe('isUpcoming / upcomingBadge', () => {
   const today = '2026-10-21'
-  it('今天出發算即將出發，昨天算已去過', () => {
+  it('今天出發算即將出發，昨天結束的單日行程算已去過', () => {
     // 邊界用日期字串比較；用 Date 時間戳比會在午夜前後把今天的行程誤判成過去
     expect(isUpcoming(trip({ id: 1, trip_date: '2026-10-21' }), today)).toBe(true)
-    expect(isUpcoming(trip({ id: 2, trip_date: '2026-10-20' }), today)).toBe(false)
+    expect(isUpcoming(trip({ id: 2, trip_date: '2026-10-20', duration_days: 1 }), today)).toBe(false)
   })
   it('徽章：今天顯示「今天」，其餘顯示 N 天後', () => {
     expect(upcomingBadge(trip({ id: 1, trip_date: '2026-10-21' }), today)).toBe('今天')
@@ -74,23 +74,71 @@ describe('searchTrips', () => {
 
 describe('groupTimeline', () => {
   const today = '2026-10-21'
+  // 刻意打亂輸入（年份、年內、即將出發都不照順序），移除排序就會失敗
   const trips = [
-    trip({ id: 1, trip_date: '2026-12-25', duration_days: 3 }),
-    trip({ id: 2, trip_date: '2026-10-24', duration_days: 3 }),
-    trip({ id: 3, trip_date: '2026-09-13', duration_days: 2 }),
     trip({ id: 4, trip_date: '2026-08-23', duration_days: 3 }),
     trip({ id: 5, trip_date: '2025-05-01', duration_days: 2 }),
+    trip({ id: 1, trip_date: '2026-12-25', duration_days: 3 }),
+    trip({ id: 3, trip_date: '2026-09-13', duration_days: 2 }),
+    trip({ id: 6, trip_date: '2024-02-02', duration_days: 1 }),
+    trip({ id: 2, trip_date: '2026-10-24', duration_days: 3 }),
+    trip({ id: 7, trip_date: '2025-11-11', duration_days: 2 }),
   ]
   it('即將出發在最上面且由近到遠；已去過依年份新到舊、年內新到舊並附趟數與晚數', () => {
     // 時間軸的閱讀順序：先看接下來要去哪，再往回翻舊回憶
     const g = groupTimeline(trips, today)
-    expect(g.map((x) => x.key)).toEqual(['upcoming', '2026', '2025'])
+    expect(g.map((x) => x.key)).toEqual(['upcoming', '2026', '2025', '2024'])
     expect(g[0]!.trips.map((t) => t.id)).toEqual([2, 1])
     expect(g[1]!.trips.map((t) => t.id)).toEqual([3, 4])
     expect(g[1]!.meta).toBe('2 趟 · 3 晚')
-    expect(g[2]!.meta).toBe('1 趟 · 1 晚')
+    expect(g[2]!.trips.map((t) => t.id)).toEqual([7, 5])
+    expect(g[2]!.meta).toBe('2 趟 · 2 晚')
   })
   it('沒有即將出發就不出現該群組', () => {
-    expect(groupTimeline([trips[4]!], today).map((x) => x.key)).toEqual(['2025'])
+    expect(groupTimeline([trips[1]!], today).map((x) => x.key)).toEqual(['2025'])
+  })
+})
+
+describe('取消的行程', () => {
+  const today = '2026-10-21'
+  const cancelled = trip({ id: 1, trip_date: '2026-10-25', status: 'cancelled', campsites: { id: 1, name: 'A' } })
+  const merged = trip({ id: 2, trip_date: '2026-10-26', merged_into_id: 9 })
+  const ok = trip({ id: 3, trip_date: '2026-10-27', campsites: { id: 3, name: 'C' } })
+  it('不列入時間軸與年度統計（與行事曆、首頁同一套規則）', () => {
+    // 取消的行程沒去成，算進「趟數／營區」會讓年度回顧失真
+    expect(groupTimeline([cancelled, merged, ok], today)[0]!.trips.map((t) => t.id)).toEqual([3])
+    expect(summarizeYear([cancelled, merged, ok], 2026).trips).toBe(1)
+    expect(tripYears([trip({ id: 4, trip_date: '2019-01-01', status: 'cancelled' })])).toEqual([])
+  })
+})
+
+describe('進行中的多日行程', () => {
+  const today = '2026-10-21'
+  const going = trip({ id: 1, trip_date: '2026-10-20', duration_days: 3 }) // 20、21、22
+  it('昨天出發的 3 天行程仍算即將出發，徽章「進行中」', () => {
+    // 人還在營區時卻被丟進「已去過」會很奇怪；邏輯與 pickNextTrip 的進行中判斷一致
+    expect(isUpcoming(going, today)).toBe(true)
+    expect(upcomingBadge(going, today)).toBe('進行中')
+  })
+  it('最後一天已過就算已去過', () => {
+    expect(isUpcoming(trip({ id: 2, trip_date: '2026-10-19', duration_days: 2 }), today)).toBe(false)
+  })
+})
+
+describe('搜尋 location 與 timelineOrder', () => {
+  it('沒綁營區的行程可用 location 文字搜尋', () => {
+    const t = [trip({ id: 1, trip_date: '2026-01-01', campsites: null, location: '宜蘭員山' })]
+    expect(searchTrips(t, '員山')).toHaveLength(1)
+  })
+  it('timelineOrder 與畫面順序一致（即將出發由近到遠，再來已去過由新到舊），不含取消', () => {
+    // 詳情頁 prev/next 必須走畫面上的順序，否則「上一筆」不是上方那張卡
+    const trips = [
+      trip({ id: 1, trip_date: '2026-01-01' }),
+      trip({ id: 2, trip_date: '2026-12-01' }),
+      trip({ id: 3, trip_date: '2026-11-01' }),
+      trip({ id: 4, trip_date: '2026-11-05', status: 'cancelled' }),
+      trip({ id: 5, trip_date: '2026-03-01' }),
+    ]
+    expect(timelineOrder(trips, '2026-10-21').map((t) => t.id)).toEqual([3, 2, 5, 1])
   })
 })
