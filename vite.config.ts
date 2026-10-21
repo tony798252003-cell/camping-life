@@ -11,6 +11,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.jpg', 'images/*.png'],
+      // 推播 handler（push／notificationclick）放在 public/push-sw.js，由 generateSW 產生的 sw 載入
+      workbox: { importScripts: ['push-sw.js'] },
       manifest: {
         name: '搭帳日誌',
         short_name: '搭帳日誌',
