@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import AddCampsiteFlow from './AddCampsiteFlow.vue'
 import { useConfirm } from '../../composables/useConfirm'
+import { useNotification } from '../../composables/useNotification'
 import type { Campsite } from '../../types/database'
 
 // App.vue 的 router-view 會傳一堆 props，這頁不吃
@@ -11,6 +12,7 @@ defineOptions({ inheritAttrs: false })
 const route = useRoute()
 const router = useRouter()
 const { confirm } = useConfirm()
+const { success } = useNotification()
 const flow = ref<InstanceType<typeof AddCampsiteFlow> | null>(null)
 let leaving = false // 存檔或使用者已確認放棄後，不再攔截
 
@@ -27,6 +29,7 @@ onBeforeRouteLeave(async () => {
 
 function done(c: Campsite) {
   leaving = true
+  success('已新增營區')
   if (returnTo) {
     // returnTo 本身可能帶 query，用 resolve 拆開再合併，不做字串相加
     const r = router.resolve(returnTo)

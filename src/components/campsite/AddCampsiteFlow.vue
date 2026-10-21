@@ -279,8 +279,8 @@ async function save() {
       }
       throw error
     }
-    draft.value = null // 已存，離開頁面不再攔截
     emit('saved', data as unknown as Campsite)
+    draft.value = null // 已存，離開頁面不再攔截（emit 後才清，避免導頁前內容先消失成空白）
   } catch (e: any) {
     errorMsg.value = `儲存失敗：${e?.message ?? '未知錯誤'}`
   } finally {

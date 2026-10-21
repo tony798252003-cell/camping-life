@@ -194,7 +194,7 @@ onMounted(() => {
           type="text"
           maxlength="40"
           placeholder="自由描述（選填），例如：親子、安靜"
-          class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          class="min-h-11 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
         />
 
         <div>
