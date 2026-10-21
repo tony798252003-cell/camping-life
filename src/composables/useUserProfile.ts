@@ -5,13 +5,14 @@ import type { Profile } from '../types/database'
 import { useNotification } from './useNotification'
 
 // 模組層級 ref（singleton）：登出時 reset()
-const userProfile = ref<{
+export interface UserProfileState {
     latitude: number
     longitude: number
     location_name: string
     is_admin: boolean
     family_id?: string | null
-} | null>(null)
+}
+const userProfile = ref<UserProfileState | null>(null)
 const showCpbl = ref(false)
 const loading = ref(false)
 

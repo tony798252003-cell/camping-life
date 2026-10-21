@@ -92,20 +92,6 @@ export function useTrips() {
     }
 
     /**
-     * Update night rush status
-     */
-    const updateNightRush = async (tripId: number, value: boolean) => {
-        try {
-            await tripQueries.update(tripId, { night_rush: value })
-            return true
-        } catch (error) {
-            console.error('[useTrips] Update night rush error:', error)
-            notifyError('更新失敗，請檢查網路')
-            return false
-        }
-    }
-
-    /**
      * Find trip by ID
      */
     const findTripById = (tripId: number) => {
@@ -129,7 +115,6 @@ export function useTrips() {
         createTrip,
         updateTrip,
         deleteTrip,
-        updateNightRush,
         findTripById,
         clearTrips,
         reset: clearTrips

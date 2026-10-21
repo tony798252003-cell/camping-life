@@ -3,18 +3,19 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight, Settings2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { campsiteQueries } from '../services/db/campsites'
+import { profileQueries } from '../services/db/profile'
+import { toCampsites } from '../utils/dbRows'
+import { useUserProfile } from '../composables/useUserProfile'
 import type { Campsite } from '../types/database'
 import CampsiteEditModal from './CampsiteEditModal.vue'
 import CampsiteFilterSheet, { type CampsiteFilters } from './CampsiteFilterSheet.vue'
 
-const props = defineProps<{
-  isAdmin: boolean
-}>()
+const { isAdmin } = useUserProfile()
 
 const route = useRoute()
 const router = useRouter()
 const campsites = ref<Campsite[]>([])
-const usageCounts = ref<Record<number, number>>({}) // campsite_id -> count
 const visitedIds = ref<Set<number>>(new Set()) // completed or booked campsite_ids
 const hideVisited = ref(true)
 const loading = ref(false)
@@ -105,30 +106,17 @@ const handleEditSaved = () => {
 const fetchCampsites = async () => {
   loading.value = true
   try {
-    let query = supabase
-      .from('campsites')
-      .select('*') // This already selects all columns including new ones
-      .is('merged_into_id', null)
-      .order('created_at', { ascending: false })
+    campsites.value = toCampsites(await campsiteQueries.listActive())
 
-    const { data, error } = await query
-    if (error) throw error
-    campsites.value = (data || []) as unknown as Campsite[] // TODO(types): M5 JSONB 欄位收窄
+    // Fetch visited/booked ids
+    const tripData = await campsiteQueries.listTripVisitRefs()
 
-    // Fetch usage counts + visited/booked ids
-    const { data: tripData, error: tripError } = await supabase
-      .from('camping_trips')
-      .select('campsite_id, campsite_name, status')
-      .is('merged_into_id', null)
-
-    if (!tripError && tripData) {
-      const counts: Record<number, number> = {}
+    if (tripData) {
       const visited = new Set<number>()
       const visitedNames = new Set<string>()
-      ;(tripData as any[]).forEach(t => {
+      tripData.forEach(t => {
         const isVisited = t.status === 'completed' || t.status === 'booked'
         if (t.campsite_id) {
-          counts[t.campsite_id] = (counts[t.campsite_id] || 0) + 1
           if (isVisited) visited.add(t.campsite_id)
         } else if (t.campsite_name && isVisited) {
           visitedNames.add(t.campsite_name.trim())
@@ -140,7 +128,6 @@ const fetchCampsites = async () => {
           visited.add(site.id)
         }
       }
-      usageCounts.value = counts
       visitedIds.value = visited
     }
   } catch (e) {
@@ -207,22 +194,15 @@ async function loadChipPrefs() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return
   userId.value = session.user.id
-  const { data } = await supabase
-    .from('profiles')
-    .select('campsite_quick_chips')
-    .eq('id', session.user.id)
-    .single() as any
-  if (data?.campsite_quick_chips?.length) {
-    enabledChipKeys.value = data.campsite_quick_chips
+  const chips = await profileQueries.getCampsiteQuickChips(session.user.id)
+  if (chips?.length) {
+    enabledChipKeys.value = chips
   }
 }
 
 async function saveChipPrefs() {
   if (!userId.value) return
-  await (supabase as any)
-    .from('profiles')
-    .update({ campsite_quick_chips: enabledChipKeys.value })
-    .eq('id', userId.value)
+  await profileQueries.setCampsiteQuickChips(userId.value, enabledChipKeys.value)
 }
 
 function toggleChipKey(key: string) {
@@ -233,15 +213,6 @@ function toggleChipKey(key: string) {
   }
   saveChipPrefs()
 }
-
-const isNewlyOpened = (lastAvailableDate: string | null | undefined, scrapedAt: string | null | undefined) => {
-  if (!lastAvailableDate || !scrapedAt) return false
-  const scraped = new Date(scrapedAt)
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-  return scraped > sevenDaysAgo
-}
-
 
 onMounted(() => {
   fetchCampsites()
@@ -356,7 +327,6 @@ onMounted(() => {
               <span class="font-semibold text-sm text-primary-900 group-hover:text-accent-sky transition-colors truncate">{{ site.name }}</span>
               <span v-if="site.booking_difficulty === 'hard'" class="flex-shrink-0 text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full font-bold">需搶</span>
               <span v-else-if="site.booking_difficulty === 'moderate'" class="flex-shrink-0 text-[10px] bg-orange-50 text-orange-400 px-1.5 py-0.5 rounded-full">稍難</span>
-              <span v-if="site.booking_last_available_date && isNewlyOpened(site.booking_last_available_date, site.booking_scraped_at)" class="flex-shrink-0 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse">剛開放</span>
             </div>
             <div class="flex items-center gap-2 mt-0.5">
               <span class="text-xs text-gray-400 truncate">{{ site.city }}{{ site.district }}</span>
@@ -374,7 +344,7 @@ onMounted(() => {
               class="text-[10px] text-indigo-500 font-medium"
             >{{ site.total_capacity }}帳</span>
             <span
-              v-else-if="isAdmin"
+              v-else-if="isAdmin()"
               class="text-[10px] text-gray-300 font-medium"
             >?帳</span>
             <ChevronRight class="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
@@ -398,7 +368,7 @@ onMounted(() => {
       v-if="isEditModalOpen && editingCampsite"
       :is-open="isEditModalOpen"
       :campsite="editingCampsite"
-      :is-editable="props.isAdmin"
+      :is-editable="isAdmin()"
       @close="isEditModalOpen = false"
       @saved="handleEditSaved"
     />

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter, useRoute, RouterView } from 'vue-router'
-import type { CampingTrip, NewCampingTrip, CampingTripWithCampsite } from './types/database'
+import { computed, onMounted, watch } from 'vue'
+import { useRoute, RouterView } from 'vue-router'
+import type { NewCampingTrip, CampingTripWithCampsite } from './types/database'
 
 // Components
 import TripModal from './components/TripModal.vue'
@@ -19,20 +19,17 @@ import { supabase } from './lib/supabase'
 import { buildTripSavePayload } from './utils/tripPayload'
 
 // Router
-const router = useRouter()
 const route = useRoute()
 
 // Initialize composables
-const { session, isAuthReady, initAuth, logout } = useAuth()
-const { userProfile, fetchProfile, clearProfile, familyId, isAdmin, userOrigin } = useUserProfile()
-const { trips, loading, fetchTrips, createTrip, updateTrip, deleteTrip, updateNightRush, findTripById, clearTrips } = useTrips()
+const { session, isAuthReady, initAuth } = useAuth()
+const { userProfile, fetchProfile, clearProfile, familyId } = useUserProfile()
+const { trips, loading, fetchTrips, createTrip, updateTrip, deleteTrip, findTripById, clearTrips } = useTrips()
 const categoriesStore = useEventCategories()
 const calendarEventsStore = useCalendarEvents()
 
 // Modal state
-const { isOpen: isModalOpen, activeTrip, initialDate, openNew, openEdit, close: closeTripModal } = useTripModal()
-
-const inviteCode = ref('')
+const { isOpen: isModalOpen, activeTrip, initialDate, close: closeTripModal } = useTripModal()
 
 // Navigation
 const sortedTrips = computed(() => {
@@ -58,33 +55,7 @@ const navigateTrip = (direction: 'prev' | 'next') => {
   }
 }
 
-// Auto-navigate to settings if invite code exists
-watch(() => [isAuthReady.value, session.value], ([ready, sess]) => {
-  if (ready && sess && inviteCode.value) {
-    router.push('/settings?invite_code=' + inviteCode.value)
-  }
-})
-
 // Actions
-const handleViewDetail = (trip: CampingTrip) => {
-  openEdit(trip as CampingTripWithCampsite)
-}
-
-const handleAdd = () => {
-  openNew()
-}
-
-const handleEdit = (trip: CampingTrip) => {
-  openEdit(trip as CampingTripWithCampsite)
-}
-
-const handleDeleteTrip = async (id: number) => {
-  const success = await deleteTrip(id)
-  if (success) {
-    await fetchTrips(session.value!.user.id, familyId())
-  }
-}
-
 const handleSubmit = async (tripData: NewCampingTrip) => {
   if (!session.value) return
 
@@ -117,45 +88,9 @@ const handleSubmit = async (tripData: NewCampingTrip) => {
   }
 }
 
-const handleUpdateNightRush = async ({ id, value }: { id: number, value: boolean }) => {
-  const success = await updateNightRush(id, value)
-  if (success && session.value) {
-    await fetchTrips(session.value.user.id, familyId())
-  }
-}
-
-const handleSettingsSaved = () => {
-  if (session.value) {
-    fetchProfile(session.value.user.id)
-  }
-}
-
-const handleLogout = async () => {
-  await logout()
-  clearTrips()
-  clearProfile()
-}
-
 onMounted(async () => {
   console.log('[App] Mounted')
   
-  // Check URL params for invite code
-  const params = new URLSearchParams(window.location.search)
-  let code = params.get('invite_code')
-  
-  if (!code && window.location.hash.includes('invite_code')) {
-     const hashParts = window.location.hash.split('?')
-     if (hashParts.length > 1) {
-        const hashParams = new URLSearchParams(hashParts[1])
-        code = hashParams.get('invite_code')
-     }
-  }
-
-  if (code) {
-    inviteCode.value = code
-    localStorage.setItem('pending_invite_code', code)
-  }
-
   // 登出（含 SettingsView 直接呼叫 signOut）一律清掉所有 singleton 狀態，避免下一位使用者看到舊資料
   supabase.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_OUT') {
@@ -174,11 +109,6 @@ onMounted(async () => {
   // doesn't retrigger a full refetch and unmount the current view
   watch([() => session.value?.user?.id, isAuthReady], async ([userId, ready]) => {
     if (ready && userId) {
-      const pendingCode = localStorage.getItem('pending_invite_code')
-      if (pendingCode) {
-        inviteCode.value = pendingCode
-        localStorage.removeItem('pending_invite_code')
-     }
       await fetchProfile(userId)
       await fetchTrips(userId, familyId())
     } else if (ready && !userId) {
@@ -206,21 +136,7 @@ onMounted(async () => {
       <main v-if="!loading || route.name === 'auth'" class="flex-1 overflow-hidden relative bg-surface-50">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
-            <component :is="Component" 
-              :trips="trips"
-              :user-origin="userOrigin()"
-              :loading="loading"
-              :user-id="session?.user?.id"
-              :session="session"
-              :is-admin="isAdmin()"
-              @view-detail="handleViewDetail"
-              @update-night-rush="handleUpdateNightRush"
-              @add="handleAdd"
-              @edit="handleEdit"
-              @delete="handleDeleteTrip"
-              @saved="handleSettingsSaved"
-              @logout="handleLogout"
-            />
+            <component :is="Component" />
           </transition>
         </router-view>
       </main>
@@ -235,7 +151,6 @@ onMounted(async () => {
         :is-open="isModalOpen"
         :trip="activeTrip"
         :initial-date="initialDate"
-        :is-admin="userProfile?.is_admin || false"
         :user-profile="userProfile"
         :has-prev="hasPrevTrip"
         :has-next="hasNextTrip"

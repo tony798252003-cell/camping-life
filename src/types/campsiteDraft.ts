@@ -1,6 +1,13 @@
 // 新增營區草稿的共用型別（規格 §5.7）。api/_lib 與前端都會 import，所以只放型別、不用 DOM。
 import type { FieldSource } from './database'
 
+export interface PlaceResult {
+  name: string
+  formatted_address: string
+  lat: number
+  lng: number
+}
+
 export type BusinessStatus = 'OPERATIONAL' | 'CLOSED_TEMPORARILY' | 'CLOSED_PERMANENTLY'
 
 export interface PlaceLite {
@@ -9,8 +16,6 @@ export interface PlaceLite {
   address: string
   lat: number
   lng: number
-  rating?: number
-  ratingCount?: number
   mapsUrl?: string
   businessStatus?: BusinessStatus
   typeLabel?: string

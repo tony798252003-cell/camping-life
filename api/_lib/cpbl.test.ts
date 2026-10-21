@@ -46,6 +46,24 @@ describe('fetchCpblMonth', () => {
     expect(String(calls[1]!.init!.body)).toBe('calendar=2026%2F03%2F01&location=&kindCode=A')
   })
 
+  // 為什麼：原本用 new Date().getDate()，系統時區不是台北時日期會差一天（test:tz 會在 UTC / LA 下跑到這裡）
+  it('game_date 直接取字串前 10 碼，與系統時區無關', async () => {
+    const data = { Success: true, GameDatas: JSON.stringify([{ ...GAMES[0], GameDate: '2026-03-01T00:00:00' }]) }
+    const { impl } = mockFetch({ data })
+    const records = await fetchCpblMonth(2026, 3, impl)
+    expect(records.map((r) => r.game_date)).toEqual(['2026-03-01'])
+  })
+
+  // 為什麼：cpbl 會擋沒有瀏覽器 UA 的請求，兩個請求都要帶
+  it('兩個請求都帶瀏覽器 User-Agent', async () => {
+    const { impl, calls } = mockFetch()
+    await fetchCpblMonth(2026, 3, impl)
+    for (const c of calls) {
+      const h = c.init?.headers as Record<string, string> | undefined
+      expect(h?.['User-Agent']).toMatch(/^Mozilla\/5\.0/)
+    }
+  })
+
   it('找不到 token 時 throw（不是默默回空陣列）', async () => {
     const { impl } = mockFetch({ html: '<html>blocked</html>' })
     await expect(fetchCpblMonth(2026, 3, impl)).rejects.toThrow(/anti-forgery/)

@@ -305,7 +305,8 @@ async function useExisting(filter: { id: number } | { googlePlaceId: string }) {
   errorMsg.value = ''
   try {
     const q = supabase.from('campsites').select('*')
-    const { data, error } = await ('id' in filter ? q.eq('id', filter.id) : q.eq('google_place_id', filter.googlePlaceId)).limit(1).maybeSingle()
+    // 以 place id 找時排除已合併的列（它們已被併入另一筆）
+    const { data, error } = await ('id' in filter ? q.eq('id', filter.id) : q.eq('google_place_id', filter.googlePlaceId).is('merged_into_id', null)).limit(1).maybeSingle()
     if (error || !data) throw error ?? new Error('找不到這個營區')
     draft.value = null
     emit('saved', data as unknown as Campsite)

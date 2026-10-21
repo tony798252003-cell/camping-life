@@ -21,9 +21,6 @@ import { addDays, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
 import { Plus } from 'lucide-vue-next'
 
-// App.vue 會把 trips、session 等 props 全部丟給 router-view，這裡都不需要，不能落到根元素
-defineOptions({ inheritAttrs: false })
-
 const route = useRoute()
 const router = useRouter()
 const { feed, hiddenCategoryIds, selectedDate, loadGames } = useCalendarFeed()

@@ -1,21 +1,24 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { CampingTrip, CampingTripWithCampsite } from '../types/database'
+import { useTrips } from '../composables/useTrips'
+import { useTripModal } from '../composables/useTripModal'
+import { useAuth } from '../composables/useAuth'
+import { useUserProfile } from '../composables/useUserProfile'
 import CampingCard from './CampingCard.vue'
 import MapView from './MapView.vue'
 import { Map, List } from 'lucide-vue-next'
 
-const props = defineProps<{
-  trips: CampingTripWithCampsite[]
-  loading?: boolean
-}>()
+const { trips, loading, fetchTrips, deleteTrip } = useTrips()
+const { openEdit } = useTripModal()
+const { session } = useAuth()
+const { familyId } = useUserProfile()
 
-const emit = defineEmits<{
-  (e: 'view-detail', trip: CampingTrip): void
-  (e: 'edit', trip: CampingTrip): void
-  (e: 'delete', id: number): void
-  (e: 'add'): void
-}>()
+const handleDelete = async (id: number) => {
+  const success = await deleteTrip(id)
+  if (success && session.value) {
+    await fetchTrips(session.value.user.id, familyId())
+  }
+}
 
 const activeTab = ref<'future' | 'history'>('future')
 const viewMode = ref<'list' | 'map'>('list')
@@ -24,7 +27,7 @@ const viewMode = ref<'list' | 'map'>('list')
 const futureTripsList = computed(() => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  return props.trips
+  return trips.value
     .filter(t => new Date(t.trip_date) >= today)
     .sort((a, b) => new Date(a.trip_date).getTime() - new Date(b.trip_date).getTime())
 })
@@ -33,7 +36,7 @@ const futureTripsList = computed(() => {
 const historyTripsList = computed(() => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  return props.trips
+  return trips.value
     .filter(t => new Date(t.trip_date) < today)
     .sort((a, b) => new Date(b.trip_date).getTime() - new Date(a.trip_date).getTime())
 })
@@ -119,9 +122,9 @@ const historyTripsList = computed(() => {
             v-for="trip in futureTripsList"
             :key="trip.id"
             :trip="trip"
-            @click="emit('view-detail', trip)"
-            @edit="emit('edit', trip)"
-            @delete="emit('delete', trip.id)"
+            @click="openEdit(trip)"
+            @edit="openEdit(trip)"
+            @delete="handleDelete(trip.id)"
           />
         </div>
       </div>
@@ -147,9 +150,9 @@ const historyTripsList = computed(() => {
             v-for="trip in historyTripsList"
             :key="trip.id"
             :trip="trip"
-            @click="emit('view-detail', trip)"
-            @edit="emit('edit', trip)"
-            @delete="emit('delete', trip.id)"
+            @click="openEdit(trip)"
+            @edit="openEdit(trip)"
+            @delete="handleDelete(trip.id)"
           />
         </div>
       </div>

@@ -2,6 +2,9 @@
 import { computed, ref, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 import type { CampingTripWithCampsite } from '../types/database'
+import { useTrips } from '../composables/useTrips'
+import { useUserProfile } from '../composables/useUserProfile'
+import { useTripModal } from '../composables/useTripModal'
 import AltitudeChart from '../components/charts/AltitudeChart.vue'
 import FrequencyChart from '../components/charts/FrequencyChart.vue'
 import RegionChart from '../components/charts/RegionChart.vue'
@@ -14,14 +17,9 @@ import { TAIWAN_MAP_PATHS } from '../constants/taiwanMapSvg'
 
 import { BarChart3, TrendingUp, CalendarClock, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Moon, Car, Map as MapIcon } from 'lucide-vue-next'
 
-const props = defineProps<{
-  trips: CampingTripWithCampsite[]
-  userOrigin?: { lat: number; lng: number } | null
-}>()
-
-const emit = defineEmits<{
-  (e: 'view-detail', trip: CampingTripWithCampsite): void
-}>()
+const { trips } = useTrips()
+const { userOrigin } = useUserProfile()
+const { openEdit } = useTripModal()
 
 const router = useRouter()
 
@@ -30,7 +28,7 @@ const router = useRouter()
 // For now, use all trips as "Footprint" implies history.
 // Ideally, maybe exclude 'cancelled'.
 const validTrips = computed(() => {
-    return props.trips.filter(t => t.status !== 'cancelled')
+    return trips.value.filter(t => t.status !== 'cancelled')
 })
 
 // Year Filter Logic
@@ -88,7 +86,7 @@ const selectedCityTrips = computed(() => {
 
 const handleViewTrip = (trip: CampingTripWithCampsite) => {
     isListModalOpen.value = false
-    emit('view-detail', trip)
+    openEdit(trip)
 }
 
 </script>
@@ -210,7 +208,7 @@ const handleViewTrip = (trip: CampingTripWithCampsite) => {
                  車程分佈
               </h2>
               <div class="w-full">
-                 <TravelTimeChart :trips="validTrips" :user-origin="userOrigin" />
+                 <TravelTimeChart :trips="validTrips" :user-origin="userOrigin()" />
               </div>
            </div>
        </div>

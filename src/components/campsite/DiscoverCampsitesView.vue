@@ -25,13 +25,10 @@ const pendingPlaceId = ref<string | null>(null) // 已送去產生草稿、尚�
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Loader2, ArrowLeft, ExternalLink, Star, Check } from 'lucide-vue-next'
+import { Loader2, ArrowLeft, ExternalLink, Check } from 'lucide-vue-next'
 import { apiPost } from '../../services/api'
 import { TAIWAN_LOCATIONS } from '../../constants/locations'
 import { PLAYGROUND_OPTIONS, WATER_OPTIONS, SCENERY_OPTIONS, SPOT_TYPE_OPTIONS } from '../../constants/campsiteOptions'
-
-// App.vue 的 router-view 會傳一堆 props，這頁不吃
-defineOptions({ inheritAttrs: false })
 
 const route = useRoute()
 const router = useRouter()
@@ -234,9 +231,6 @@ onMounted(() => {
             <span v-if="r.typeLabel" class="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">{{ r.typeLabel }}</span>
             <span v-if="r.businessStatus && STATUS_NOTE[r.businessStatus]" class="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">{{ STATUS_NOTE[r.businessStatus] }}</span>
             <span v-if="r.altitude !== null" class="text-gray-600">海拔 {{ Math.round(r.altitude) }} m</span>
-            <span v-if="r.rating" class="flex items-center gap-0.5 text-gray-600">
-              <Star class="h-3 w-3 text-amber-400" />{{ r.rating }}<template v-if="r.ratingCount">（{{ r.ratingCount }}）</template>
-            </span>
           </div>
           <div class="text-xs text-gray-400">設施：未知（產生草稿時才查）</div>
           <div v-if="r.nearbyName" class="text-xs text-amber-700">附近已有營區：{{ r.nearbyName }}</div>

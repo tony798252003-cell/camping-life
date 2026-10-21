@@ -6,14 +6,12 @@ import EventEditorSheet from '../components/calendar/EventEditorSheet.vue'
 import { useEventEditor } from '../composables/useEventEditor'
 import { useNewItemSheet } from '../composables/useNewItemSheet'
 import { useTripModal } from '../composables/useTripModal'
+import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()
 const route = useRoute()
 
-// Props passed from App.vue
-defineProps<{
-  session: any
-}>()
+const { session } = useAuth()
 
 const newItem = useNewItemSheet()
 const { openNew } = useTripModal()
@@ -70,11 +68,10 @@ const go = (path: string) => router.push(path)
 
     <!-- Main Content Slot -->
     <!-- We use router-view here for child routes (Home, List, etc) -->
-    <!-- We propagate all props/attrs to the child view -->
     <main class="flex-1 overflow-y-auto pb-24">
         <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
-                 <component :is="Component" v-bind="$attrs" />
+                 <component :is="Component" />
             </transition>
         </router-view>
     </main>

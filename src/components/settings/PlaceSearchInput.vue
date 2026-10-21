@@ -2,16 +2,9 @@
 import { ref, watch } from 'vue'
 import { Loader2, Search } from 'lucide-vue-next'
 import { apiPost } from '../../services/api'
-import type { PlaceLite } from '../../types/campsiteDraft'
+import type { PlaceLite, PlaceResult } from '../../types/campsiteDraft'
 
 // 取代舊的 Maps JS Autocomplete：按下搜尋才打 /api/places-search（伺服器端持有 key）
-interface PlaceResult {
-  name: string
-  formatted_address: string
-  lat: number
-  lng: number
-}
-
 const props = defineProps<{ modelValue?: string | null; placeholder?: string }>()
 const emit = defineEmits<{
   'update:modelValue': [value: string]

@@ -69,7 +69,7 @@ const fetchAssets = async () => {
             .order('created_at', { ascending: false })
             
         if (error) throw error
-        existingAssets.value = (data as any) || []
+        existingAssets.value = data || []
     } catch (e) {
         console.error('Error fetching assets:', e)
     } finally {
@@ -205,7 +205,6 @@ const uploadAll = async () => {
             const result = await uploadImage(img.file)
             if (result) {
                 // Save to DB
-                // Cast to any to bypass strict type check for now
                 const { error } = await supabase.from('system_assets').insert([{
                     type: activeCategory.value,
                     url: result.secure_url,
