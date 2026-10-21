@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
+import { pushSubscriptionQueries } from '../services/db/pushSubscriptions'
 import type { Session } from '@supabase/supabase-js'
 
 // 模組層級 ref（singleton）：App.vue 初始化一次，各頁面直接取用同一份 session
@@ -49,6 +50,7 @@ export function useAuth() {
     const logout = async () => {
         loading.value = true
         try {
+            await pushSubscriptionQueries.releaseThisDevice()
             await supabase.auth.signOut()
             session.value = null
         } catch (error) {

@@ -13,6 +13,9 @@
 - 明天的每年重複事件（生日、紀念日），含「第 N 年」。
 - 沒有任何事就不發。
 - 點通知開啟 app 首頁。
+- 隱私：通知文字（事件標題、營區名稱）會直接顯示在鎖定畫面，旁人看得到；私人事件也一樣。
+- 重複送出：通知帶 `tag`／`topic`（`reminder-YYYY-MM-DD`），同一天重跑 cron 會取代而不是疊加。
+- 訂閱歸屬：endpoint 全域唯一，前端用 `claim_push_subscription` RPC 認領（換帳號登入同一支瀏覽器時改歸新帳號），登出前會移除本機訂閱。
 
 ## 架構
 - 資料表 `push_subscriptions`：`id`、`user_id`（default auth.uid()）、`endpoint text unique`、`p256dh`、`auth`、`created_at`、`last_success_at`。RLS：只有自己能 select／insert／delete。

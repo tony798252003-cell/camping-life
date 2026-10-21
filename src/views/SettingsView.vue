@@ -185,6 +185,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Settings, MapPin, LogOut, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Images, Tags, Users, Bell } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { pushSubscriptionQueries } from '../services/db/pushSubscriptions'
 import { useAuth } from '../composables/useAuth'
 import { useTrips } from '../composables/useTrips'
 import { useUserProfile } from '../composables/useUserProfile'
@@ -213,6 +214,7 @@ const currentView = ref<ViewState>(route.query.view === 'family' ? 'family' : 'm
 const isAssetManagerOpen = ref(false)
 
 const handleLogout = async () => {
+    await pushSubscriptionQueries.releaseThisDevice()
     await supabase.auth.signOut()
     router.push('/auth')
 }

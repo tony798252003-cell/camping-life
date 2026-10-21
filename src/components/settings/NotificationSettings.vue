@@ -20,6 +20,7 @@ const unavailableReason = computed<string | null>(() => {
   return null
 })
 
+const loading = ref(true)
 const enabled = ref(false)
 const busy = ref(false)
 const denied = ref(false)
@@ -31,10 +32,27 @@ function keyToBytes(b64url: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0))
 }
 
-const currentSubscription = async () => (await navigator.serviceWorker.ready).pushManager.getSubscription()
+// serviceWorker.ready 沒有註冊 SW 時永遠不會 resolve，要設逾時
+const SW_TIMEOUT_MS = 5000
+const getRegistration = () =>
+  Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('sw-timeout')), SW_TIMEOUT_MS)),
+  ])
+
+const currentSubscription = async () => (await getRegistration()).pushManager.getSubscription()
+
+const sameKey = (a: ArrayBuffer | null | undefined, b: Uint8Array) => {
+  if (!a) return false
+  const x = new Uint8Array(a)
+  return x.length === b.length && x.every((v, i) => v === b[i])
+}
 
 onMounted(async () => {
-  if (unavailableReason.value) return
+  if (unavailableReason.value) {
+    loading.value = false
+    return
+  }
   denied.value = Notification.permission === 'denied'
   try {
     const sub = await currentSubscription()
@@ -42,6 +60,8 @@ onMounted(async () => {
     enabled.value = !!sub && (await pushSubscriptionQueries.exists(sub.endpoint))
   } catch (e) {
     console.error('[NotificationSettings] init error:', e)
+  } finally {
+    loading.value = false
   }
 })
 
@@ -52,10 +72,15 @@ const enable = async () => {
     notifyError('沒有取得通知權限')
     return
   }
-  const reg = await navigator.serviceWorker.ready
-  const sub =
-    (await reg.pushManager.getSubscription()) ??
-    (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(publicKey!) }))
+  const reg = await getRegistration()
+  const key = keyToBytes(publicKey!)
+  let existing = await reg.pushManager.getSubscription()
+  // VAPID 金鑰換過：舊訂閱綁舊金鑰，之後永遠送不到，要取消後重新訂閱
+  if (existing && !sameKey(existing.options.applicationServerKey, key)) {
+    await existing.unsubscribe()
+    existing = null
+  }
+  const sub = existing ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }))
   const json = sub.toJSON()
   if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) throw new Error('subscription missing keys')
   try {
@@ -86,7 +111,7 @@ const toggle = async () => {
     else await enable()
   } catch (e) {
     console.error('[NotificationSettings] toggle error:', e)
-    notifyError('設定失敗，請稍後再試')
+    notifyError((e as Error)?.message === 'sw-timeout' ? '無法啟用通知（找不到 service worker）' : '設定失敗，請稍後再試')
   } finally {
     busy.value = false
   }
@@ -100,6 +125,8 @@ const toggle = async () => {
       <p class="text-[13px] text-slate-600">前一天晚上通知你明天的事件、出發的露營行程，以及還沒帶的裝備。明天沒有事就不會打擾你。</p>
 
       <p v-if="unavailableReason" class="text-[13px] text-slate-500 bg-slate-50 rounded-[14px] p-3">{{ unavailableReason }}</p>
+
+      <p v-else-if="loading" class="text-[13px] text-slate-500">讀取中…</p>
 
       <template v-else>
         <button
