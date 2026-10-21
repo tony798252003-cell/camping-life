@@ -151,7 +151,6 @@ onMounted(async () => {
         :is-open="isModalOpen"
         :trip="activeTrip"
         :initial-date="initialDate"
-        :is-admin="userProfile?.is_admin || false"
         :user-profile="userProfile"
         :has-prev="hasPrevTrip"
         :has-next="hasNextTrip"

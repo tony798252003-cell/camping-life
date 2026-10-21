@@ -3,6 +3,7 @@ import { computed, ref, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 import type { CampingTripWithCampsite } from '../types/database'
 import { useTrips } from '../composables/useTrips'
+import { useUserProfile } from '../composables/useUserProfile'
 import { useTripModal } from '../composables/useTripModal'
 import AltitudeChart from '../components/charts/AltitudeChart.vue'
 import FrequencyChart from '../components/charts/FrequencyChart.vue'
@@ -17,6 +18,7 @@ import { TAIWAN_MAP_PATHS } from '../constants/taiwanMapSvg'
 import { BarChart3, TrendingUp, CalendarClock, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Moon, Car, Map as MapIcon } from 'lucide-vue-next'
 
 const { trips } = useTrips()
+const { userOrigin } = useUserProfile()
 const { openEdit } = useTripModal()
 
 const router = useRouter()
@@ -206,7 +208,7 @@ const handleViewTrip = (trip: CampingTripWithCampsite) => {
                  車程分佈
               </h2>
               <div class="w-full">
-                 <TravelTimeChart :trips="validTrips" />
+                 <TravelTimeChart :trips="validTrips" :user-origin="userOrigin()" />
               </div>
            </div>
        </div>

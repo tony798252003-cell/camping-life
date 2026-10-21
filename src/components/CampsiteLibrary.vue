@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight, Settings2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { campsiteQueries } from '../services/db/campsites'
+import { profileQueries } from '../services/db/profile'
 import { toCampsites } from '../utils/dbRows'
 import { useUserProfile } from '../composables/useUserProfile'
 import type { Campsite } from '../types/database'
@@ -104,26 +106,15 @@ const handleEditSaved = () => {
 const fetchCampsites = async () => {
   loading.value = true
   try {
-    const query = supabase
-      .from('campsites')
-      .select('*') // This already selects all columns including new ones
-      .is('merged_into_id', null)
-      .order('created_at', { ascending: false })
-
-    const { data, error } = await query
-    if (error) throw error
-    campsites.value = toCampsites(data)
+    campsites.value = toCampsites(await campsiteQueries.listActive())
 
     // Fetch visited/booked ids
-    const { data: tripData, error: tripError } = await supabase
-      .from('camping_trips')
-      .select('campsite_id, campsite_name, status')
-      .is('merged_into_id', null)
+    const tripData = await campsiteQueries.listTripVisitRefs()
 
-    if (!tripError && tripData) {
+    if (tripData) {
       const visited = new Set<number>()
       const visitedNames = new Set<string>()
-      ;(tripData as any[]).forEach(t => {
+      tripData.forEach(t => {
         const isVisited = t.status === 'completed' || t.status === 'booked'
         if (t.campsite_id) {
           if (isVisited) visited.add(t.campsite_id)
@@ -203,22 +194,15 @@ async function loadChipPrefs() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return
   userId.value = session.user.id
-  const { data } = await supabase
-    .from('profiles')
-    .select('campsite_quick_chips')
-    .eq('id', session.user.id)
-    .single() as any
-  if (data?.campsite_quick_chips?.length) {
-    enabledChipKeys.value = data.campsite_quick_chips
+  const chips = await profileQueries.getCampsiteQuickChips(session.user.id)
+  if (chips?.length) {
+    enabledChipKeys.value = chips
   }
 }
 
 async function saveChipPrefs() {
   if (!userId.value) return
-  await (supabase as any)
-    .from('profiles')
-    .update({ campsite_quick_chips: enabledChipKeys.value })
-    .eq('id', userId.value)
+  await profileQueries.setCampsiteQuickChips(userId.value, enabledChipKeys.value)
 }
 
 function toggleChipKey(key: string) {

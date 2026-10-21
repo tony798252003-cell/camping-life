@@ -28,7 +28,7 @@ ChartJS.register(
 
 const props = defineProps<{
   trips: CampingTripWithCampsite[]
-  userOrigin?: { lat: number; lng: number } | null
+  userOrigin?: { latitude: number; longitude: number } | null
 }>()
 
 const scrollContainer = ref<HTMLElement | null>(null)
@@ -50,8 +50,8 @@ const calculateAllDurations = async () => {
         if (durations.value[t.id]) continue;
 
         // Determine Start
-        const sLat = t.start_latitude || props.userOrigin?.lat || DEFAULT_ORIGIN.lat
-        const sLon = t.start_longitude || props.userOrigin?.lng || DEFAULT_ORIGIN.lng
+        const sLat = t.start_latitude || props.userOrigin?.latitude || DEFAULT_ORIGIN.lat
+        const sLon = t.start_longitude || props.userOrigin?.longitude || DEFAULT_ORIGIN.lng
 
         // Determine End
         const dLat = t.latitude || t.campsites?.latitude

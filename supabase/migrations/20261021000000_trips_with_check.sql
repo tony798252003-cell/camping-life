@@ -51,7 +51,8 @@ create policy "Users can insert photos to visible trips" on public.trip_photos
 commit;
 
 -- ---------------------------------------------------------------------------
--- rollback（使用者手動執行，不會自動跑）
+-- rollback:
+-- （使用者手動執行，不會自動跑）
 -- ---------------------------------------------------------------------------
 -- begin;
 -- alter policy 無法移除 WITH CHECK，所以用 drop + create 還原成沒有 WITH CHECK 的原樣：

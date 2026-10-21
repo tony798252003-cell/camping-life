@@ -20,10 +20,6 @@
            </p>
         </div>
 
-        <div class="hidden">
-          <!-- Hidden inputs -->
-        </div>
-
         <button 
           @click="getCurrentLocation" 
           :disabled="isLoadingLocation"
@@ -53,10 +49,13 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { MapPin, Navigation, Loader2 } from 'lucide-vue-next'
-import { supabase } from '../../lib/supabase'
+import { profileQueries } from '../../services/db/profile'
+import { useUserProfile } from '../../composables/useUserProfile'
+import type { PlaceResult } from '../../types/campsiteDraft'
 import PlaceSearchInput from './PlaceSearchInput.vue'
 
 const props = defineProps<{ userId: string }>()
+const { fetchProfile: refreshUserProfile } = useUserProfile()
 
 const formData = ref({
   location_name: '',
@@ -67,7 +66,7 @@ const formData = ref({
 const isLoadingLocation = ref(false)
 const isSaving = ref(false)
 
-const handlePlaceSelected = (place: any) => {
+const handlePlaceSelected = (place: PlaceResult) => {
   formData.value.location_name = place.name || place.formatted_address || ''
   formData.value.latitude = place.lat
   formData.value.longitude = place.lng
@@ -76,17 +75,13 @@ const handlePlaceSelected = (place: any) => {
 const fetchProfile = async () => {
   if (!props.userId) return
   try {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', props.userId)
-      .single()
+    const data = await profileQueries.get(props.userId)
 
     if (data) {
       formData.value = {
-        location_name: (data as any).location_name || '',
-        latitude: (data as any).latitude,
-        longitude: (data as any).longitude
+        location_name: data.location_name || '',
+        latitude: data.latitude,
+        longitude: data.longitude
       }
     }
   } catch (err) {
@@ -129,11 +124,9 @@ const saveSettings = async () => {
       updated_at: new Date().toISOString()
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .upsert(updates as any)
-
-    if (error) throw error
+    await profileQueries.upsert(updates)
+    // 同步 singleton，NextTripCard 的車程時間不用重新整理就會更新
+    await refreshUserProfile(props.userId)
     alert('設定已儲存')
   } catch (error) {
     console.error('Error saving profile:', error)

@@ -36,6 +36,14 @@ describe('useTripForm.toPayload', () => {
     expect(f.toPayload(false).duration_days).toBe(1)
   })
 
+  // 為什麼：舊行程 duration_days 為 null 時畫面不能壞、行程不能從行事曆消失（Review Focus 2）
+  it('初始化舊行程 duration_days 為 null 時當作 1 天', () => {
+    const f = make()
+    f.initFormData({ trip_date: '2026-01-01', campsite_name: '舊營區', duration_days: null })
+    expect(f.formData.value.duration_days).toBe(1)
+    expect(f.toPayload(false).duration_days).toBe(1)
+  })
+
   // 為什麼：資料庫 cost/price 不可為 null，空字串要轉成 0；海拔空值要存 null
   it('空的費用轉 0、空的海拔轉 null', () => {
     const f = make()

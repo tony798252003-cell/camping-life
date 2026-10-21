@@ -4,12 +4,14 @@ import {
   MapPin, Moon, Save, RotateCcw, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { gearQueries } from '../services/db/gear'
 import { toGearItems } from '../utils/dbRows'
 import type { NewCampingTrip, CampingGear, Campsite, CampingTrip } from '../types/database'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { resolveTripDate } from '../utils/dateRange'
 import { CAMPSITE_REQUIRED_MESSAGE } from '../utils/tripValidation'
 import { useNotification } from '../composables/useNotification'
+import type { UserProfileState } from '../composables/useUserProfile'
 import { useTripForm } from '../composables/useTripForm'
 
 import TripWeather from './TripWeather.vue'
@@ -23,8 +25,7 @@ import TripReviewSection from './trip/TripReviewSection.vue'
 interface Props {
   isOpen: boolean
   trip?: CampingTrip | null | any
-  isAdmin?: boolean
-  userProfile?: any
+  userProfile?: UserProfileState | null
   hasPrev?: boolean
   hasNext?: boolean
   initialDate?: string | null
@@ -74,15 +75,7 @@ const fetchTents = async () => {
   if (!session) return
 
   try {
-    const { data, error } = await supabase
-      .from('camping_gear')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('type', 'tent')
-      .order('created_at', { ascending: true })
-
-    if (error) throw error
-    tents.value = toGearItems(data)
+    tents.value = toGearItems(await gearQueries.listByUser(session.user.id, 'tent'))
   } catch (error) {
     console.error('Error fetching tents:', error)
   }
@@ -160,16 +153,11 @@ const handleSubmit = async () => {
   }
 }
 
-onMounted(async () => {
-  try {
-    const { data } = await supabase.from('camping_gear').select('*').order('name')
-    if (data) {
-      const allGear = data as unknown as CampingGear[]
-      tents.value = allGear.filter(g => g.type && g.type.toLowerCase() === 'tent')
-    }
-  } catch (e) {
-    console.error('Error loading gear', e)
-  }
+// 帳篷清單只由 fetchTents 載入（使用者自己的帳篷，依建立時間）。
+// 原本 onMounted 另有一支全表查詢與 isOpen watcher 競態，實際上開啟後以 fetchTents 結果為準；
+// 這裡只補「掛載時已開啟」的情況（watch 非 immediate）。
+onMounted(() => {
+  if (props.isOpen) fetchTents()
 })
 </script>
 

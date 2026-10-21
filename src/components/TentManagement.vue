@@ -2,6 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { Plus, Trash2, Tent, X, Check, Edit2, Search, Library } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { gearQueries } from '../services/db/gear'
+import { profileQueries } from '../services/db/profile'
 import { toGearItem, toGearItems } from '../utils/dbRows'
 import type { CampingGear, CampingTripWithCampsite, SystemAsset } from '../types/database'
 import { buildNewTentPayload } from '../utils/gearPayload'
@@ -56,21 +58,12 @@ const fetchTents = async () => {
   if (!session) return
 
   // Check admin status
-  const { data } = await supabase.from('profiles').select('is_admin').eq('id', session.user.id).single()
-  const profile = data as { is_admin: boolean } | null
-  if (profile) isAdmin.value = profile.is_admin || false
+  const adminFlag = await profileQueries.getIsAdmin(session.user.id)
+  if (adminFlag !== null) isAdmin.value = adminFlag
 
   loading.value = true
   try {
-    const { data, error } = await supabase
-      .from('camping_gear')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('type', 'tent')
-      .order('created_at', { ascending: true })
-
-    if (error) throw error
-    tents.value = toGearItems(data)
+    tents.value = toGearItems(await gearQueries.listByUser(session.user.id, 'tent'))
   } catch (error) {
     console.error('Error fetching tents:', error)
     alert('無法載入帳篷資料')
@@ -81,13 +74,7 @@ const fetchTents = async () => {
 
 // Fetch System Assets
 const fetchSystemImages = async () => {
-    const { data } = await supabase
-        .from('system_assets')
-        .select('*')
-        .eq('type', 'tent_image')
-        .order('created_at', { ascending: false })
-    
-    if (data) systemImages.value = data
+    systemImages.value = await gearQueries.listSystemImages()
 }
 
 // Filtered Images
@@ -127,16 +114,11 @@ const saveTent = async () => {
   try {
     if (isEditMode.value && editingTentId.value) {
         // Update
-        const { error } = await supabase
-            .from('camping_gear')
-            .update({
-                name: newTentName.value.trim(),
-                brand: newTentBrand.value.trim(),
-                image_url: newTentImage.value
-            })
-            .eq('id', editingTentId.value)
-
-        if (error) throw error
+        await gearQueries.update(editingTentId.value, {
+            name: newTentName.value.trim(),
+            brand: newTentBrand.value.trim(),
+            image_url: newTentImage.value
+        })
 
         // Update local
         const idx = tents.value.findIndex(t => t.id === editingTentId.value)
@@ -153,13 +135,7 @@ const saveTent = async () => {
             session.user.id
         )
 
-        const { data, error } = await supabase
-            .from('camping_gear')
-            .insert([newTent])
-            .select()
-            .single()
-
-        if (error) throw error
+        const data = await gearQueries.insert(newTent)
         if (data) {
             tents.value.push(toGearItem(data))
         }
@@ -193,12 +169,7 @@ const removeTent = async (id: number) => {
   if (!confirmed) return
   
   try {
-    const { error } = await supabase
-      .from('camping_gear')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    await gearQueries.remove(id)
     tents.value = tents.value.filter(tent => tent.id !== id)
   } catch (error) {
     console.error('Error deleting tent:', error)

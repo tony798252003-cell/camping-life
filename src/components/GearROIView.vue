@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Plus, Trash2, Calculator, RotateCcw } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { gearQueries } from '../services/db/gear'
 import { toGearItem, toGearItems } from '../utils/dbRows'
 import type { CampingGear, CampingTripWithCampsite } from '../types/database'
 import { buildNewGearPayload, buildExamplePayloads } from '../utils/gearPayload'
@@ -21,14 +22,7 @@ const fetchGear = async () => {
 
   loading.value = true
   try {
-    const { data, error } = await supabase
-      .from('camping_gear')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: true })
-
-    if (error) throw error
-    items.value = toGearItems(data)
+    items.value = toGearItems(await gearQueries.listByUser(session.user.id))
   } catch (error) {
     console.error('Error fetching gear:', error)
     alert('無法載入裝備資料')
@@ -48,14 +42,7 @@ const addItem = async () => {
   try {
     const newItem = buildNewGearPayload(session.user.id)
 
-    const { data, error } = await supabase
-      .from('camping_gear')
-      .insert([newItem])
-      .select()
-      .single()
-
-
-    if (error) throw error
+    const data = await gearQueries.insert(newItem)
     if (data) {
       items.value.push(toGearItem(data))
     }
@@ -69,18 +56,13 @@ const addItem = async () => {
 
 const updateItem = async (item: CampingGear) => {
   try {
-    const { error } = await supabase
-      .from('camping_gear')
-      .update({
-        name: item.name,
-        base_usage_count: item.base_usage_count,
-        cost: item.cost,
-        rental_price: item.rental_price,
-        type: item.type
-      })
-      .eq('id', item.id)
-
-    if (error) throw error
+    await gearQueries.update(item.id, {
+      name: item.name,
+      base_usage_count: item.base_usage_count,
+      cost: item.cost,
+      rental_price: item.rental_price,
+      type: item.type
+    })
     // Update local state is automatic via v-model, but verified by no error
   } catch (error) {
     console.error('Error updating item:', error)
@@ -103,12 +85,7 @@ const removeItem = async (id: number) => {
   if (!confirmed) return
   
   try {
-    const { error } = await supabase
-      .from('camping_gear')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    await gearQueries.remove(id)
     items.value = items.value.filter(item => item.id !== id)
   } catch (error) {
     console.error('Error deleting item:', error)
@@ -138,22 +115,11 @@ const resetData = async () => {
     // 1. Delete all existing
     if (items.value.length > 0) {
        const ids = items.value.map(i => i.id)
-       const { error: delError } = await supabase
-        .from('camping_gear')
-        .delete()
-        .in('id', ids)
-       if (delError) throw delError
+       await gearQueries.removeMany(ids)
     }
 
     // 2. Insert defaults（RLS 需要 user_id）
-    const { data, error: insError } = await supabase
-      .from('camping_gear')
-      .insert(buildExamplePayloads(session.user.id))
-      .select()
-
-    
-    if (insError) throw insError
-    items.value = toGearItems(data)
+    items.value = toGearItems(await gearQueries.insertMany(buildExamplePayloads(session.user.id)))
     
   } catch (error) {
     console.error('Error resetting data:', error)

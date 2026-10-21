@@ -12,8 +12,10 @@ defineProps<{
 </script>
 
 <template>
-  <component :is="collapsed ? 'details' : 'div'" class="flex flex-col">
+  <component :is="collapsed ? 'details' : 'div'">
     <summary v-if="collapsed" class="cursor-pointer text-sm font-bold text-gray-500 px-1 py-2 mt-6 select-none">出發後再填（評分、心得、照片）</summary>
+    <!-- Safari 不支援 <details> 的 display:flex，間距放內層 div -->
+    <div class="flex flex-col gap-4">
                   <!-- Section Header: Ratings -->
                   <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-6 px-1">評分</h3>
 
@@ -120,5 +122,6 @@ defineProps<{
                   <div v-if="tripId">
                       <PhotoGallery :tripId="tripId" :isEditable="true" />
                   </div>
+    </div>
   </component>
 </template>

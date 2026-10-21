@@ -2,6 +2,8 @@
 import { ref, watch, computed } from 'vue'
 import { X, Loader2, Navigation, Phone } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { campsiteQueries } from '../services/db/campsites'
+import type { TablesInsert, TablesUpdate } from '../types/supabase'
 import { useCampsiteForm } from '../composables/useCampsiteForm'
 import { campsiteNavUrl, campsiteTelUrl, FIELD_LABEL, FIELD_SOURCE_LABEL } from '../utils/campsiteNav'
 import type { Campsite } from '../types/database'
@@ -93,12 +95,10 @@ const save = async () => {
 
     console.log('Sending updates:', updates)
 
-    const { data, error } = isNew
-      ? await (supabase.from('campsites') as any).insert(updates).select()
-      : await (supabase.from('campsites') as any).update(updates).eq('id', form.value.id).select()
+    const data = isNew
+      ? await campsiteQueries.insert(updates as unknown as TablesInsert<'campsites'>)
+      : await campsiteQueries.update(form.value.id as number, updates as unknown as TablesUpdate<'campsites'>)
 
-    if (error) throw error
-    
     if (!data || data.length === 0) {
        throw new Error('更新失敗，可能沒有權限或找不到該筆資料 (RLS)')
     }

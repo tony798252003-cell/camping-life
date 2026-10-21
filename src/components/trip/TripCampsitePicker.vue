@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { supabase } from '../../lib/supabase'
+import { campsiteQueries } from '../../services/db/campsites'
 import { toCampsites } from '../../utils/dbRows'
 import type { NewCampingTrip, Campsite } from '../../types/database'
 
@@ -28,7 +28,7 @@ const searchCampsites = async (query: string) => {
   if (searchDebounce) clearTimeout(searchDebounce)
   searchDebounce = setTimeout(async () => {
     try {
-      const { data } = await supabase.from('campsites').select('*').is('merged_into_id', null).ilike('name', `%${query}%`).limit(5)
+      const data = await campsiteQueries.search(query)
       results.value = toCampsites(data)
       showDropdown.value = true
     } catch (e) { console.error(e) }

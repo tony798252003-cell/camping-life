@@ -2,18 +2,20 @@
 import { ref } from 'vue'
 import { MapPin, ChevronRight } from 'lucide-vue-next'
 import type { NewCampingTrip } from '../../types/database'
+import type { PlaceResult } from '../../types/campsiteDraft'
+import type { UserProfileState } from '../../composables/useUserProfile'
 import PlaceSearchInput from '../settings/PlaceSearchInput.vue'
 
 // 自訂本次出發地（預設收合）
 const props = defineProps<{
   form: NewCampingTrip
-  userProfile?: any
+  userProfile?: UserProfileState | null
 }>()
 
 const isExpanded = ref(false)
 const isEditing = ref(false)
 
-const handlePlaceSelected = (place: any) => {
+const handlePlaceSelected = (place: PlaceResult) => {
   // 存地點名稱（例如「台北車站」），不存完整地址
   props.form.start_location = place.name || place.formatted_address || ''
   props.form.start_latitude = place.lat
@@ -22,7 +24,7 @@ const handlePlaceSelected = (place: any) => {
 </script>
 
 <template>
-  <div>
+  <div class="flex flex-col gap-4">
                   <!-- Section Header: Basic Info -->
                   <div class="flex items-center justify-between mt-4 px-1 mb-2">
                      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">CAMPSITE INFO</h3>

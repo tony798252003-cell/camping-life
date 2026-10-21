@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import type { NewCampingTrip } from '../types/database'
+import type { NewCampingTrip, CampingTripWithCampsite } from '../types/database'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { resolveTripDate } from '../utils/dateRange'
 import { canSaveTrip, CAMPSITE_REQUIRED_MESSAGE } from '../utils/tripValidation'
@@ -69,7 +69,7 @@ export function useTripForm(getInitialDate: () => string | null | undefined) {
     originalTripData.value = clone(empty)
   }
 
-  function initFormData(newTrip: any) {
+  function initFormData(newTrip: Partial<CampingTripWithCampsite> | null | undefined) {
     if (!newTrip) return resetForm()
     const linkedCampsite = newTrip.campsites
 
@@ -129,8 +129,8 @@ export function useTripForm(getInitialDate: () => string | null | undefined) {
     if (!canSaveTrip(isNew, formData.value.campsite_id)) throw new Error(CAMPSITE_REQUIRED_MESSAGE)
 
     const payload = { ...formData.value }
-    const nullable = (v: any) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? null : Number(v)
-    const required = (v: any, def = 0) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? def : Number(v)
+    const nullable = (v: unknown) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? null : Number(v)
+    const required = (v: unknown, def = 0) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? def : Number(v)
 
     payload.altitude = nullable(formData.value.altitude) as number | undefined
     payload.cost = required(formData.value.cost, 0)
