@@ -3,7 +3,7 @@ import type { ViewEvent } from './viewEvent'
 import { layoutDay, allDayFor } from './timeGridLayout'
 
 const ev = (o: Partial<ViewEvent> & { key: string }): ViewEvent => ({
-  source: 'event', sourceId: o.key, title: o.key, color: '#000', categoryId: null,
+  source: 'event', sourceId: o.key, title: o.key, color: '#000', owner: 'me', categoryId: null,
   allDay: false, startDate: '2026-10-17', endDate: '2026-10-17', past: false, ...o,
 })
 const timed = (key: string, s: number, e: number) => ev({ key, startMin: s, endMin: e })

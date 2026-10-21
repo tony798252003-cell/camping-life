@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import type { ViewEvent } from './viewEvent'
-import { cellTint, dayAgenda, dayLabel, displayTitle, timeLabel, weekAgenda, weekRow } from './glance'
+import { cellTint, dayAgenda, dayLabel, displayTitle, subtitle, timeLabel, weekAgenda, weekRow } from './glance'
 
 const ev = (o: Partial<ViewEvent> & { key: string }): ViewEvent => ({
-  source: 'event', sourceId: o.key, title: o.key, color: '#10b981', categoryId: null,
+  source: 'event', sourceId: o.key, title: o.key, color: '#10b981', owner: 'me', categoryId: null,
   allDay: true, startDate: '2026-10-21', endDate: '2026-10-21', past: false, ...o,
 })
 
@@ -90,5 +90,16 @@ describe('dayLabel', () => {
     expect(dayLabel('2026-10-21', '2026-10-21')).toBe('10/21（三）今天')
     expect(dayLabel('2026-10-28', '2026-10-21')).toBe('10/28（三）')
     expect(dayLabel('2026-10-10', '2026-10-21', '國慶日')).toBe('10/10（六）・國慶日')
+  })
+})
+
+describe('subtitle', () => {
+  const base = { key: 'k', source: 'event', sourceId: 1, title: 't', color: '#000', owner: 'family', categoryId: null, allDay: true, startDate: '2026-10-20', endDate: '2026-10-20', past: false } as ViewEvent
+  // 為什麼：分類名稱從顏色移到副標（C5），家人新增的事件還要標示是誰排的
+  it('時間 · 分類 · 建立者新增', () => {
+    expect(subtitle({ ...base, categoryName: '家庭', creatorName: '小美' }, '18:30')).toBe('18:30 · 家庭 · 小美新增')
+  })
+  it('沒有分類、沒有建立者就只剩時間', () => {
+    expect(subtitle(base, '全天')).toBe('全天')
   })
 })

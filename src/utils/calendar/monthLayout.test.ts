@@ -3,7 +3,7 @@ import type { ViewEvent } from './viewEvent'
 import { buildMonthWeeks, layoutWeek } from './monthLayout'
 
 const ev = (o: Partial<ViewEvent> & { key: string }): ViewEvent => ({
-  source: 'event', sourceId: o.key, title: o.key, color: '#000', categoryId: null,
+  source: 'event', sourceId: o.key, title: o.key, color: '#000', owner: 'me', categoryId: null,
   allDay: true, startDate: '2026-10-20', endDate: '2026-10-20', past: false, ...o,
 })
 const multi = (key: string, startDate: string, endDate: string) => ev({ key, startDate, endDate })

@@ -11,7 +11,7 @@ export function weekRow(ymd: string): string[] {
 
 const HEX = /^#[0-9a-fA-F]{6}$/
 
-// 格子底色取「當天第一個事件」的分類色（淡色底 + 底部色條）；沒事件或不是 #rrggbb 就不上色
+// 格子底色取「當天第一個事件」的顏色（全家／我）（淡色底 + 底部色條）；沒事件或不是 #rrggbb 就不上色
 export function cellTint(ymd: string, events: ViewEvent[]): { color: string; bg: string } | null {
   const color = eventsOnDay(ymd, events)[0]?.color
   return color && HEX.test(color) ? { color, bg: `${color}22` } : null
@@ -26,6 +26,10 @@ export function timeLabel(e: ViewEvent, day: string): string {
 
 // 當天事件：順序與月列表相同（eventsOnDay）；最多 limit 筆
 export const dayAgenda = (day: string, events: ViewEvent[], limit = 3): ViewEvent[] => eventsOnDay(day, events).slice(0, limit)
+
+// 清單副標：「{lead} · 分類 · {建立者}新增」，沒有的部分略過
+export const subtitle = (e: ViewEvent, lead: string) =>
+  [lead, e.categoryName, e.creatorName && `${e.creatorName}新增`].filter(Boolean).join(' · ')
 
 // 賽程標題帶 ⚾ 前綴（資料層規格），畫面上不用 emoji 當圖示
 export const displayTitle = (e: ViewEvent) => e.title.replace(/^⚾\s*/, '')

@@ -4,7 +4,7 @@ import { dayAgenda } from './glance'
 import { agendaRange, eventsOnDay, dayClickAction } from './agendaRange'
 
 const ev = (o: Partial<ViewEvent> & { key: string }): ViewEvent => ({
-  source: 'event', sourceId: o.key, title: o.key, color: '#000', categoryId: null,
+  source: 'event', sourceId: o.key, title: o.key, color: '#000', owner: 'me', categoryId: null,
   allDay: true, startDate: '2026-10-20', endDate: '2026-10-20', past: false, ...o,
 })
 
