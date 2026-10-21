@@ -23,9 +23,10 @@ export const categoryQueries = {
 
   // PM 決定（審查）：只有使用者完全沒有任何分類時才建立預設；否則什麼都不做，
   // 避免把使用者刪掉的分類加回來或撞 unique(owner_id,name)（規格 §17 S6、D27）
-  async ensureDefaults(): Promise<void> {
+  // list() 也會回家人的分類，所以只看「自己的」是否已有分類
+  async ensureDefaults(ownerId: string): Promise<void> {
     const existing = await this.list()
-    if (existing.length > 0) return
+    if (existing.some((c) => c.owner_id === ownerId)) return
     const { error } = await supabase.from('event_categories').insert(DEFAULTS)
     if (error) throw error
   },
