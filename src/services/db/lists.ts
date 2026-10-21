@@ -38,7 +38,7 @@ export const listQueries = {
     return data
   },
 
-  async setDone(id: string, done: boolean, userId: string): Promise<void> {
+  async setDone(id: string, done: boolean, userId: string | null): Promise<void> {
     const { error } = await supabase
       .from('family_list_items')
       .update(done ? { done: true, done_by: userId, done_at: new Date().toISOString() } : { done: false, done_by: null, done_at: null })

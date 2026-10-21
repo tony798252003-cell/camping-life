@@ -5,6 +5,7 @@ import { useAuth } from '../../composables/useAuth'
 import { useCalendarEvents } from '../../composables/useCalendarEvents'
 import { useConfirm } from '../../composables/useConfirm'
 import { useEventCategories } from '../../composables/useEventCategories'
+import { useFamilyLists } from '../../composables/useFamilyLists'
 import { useFamily } from '../../composables/useFamily'
 import { useNotification } from '../../composables/useNotification'
 import { useTrips } from '../../composables/useTrips'
@@ -16,6 +17,7 @@ const { fetchProfile, familyId } = useUserProfile()
 const { fetchTrips } = useTrips()
 const { load: loadEvents } = useCalendarEvents()
 const { load: loadCategories } = useEventCategories()
+const { reload: reloadLists } = useFamilyLists()
 const { confirm } = useConfirm()
 const { success, error: notifyError } = useNotification()
 
@@ -57,7 +59,7 @@ const handleJoin = async () => {
     code.value = ''
     // 家庭變了：行程、事件、分類、成員都要重新載入
     await fetchProfile(userId)
-    await Promise.all([fetchTrips(userId, familyId()), loadEvents(), loadCategories(), loadFamily()])
+    await Promise.all([fetchTrips(userId, familyId()), loadEvents(), loadCategories(), loadFamily(), reloadLists()])
     success('已加入家庭')
   } catch (e) {
     console.error('[FamilySettings] join error:', e)

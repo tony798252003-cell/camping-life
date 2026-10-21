@@ -3,7 +3,7 @@ import { onMounted } from 'vue'
 import { ChevronRight } from 'lucide-vue-next'
 import { useFamilyLists } from '../../composables/useFamilyLists'
 
-const { lists, loaded, hasFamily, load, openCountOf } = useFamilyLists()
+const { lists, loaded, loadFailed, hasFamily, load, openCountOf } = useFamilyLists()
 
 // App 登入後已載入；剛加入家庭或尚未載入時補載
 onMounted(() => {
@@ -23,6 +23,13 @@ onMounted(() => {
       先建立或加入家庭
       <ChevronRight class="w-5 h-5 text-slate-400" aria-hidden="true" />
     </router-link>
+
+    <button
+      v-else-if="loadFailed"
+      type="button"
+      class="bg-white rounded-[20px] px-4 min-h-[56px] text-left text-[15px] font-bold text-primary-700"
+      @click="load()"
+    >載入失敗，點此重試</button>
 
     <template v-else>
       <router-link

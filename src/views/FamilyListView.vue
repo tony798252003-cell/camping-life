@@ -7,7 +7,7 @@ import { useConfirm } from '../composables/useConfirm'
 import type { FamilyListItem } from '../types/database'
 
 const route = useRoute()
-const { lists, loaded, hasFamily, load, listById, groupedOf, addItem, toggle, removeItem, clearDone } = useFamilyLists()
+const { lists, loaded, loadFailed, hasFamily, load, listById, groupedOf, addItem, toggle, removeItem, clearDone } = useFamilyLists()
 const { confirm } = useConfirm()
 
 const listId = computed(() => String(route.params.id))
@@ -64,6 +64,13 @@ const askClear = async () => {
       to="/settings?view=family"
       class="bg-white rounded-[20px] px-4 min-h-[56px] flex items-center text-[15px] font-bold text-primary-700"
     >先建立或加入家庭</router-link>
+
+    <button
+      v-else-if="loadFailed"
+      type="button"
+      class="bg-white rounded-[20px] px-4 min-h-[56px] text-left text-[15px] font-bold text-primary-700"
+      @click="load()"
+    >載入失敗，點此重試</button>
 
     <p v-else-if="loaded && !list" class="text-[13px] text-slate-500 px-1">找不到這張清單</p>
 
