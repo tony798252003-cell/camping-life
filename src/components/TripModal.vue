@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import {
-  MapPin, Moon, Save, RotateCcw, ChevronLeft, ChevronRight, Trash2
+  Moon, Save, RotateCcw, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { gearQueries } from '../services/db/gear'
@@ -171,7 +171,7 @@ onMounted(() => {
            <div class="flex items-center gap-2">
               <button 
                 @click="handleClose" 
-                class="p-2 -ml-2 text-primary-600 hover:bg-surface-100 rounded-full transition-colors active:scale-95 bg-white/50"
+                class="w-11 h-11 -ml-2 flex items-center justify-center text-primary-600 hover:bg-surface-100 rounded-full transition-colors active:scale-95 bg-white/50"
               >
                 <ChevronLeft class="w-6 h-6" />
               </button>
@@ -187,7 +187,7 @@ onMounted(() => {
                   <button 
                     @click="emit('prev')" 
                     :disabled="!hasPrev"
-                    class="p-1.5 rounded-full hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                    class="w-10 h-11 flex items-center justify-center rounded-full hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
                   >
                      <ChevronLeft class="w-4 h-4 text-gray-600" />
                   </button>
@@ -195,7 +195,7 @@ onMounted(() => {
                   <button 
                     @click="emit('next')" 
                     :disabled="!hasNext"
-                    class="p-1.5 rounded-full hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                    class="w-10 h-11 flex items-center justify-center rounded-full hover:bg-white transition-all disabled:opacity-30 disabled:hover:bg-transparent"
                   >
                      <ChevronRight class="w-4 h-4 text-gray-600" />
                   </button>
@@ -204,7 +204,7 @@ onMounted(() => {
                <button 
                   v-if="trip?.id"
                   @click="handleDelete" 
-                  class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                  class="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
                   title="刪除行程"
                >
                    <Trash2 class="w-5 h-5" />
@@ -224,7 +224,7 @@ onMounted(() => {
                        src="/images/card_bg.jpg" 
                        class="w-full h-full object-cover opacity-80"
                      />
-                     <div class="absolute inset-0 bg-gradient-to-b from-transparent via-white/20 to-surface-50"></div>
+                     <div class="absolute inset-0 bg-gradient-to-b from-transparent from-35% to-surface-50"></div>
                   </div>
 
                   <!-- Night Rush Toggle (Top Right) -->
@@ -243,21 +243,21 @@ onMounted(() => {
                   <!-- Content -->
                   <div class="absolute inset-0 flex flex-col items-center justify-center p-6 z-10 text-center">
                       <!-- Date Pill -->
-                      <div class="flex items-center gap-2 mb-4 bg-white/60 backdrop-blur rounded-full px-4 py-1.5 shadow-sm border border-white/40">
+                      <div class="flex items-center gap-1.5 mb-3 bg-white/75 rounded-full px-3.5 py-1.5">
                           <input 
                               v-model="formData.trip_date" 
                               type="date" 
-                              class="bg-transparent border-none text-sm font-bold text-primary-900 p-0 focus:ring-0 cursor-pointer w-[110px]" 
+                              class="bg-transparent border-none text-[13px] font-bold text-primary-800 p-0 focus:ring-0 cursor-pointer w-[110px]" 
                           />
-                          <span class="text-xs text-primary-600 font-bold">|</span>
+                          <span class="text-[13px] text-primary-800 font-bold">·</span>
                           <div class="flex items-center gap-1">
                               <input 
                                   v-model.number="formData.duration_days" 
                                   type="number" 
                                   min="1" 
-                                  class="w-8 bg-transparent border-none text-sm font-bold text-primary-900 p-0 focus:ring-0 text-center" 
+                                  class="w-8 bg-transparent border-none text-[13px] font-bold text-primary-800 p-0 focus:ring-0 text-center" 
                               />
-                              <span class="text-xs text-primary-600 font-bold">天</span>
+                              <span class="text-[13px] text-primary-800 font-bold">天</span>
                           </div>
                       </div>
 
@@ -266,11 +266,10 @@ onMounted(() => {
 
                       <!-- Subtitle Location -->
                        <!-- Subtitle Location -->
-                      <div class="flex items-center justify-center gap-1.5 text-primary-700 font-bold bg-white/40 backdrop-blur-sm px-2 py-1 rounded-full">
-                          <MapPin class="w-4 h-4" />
+                      <div class="flex items-center justify-center gap-2 text-primary-800">
                               <select
                                 v-model="selectedCity"
-                                class="bg-transparent border-none text-xs font-bold text-primary-800 p-0 pr-4 focus:ring-0 cursor-pointer"
+                                class="bg-transparent border-none text-sm font-medium text-primary-800 p-0 pr-5 focus:ring-0 cursor-pointer"
                               >
                                 <option value="">選縣市</option>
                                 <option v-for="city in TAIWAN_LOCATIONS" :key="city.id" :value="city.id">
@@ -280,7 +279,7 @@ onMounted(() => {
                               <select
                                 v-model="selectedDistrict"
                                 :disabled="!selectedCity"
-                                class="bg-transparent border-none text-xs font-bold text-primary-800 p-0 pr-4 focus:ring-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                class="bg-transparent border-none text-sm font-medium text-primary-800 p-0 pr-5 focus:ring-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <option value="">選區域</option>
                                 <option v-for="district in availableDistricts" :key="district.id" :value="district.id">
@@ -293,7 +292,7 @@ onMounted(() => {
 
 
               <!-- 2. CONTENT CONTAINER -->
-              <div class="px-4 md:px-8 -mt-6 relative z-20 flex flex-col gap-4">
+              <div class="px-4 md:px-8 -mt-5 relative z-20 flex flex-col gap-3">
                   
                   <!-- Weather Widget -->
                   <TripWeather :trip="weatherTrip" :isOpen="!!weatherTrip" @close="weatherTrip = null" />
@@ -302,7 +301,7 @@ onMounted(() => {
 
 
                   <!-- INFO CARDS (Home Style) - Grid -->
-                  <div class="grid grid-cols-2 gap-3">
+                  <div class="grid grid-cols-2 gap-2.5">
                       <TripCampsiteInfoPanel :trip="trip" :altitude="formData.altitude" />
 
                       <TripGearSection :form="formData" :tents="tents" />
@@ -311,8 +310,8 @@ onMounted(() => {
                   <!-- Section Header: Conditions & Notes -->
                   <!-- Campsite Map (Read-Only) -->
                   <div v-if="trip?.campsites?.layout_image_url" class="mt-6 mb-2">
-                      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">營區配置圖</h3>
-                      <div class="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-white group cursor-zoom-in" onclick="window.open(this.querySelector('img').src)">
+                      <h3 class="text-sm font-bold text-primary-900 mb-2 px-1">營區配置圖</h3>
+                      <div class="rounded-[20px] overflow-hidden shadow-sm bg-white group cursor-zoom-in" onclick="window.open(this.querySelector('img').src)">
                           <img 
                             :src="trip.campsites.layout_image_url" 
                             class="w-full h-auto object-contain bg-gray-50 max-h-[400px]" 
