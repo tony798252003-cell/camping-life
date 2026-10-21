@@ -28,6 +28,7 @@ export type Database = {
           family_id: string | null
           id: string
           is_all_day: boolean | null
+          recurrence: string | null
           start_date: string | null
           start_time: string
           title: string
@@ -46,6 +47,7 @@ export type Database = {
           family_id?: string | null
           id?: string
           is_all_day?: boolean | null
+          recurrence?: string | null
           start_date?: string | null
           start_time: string
           title: string
@@ -64,6 +66,7 @@ export type Database = {
           family_id?: string | null
           id?: string
           is_all_day?: boolean | null
+          recurrence?: string | null
           start_date?: string | null
           start_time?: string
           title?: string
