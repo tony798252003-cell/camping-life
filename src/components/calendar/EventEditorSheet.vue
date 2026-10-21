@@ -3,22 +3,31 @@ import { computed, ref, watch } from 'vue'
 import { Plus, X } from 'lucide-vue-next'
 import { useCalendarEvents } from '../../composables/useCalendarEvents'
 import { useEventCategories } from '../../composables/useEventCategories'
+import { useAuth } from '../../composables/useAuth'
 import { useEventEditor } from '../../composables/useEventEditor'
 import { useNotification } from '../../composables/useNotification'
 import { useTripModal } from '../../composables/useTripModal'
+import { useUserProfile } from '../../composables/useUserProfile'
 import { getCpblSchedule } from '../../services/cpblService'
 import type { CpblSchedule } from '../../types/database'
 import { fromEventRow, isBumpedRange, normalizeTimedRange, type EventInput } from '../../utils/calendar/eventRow'
 import { isRakutenGame } from '../../utils/calendar/eventSources'
+import { nextVisibility, type Visibility } from '../../utils/calendar/visibility'
 import { todayYmd } from '../../utils/dateRange'
 
+const VISIBILITY_OPTIONS: { value: Visibility; label: string }[] = [
+  { value: 'shared', label: '全家' },
+  { value: 'private', label: '只有我' },
+]
 const PALETTE = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b']
 
 const { isOpen, editing, initialDate, presetGame, close } = useEventEditor()
 const { create, update } = useCalendarEvents()
-const { categories, bySystemKey, load: loadCategories, create: createCategory } = useEventCategories()
+const { myCategories: categories, bySystemKey, load: loadCategories, create: createCategory } = useEventCategories()
 const { openNew: openNewTrip } = useTripModal()
 const { error: notifyError } = useNotification()
+const { session } = useAuth()
+const { familyId } = useUserProfile()
 
 const title = ref('')
 const categoryId = ref('')
@@ -29,6 +38,9 @@ const startTime = ref('09:00')
 const endTime = ref('10:00')
 const description = ref('')
 const cpblGameId = ref<string | null>(null)
+const visibility = ref<Visibility>('private')
+// 使用者手動切換過「誰看得到」之後，換分類不再覆蓋
+const visibilityTouched = ref(false)
 const clamped = ref(false)
 const nextDayHint = ref(false)
 const saving = ref(false)
@@ -40,6 +52,10 @@ const game = ref<CpblSchedule | null>(null)
 
 const isEdit = computed(() => editing.value !== null)
 const campingId = computed(() => bySystemKey.value.camping?.id)
+// 別人建立的全家事件：可以改內容，但不能改成「只有我」（避免把別人的事件藏起來）
+const lockedShared = computed(
+  () => !!editing.value && editing.value.visibility === 'shared' && editing.value.created_by !== session.value?.user?.id,
+)
 
 // 每次開啟都重設表單；編輯模式用 fromEventRow 還原
 watch(isOpen, (open) => {
@@ -60,6 +76,8 @@ watch(isOpen, (open) => {
     endTime.value = f.endTime ?? '10:00'
     description.value = f.description ?? ''
     cpblGameId.value = f.cpblGameId ?? null
+    visibility.value = f.visibility
+    visibilityTouched.value = true
     // 分類已被刪除或舊資料沒有分類：預設個人，避免送出空字串
     if (!categoryId.value) categoryId.value = bySystemKey.value.personal?.id ?? ''
   } else {
@@ -72,6 +90,8 @@ watch(isOpen, (open) => {
     endTime.value = '10:00'
     description.value = ''
     cpblGameId.value = null
+    visibilityTouched.value = false
+    visibility.value = nextVisibility({ touched: false, current: 'private', systemKey: bySystemKey.value.personal?.system_key })
     if (presetGame.value) apply(presetGame.value)
   }
 })
@@ -80,6 +100,22 @@ watch(isOpen, (open) => {
 watch(bySystemKey, (m) => {
   if (isOpen.value && !categoryId.value) categoryId.value = m.personal?.id ?? ''
 })
+
+// 新增模式：可見性預設跟著分類（露營、家庭 → 全家），手動切換後不再覆蓋
+watch(categoryId, (id) => {
+  if (!isOpen.value) return
+  visibility.value = nextVisibility({
+    touched: visibilityTouched.value,
+    current: visibility.value,
+    systemKey: categories.value.find((c) => c.id === id)?.system_key,
+  })
+})
+
+function pickVisibility(v: Visibility) {
+  if (v === 'private' && lockedShared.value) return
+  visibility.value = v
+  visibilityTouched.value = true
+}
 
 // 結束日期早於開始日期：自動改成開始日期，只在表單上提示（規格 §5.5）
 // selfClamp：改 endDate 會再觸發本 watcher，要略過那一次，否則提示會被立刻清掉
@@ -158,6 +194,8 @@ async function save() {
     endDate: range.endDate,
     ...(allDay.value ? {} : { startTime: startTime.value, endTime: endTime.value }),
     cpblGameId: cpblGameId.value,
+    visibility: visibility.value,
+    familyId: familyId() ?? null,
   }
   saving.value = true
   try {
@@ -250,6 +288,22 @@ async function saveCategory() {
               <Plus class="w-4 h-4" />
             </button>
           </div>
+        </section>
+
+        <section>
+          <p class="text-[11px] font-semibold text-slate-500 mb-2">誰看得到</p>
+          <div class="flex bg-primary-100 rounded-[14px] p-[3px]" role="group" aria-label="誰看得到">
+            <button
+              v-for="o in VISIBILITY_OPTIONS"
+              :key="o.value"
+              class="flex-1 min-h-[44px] rounded-[11px] text-[13px] font-extrabold transition-colors disabled:opacity-40"
+              :class="visibility === o.value ? 'bg-white text-primary-900 shadow-sm' : 'text-primary-700 font-bold'"
+              :aria-pressed="visibility === o.value"
+              :disabled="o.value === 'private' && lockedShared"
+              @click="pickVisibility(o.value)"
+            >{{ o.label }}</button>
+          </div>
+          <p v-if="lockedShared" class="text-[11px] text-slate-500 mt-1.5">這是家人新增的全家事件，不能改成只有我</p>
         </section>
 
         <section class="space-y-3">

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Lock, Pencil, Trash2 } from 'lucide-vue-next'
+import { Lock, Pencil, Trash2, Users } from 'lucide-vue-next'
 import { useCalendarEvents } from '../../composables/useCalendarEvents'
 import { useConfirm } from '../../composables/useConfirm'
 import { useEventCategories } from '../../composables/useEventCategories'
@@ -68,7 +68,10 @@ const onDelete = async () => {
         <h3 class="text-xl font-black text-primary-900">{{ row.title }}</h3>
         <p class="text-[13px] font-semibold text-slate-600 mt-1">{{ when }}</p>
         <p v-if="row.description" class="text-[15px] text-primary-900 mt-3 whitespace-pre-wrap">{{ row.description }}</p>
-        <p class="text-[11px] text-slate-500 mt-3 flex items-center gap-1"><Lock class="w-3 h-3" /> 只有我</p>
+        <p class="text-[11px] text-slate-500 mt-3 flex items-center gap-1">
+          <template v-if="row.visibility === 'shared'"><Users class="w-3 h-3" /> 全家</template>
+          <template v-else><Lock class="w-3 h-3" /> 只有我</template>
+        </p>
 
         <div class="flex gap-3 mt-5">
           <button class="flex-1 flex items-center justify-center gap-1 min-h-[48px] rounded-[14px] bg-red-50 text-red-600 font-bold text-[13px]" @click="onDelete()">
