@@ -5,6 +5,8 @@ import { supabase } from '../lib/supabase'
 import { campsiteQueries } from '../services/db/campsites'
 import type { TablesInsert, TablesUpdate } from '../types/supabase'
 import { useCampsiteForm } from '../composables/useCampsiteForm'
+import { isLikelyInTaiwan } from '../utils/coordinates'
+import { useConfirm } from '../composables/useConfirm'
 import { campsiteNavUrl, campsiteTelUrl, FIELD_LABEL, FIELD_SOURCE_LABEL } from '../utils/campsiteNav'
 import type { Campsite } from '../types/database'
 import CampsiteBasicFields from './campsite/CampsiteBasicFields.vue'
@@ -27,6 +29,7 @@ const {
   unconfirmedKeys, init, snapshot, applySnapshot, confirmField, toPayload,
 } = useCampsiteForm()
 const isSaving = ref(false)
+const { confirm } = useConfirm()
 
 const navUrl = computed(() => campsiteNavUrl({
   name: form.value.name ?? '',
@@ -81,6 +84,18 @@ function cancel() {
 }
 
 const save = async () => {
+  const lat = typeof form.value.latitude === 'number' ? form.value.latitude : null
+  const lng = typeof form.value.longitude === 'number' ? form.value.longitude : null
+  if (!isLikelyInTaiwan(lat, lng)) {
+    const ok = await confirm({
+      title: '座標怪怪的',
+      message: `座標好像不在台灣（緯度 ${lat}、經度 ${lng}），確定要存嗎？`,
+      type: 'warning',
+      confirmText: '照存',
+      cancelText: '修正',
+    })
+    if (!ok) return
+  }
   isSaving.value = true
   const isNew = form.value.id === 0
 
