@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { X, Upload, Trash2, CheckCircle, AlertCircle, Library, Plus, Edit2 } from 'lucide-vue-next'
 import { useCloudinary } from '../composables/useCloudinary'
-import { supabase } from '../lib/supabase'
+import { systemAssetQueries } from '../services/supabaseQueries'
 import type { SystemAsset } from '../types/database'
 
 const props = withDefaults(defineProps<{
@@ -62,14 +62,7 @@ const overallUploading = ref(false)
 const fetchAssets = async () => {
     loadingAssets.value = true
     try {
-        const { data, error } = await supabase
-            .from('system_assets')
-            .select('*')
-            .eq('type', activeCategory.value)
-            .order('created_at', { ascending: false })
-            
-        if (error) throw error
-        existingAssets.value = data || []
+        existingAssets.value = await systemAssetQueries.fetchByType(activeCategory.value)
     } catch (e) {
         console.error('Error fetching assets:', e)
     } finally {
@@ -92,12 +85,7 @@ const deleteAsset = async (id: number) => {
     if (!confirmed) return
     
     try {
-        const { error } = await supabase
-            .from('system_assets')
-            .delete()
-            .eq('id', id)
-            
-        if (error) throw error
+        await systemAssetQueries.delete(id)
         
         // Remove locally
         existingAssets.value = existingAssets.value.filter(a => a.id !== id)
@@ -128,15 +116,10 @@ const updateAsset = async () => {
     
     isUpdating.value = true
     try {
-        const { error } = await supabase
-            .from('system_assets')
-            .update({
-                name: editingAsset.value.name,
-                brand: editingAsset.value.brand // Update brand
-            })
-            .eq('id', editingAsset.value.id)
-            
-        if (error) throw error
+        await systemAssetQueries.update(editingAsset.value.id, {
+            name: editingAsset.value.name,
+            brand: editingAsset.value.brand // Update brand
+        })
         
         // Update locally
         const idx = existingAssets.value.findIndex(a => a.id === editingAsset.value.id)
@@ -205,7 +188,7 @@ const uploadAll = async () => {
             const result = await uploadImage(img.file)
             if (result) {
                 // Save to DB
-                const { error } = await supabase.from('system_assets').insert([{
+                await systemAssetQueries.create({
                     type: activeCategory.value,
                     url: result.secure_url,
                     public_id: result.public_id,
@@ -213,9 +196,7 @@ const uploadAll = async () => {
                     height: result.height,
                     name: img.name,
                     brand: img.brand // Insert brand
-                }])
-
-                if (error) throw error
+                })
                 img.status = 'success'
             } else {
                 img.status = 'error'

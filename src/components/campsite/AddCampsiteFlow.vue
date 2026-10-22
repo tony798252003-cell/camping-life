@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loader2, Check, Link2, Search, X, AlertTriangle } from 'lucide-vue-next'
-import { supabase } from '../../lib/supabase'
+import { campsiteQueries } from '../../services/db/campsites'
 import { apiPost } from '../../services/api'
 import { matchCampsite, type CampsiteMatch, type MatchableCampsite } from '../../utils/campsiteMatch'
 import { cleanCampsiteName } from '../../utils/campsiteName'
@@ -279,11 +279,11 @@ async function save() {
   saving.value = true
   errorMsg.value = ''
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    const insert = { ...buildInsert(), ...(session ? { created_by: session.user.id } : {}) }
-    const { data, error } = await (supabase.from('campsites') as any).insert(insert).select().single()
-    if (error) {
-      if (error.code === '23505') {
+    let data
+    try {
+      data = await campsiteQueries.insertWithCreator(buildInsert())
+    } catch (error: any) {
+      if (error?.code === '23505') {
         alreadyExists.value = true
         return
       }
@@ -304,10 +304,8 @@ async function useExisting(filter: { id: number } | { googlePlaceId: string }) {
   saving.value = true
   errorMsg.value = ''
   try {
-    const q = supabase.from('campsites').select('*')
-    // 以 place id 找時排除已合併的列（它們已被併入另一筆）
-    const { data, error } = await ('id' in filter ? q.eq('id', filter.id) : q.eq('google_place_id', filter.googlePlaceId).is('merged_into_id', null)).limit(1).maybeSingle()
-    if (error || !data) throw error ?? new Error('找不到這個營區')
+    const data = await campsiteQueries.findOne(filter)
+    if (!data) throw new Error('找不到這個營區')
     draft.value = null
     emit('saved', data as unknown as Campsite)
   } catch (e: any) {
@@ -327,12 +325,8 @@ function beforeUnload(ev: BeforeUnloadEvent) {
 
 onMounted(async () => {
   window.addEventListener('beforeunload', beforeUnload)
-  const { data, error } = await supabase
-    .from('campsites')
-    .select('id,name,district,latitude,longitude,google_place_id,phone,merged_into_id')
-    .is('merged_into_id', null)
-    .limit(5000)
-  if (error) existingWarn.value = '無法載入已收錄營區，這次沒有重複檢查，請自行確認是否已收錄'
+  const data = await campsiteQueries.listForMatching()
+  if (!data) existingWarn.value = '無法載入已收錄營區，這次沒有重複檢查，請自行確認是否已收錄'
   existing.value = (data ?? []) as MatchableCampsite[]
   if (props.initialPlaceId) {
     // 只有 placeId（例如從「找新營區」帶入）：沒有座標，重複檢查只能比對 place_id

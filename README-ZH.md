@@ -86,7 +86,6 @@ npm run dev
 src/
 ├── components/
 │   ├── StatsHeader.vue      # 統計摘要組件
-│   ├── CampingCard.vue      # 露營卡片組件
 │   ├── CampingForm.vue      # 表單組件
 │   └── MapView.vue          # 地圖組件
 ├── lib/
@@ -106,14 +105,6 @@ src/
 - 總花費
 - 收濕帳次數
 - 最高海拔
-
-### CampingCard.vue
-展示單筆露營記錄的卡片，包含：
-- 營區名稱、日期、天數
-- 地點和海拔資訊
-- 路況、整潔、風景評分
-- 天氣標籤（下雨、夜衝、收濕帳、大風）
-- 編輯和刪除按鈕
 
 ### CampingForm.vue
 新增/編輯露營記錄的表單，支援填寫：
