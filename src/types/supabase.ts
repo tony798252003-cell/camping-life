@@ -658,6 +658,36 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          last_success_at: string | null
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          last_success_at?: string | null
+          p256dh: string
+          user_id?: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          last_success_at?: string | null
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       system_assets: {
         Row: {
           brand: string | null
@@ -743,6 +773,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_push_subscription: {
+        Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
+        Returns: undefined
+      }
       family_member_ids: { Args: never; Returns: string[] }
       get_family_by_invite: { Args: { code: string }; Returns: Json }
       get_family_by_invite_code: {

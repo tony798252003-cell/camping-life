@@ -1,4 +1,4 @@
-import type { Owner } from './visibility'
+import type { Owner } from './visibility.js'
 
 // 行事曆統一顯示用的事件型別：行程、使用者事件、中職比賽都轉成 ViewEvent。
 export type ViewEventSource = 'event' | 'trip' | 'cpbl'

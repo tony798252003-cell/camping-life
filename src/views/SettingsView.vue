@@ -26,6 +26,9 @@
              <span v-else-if="currentView === 'family'" class="flex items-center gap-2">
                <Users class="w-5 h-5 text-blue-600" /> 家庭成員
              </span>
+             <span v-else-if="currentView === 'notifications'" class="flex items-center gap-2">
+               <Bell class="w-5 h-5 text-blue-600" /> 提醒通知
+             </span>
              <span v-else-if="currentView === 'admin'" class="flex items-center gap-2">
                <ShieldAlert class="w-5 h-5 text-red-600" /> 管理員專區
              </span>
@@ -91,6 +94,19 @@
               <ChevronRight class="w-5 h-5 text-gray-300" />
            </button>
 
+           <button @click="currentView = 'notifications'" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
+              <div class="flex items-center gap-3">
+                 <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                    <Bell class="w-5 h-5" />
+                 </div>
+                 <div class="text-left">
+                    <h3 class="font-bold text-gray-900">提醒通知</h3>
+                    <p class="text-xs text-gray-500">前一晚提醒明天的事</p>
+                 </div>
+              </div>
+              <ChevronRight class="w-5 h-5 text-gray-300" />
+           </button>
+
            <button v-if="isAdmin()" @click="isAssetManagerOpen = true" class="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl transition-all active:scale-[0.98] shadow-sm">
               <div class="flex items-center gap-3">
                  <div class="w-10 h-10 rounded-full bg-cyan-50 flex items-center justify-center text-cyan-600">
@@ -146,6 +162,8 @@
 
         <FamilySettings v-else-if="currentView === 'family'" />
 
+        <NotificationSettings v-else-if="currentView === 'notifications'" />
+
         <!-- ADVANCED GEAR VIEW (Admin Only) -->
         <GearSettings v-else-if="currentView === 'advanced-gear'" mode="advanced-gear" :trips="trips" />
 
@@ -165,8 +183,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Settings, MapPin, LogOut, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Images, Tags, Users } from 'lucide-vue-next'
+import { Settings, MapPin, LogOut, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Images, Tags, Users, Bell } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
+import { pushSubscriptionQueries } from '../services/db/pushSubscriptions'
 import { useAuth } from '../composables/useAuth'
 import { useTrips } from '../composables/useTrips'
 import { useUserProfile } from '../composables/useUserProfile'
@@ -175,6 +194,7 @@ import GearSettings from '../components/settings/GearSettings.vue'
 import CpblSettings from '../components/settings/CpblSettings.vue'
 import CategorySettings from '../components/settings/CategorySettings.vue'
 import FamilySettings from '../components/settings/FamilySettings.vue'
+import NotificationSettings from '../components/settings/NotificationSettings.vue'
 import SystemAssetManager from '../components/SystemAssetManager.vue'
 
 const router = useRouter()
@@ -188,12 +208,13 @@ const { isAdmin } = useUserProfile()
 const internalUserId = ref<string>('')
 const effectiveUserId = computed(() => authSession.value?.user?.id || internalUserId.value)
 
-type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'categories' | 'family' | 'admin'
+type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'categories' | 'family' | 'notifications' | 'admin'
 // 從清單頁「先建立或加入家庭」連過來：/settings?view=family 直接開家庭成員
 const currentView = ref<ViewState>(route.query.view === 'family' ? 'family' : 'menu')
 const isAssetManagerOpen = ref(false)
 
 const handleLogout = async () => {
+    await pushSubscriptionQueries.releaseThisDevice()
     await supabase.auth.signOut()
     router.push('/auth')
 }

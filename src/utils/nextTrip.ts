@@ -1,4 +1,4 @@
-import { addDays, tripRange } from './dateRange'
+import { addDays, tripRange } from './dateRange.js'
 
 export interface TripLike {
   id: number

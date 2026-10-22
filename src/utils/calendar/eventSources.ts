@@ -1,8 +1,8 @@
-import type { CalendarEventRow, CpblSchedule, EventCategory } from '../../types/database'
-import { addDays, diffDays, taipeiMinutes, taipeiYmd, tripRange } from '../dateRange'
-import { isActiveTrip, type TripLike } from '../nextTrip'
-import type { ViewEvent } from './viewEvent'
-import { creatorNameFor, OWNER_COLOR, ownerOf } from './visibility'
+import type { CalendarEventRow, CpblSchedule, EventCategory } from '../../types/database.js'
+import { addDays, diffDays, taipeiMinutes, taipeiYmd, tripRange } from '../dateRange.js'
+import { isActiveTrip, type TripLike } from '../nextTrip.js'
+import type { ViewEvent } from './viewEvent.js'
+import { creatorNameFor, OWNER_COLOR, ownerOf } from './visibility.js'
 
 // meId / names：判斷「誰新增」的副標；names 是家庭成員 id → 名稱
 export interface ViewContext {
