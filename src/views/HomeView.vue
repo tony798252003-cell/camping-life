@@ -96,7 +96,6 @@ const goCalendar = () => {
 
 <template>
   <div class="px-4 pt-2 pb-6 flex flex-col gap-4">
-    <NextTripCard />
     <GlanceCalendar
       :events="feed"
       :today="today"
@@ -108,6 +107,7 @@ const goCalendar = () => {
     />
     <HomeAgendaList :sections="sections" :selected="selected" @open="onOpen" @clear="selected = null" @add="newItem.open(selected)" />
     <HomeLists />
+    <NextTripCard />
     <router-link to="/stats" class="self-center min-h-[44px] flex items-center text-[13px] font-bold text-primary-600">露營統計 ›</router-link>
 
     <EventDetailSheet :event-id="detailEventId" @close="detailEventId = null" />
