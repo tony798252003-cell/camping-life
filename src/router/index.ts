@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
-import { supabase } from '../lib/supabase'
+import { watch } from 'vue'
+import { useAuth } from '../composables/useAuth'
+import { authGuardTarget } from './authGuard'
 import { normalizeJoinCode, savePendingJoinCode, takePendingJoinCode } from '../utils/familyJourney'
 
 const joinSettingsRoute = (code: string) => ({ name: 'settings', query: { view: 'family', ...(code ? { code } : {}) } })
@@ -81,32 +83,21 @@ const router = createRouter({
 })
 
 // Navigation Guard for Auth
-router.beforeEach(async (to, _from, next) => {
-    try {
-        const { data: { session } } = await supabase.auth.getSession()
+// 不在每次切頁時呼叫 supabase.auth.getSession()：它會跟背景 token 更新搶同一把鎖，
+// 手機從背景回來時更新請求可能卡住，切 tab 就整個沒反應。改用 useAuth 記在記憶體的 session，
+// 只有 app 剛啟動、初次登入檢查還沒完成時等一次。
+const authReady = () => {
+    const { isAuthReady } = useAuth()
+    if (isAuthReady.value) return Promise.resolve()
+    return new Promise<void>((resolve) => {
+        const stop = watch(isAuthReady, (ready) => { if (ready) { stop(); resolve() } })
+    })
+}
 
-        if (!session && to.name !== 'auth') {
-            // 邀請連結未登入：記下邀請碼，登入（OAuth 整頁跳轉回首頁）後再導回
-            if (to.name === 'settings' && to.query.view === 'family') savePendingJoinCode(normalizeJoinCode(to.query.code))
-            next({ name: 'auth' })
-        } else if (session && (to.name === 'auth' || to.name === 'home')) {
-            const pending = takePendingJoinCode()
-            if (pending) next(joinSettingsRoute(pending))
-            else if (to.name === 'auth') next({ name: 'home' })
-            else next()
-        } else {
-            next()
-        }
-    } catch (error) {
-        // If session check fails (e.g. AbortError), we might want to default to auth or just proceed if it's safe.
-        // For safety, if we can't verify session, send to auth if not already there.
-        console.warn('[Router] Session check warning:', error)
-        if (to.name !== 'auth') {
-            next({ name: 'auth' })
-        } else {
-            next()
-        }
-    }
+router.beforeEach(async (to) => {
+    await authReady()
+    const { session } = useAuth()
+    return authGuardTarget(to, !!session.value, { save: savePendingJoinCode, take: takePendingJoinCode })
 })
 
 export default router
