@@ -2,6 +2,7 @@ import { ref, computed, watch } from 'vue'
 import { getCpblSchedule } from '../services/cpblService'
 import type { CpblSchedule } from '../types/database'
 import { buildFeed } from '../utils/calendar/eventSources'
+import { isOwnerFilter, type OwnerFilter } from '../utils/calendar/ownerFilter'
 import { todayYmd } from '../utils/dateRange'
 import { useCalendarEvents } from './useCalendarEvents'
 import { useAuth } from './useAuth'
@@ -22,6 +23,18 @@ function readHidden(): Set<string> {
   }
 }
 
+const OWNER_KEY = 'cal.ownerFilter'
+
+function readOwnerFilter(): OwnerFilter {
+  try {
+    const raw = localStorage.getItem(OWNER_KEY)
+    return isOwnerFilter(raw) ? raw : 'all'
+  } catch {
+    return 'all'
+  }
+}
+
+const ownerFilter = ref<OwnerFilter>(readOwnerFilter())
 const hiddenCategoryIds = ref<Set<string>>(readHidden())
 const games = ref<CpblSchedule[]>([])
 // 月曆上最後點選的日期（YYYY-MM-DD）；FAB 新增時當預設日期
@@ -52,7 +65,7 @@ export function useCalendarFeed() {
     games.value = await getCpblSchedule(fromYmd, toYmd)
   }
 
-  return { feed, hiddenCategoryIds, selectedDate, games, loadGames }
+  return { feed, hiddenCategoryIds, ownerFilter, selectedDate, games, loadGames }
 }
 
 // 篩選變更後寫回 localStorage；寫入失敗（無痕、被封鎖）不影響畫面
@@ -67,3 +80,11 @@ watch(
   },
   { deep: true },
 )
+
+watch(ownerFilter, (v) => {
+  try {
+    localStorage.setItem(OWNER_KEY, v)
+  } catch {
+    /* ignore */
+  }
+})
