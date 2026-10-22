@@ -6,7 +6,6 @@ import { HttpError, json } from './http.js'
 
 // 每日提醒：前一晚彙總「明天的事」推播給每位訂閱者。純邏輯（明天範圍、摘要文字）與 IO 分開，方便測試。
 
-export const PACK_LIST_TITLE = '露營要帶'
 const MAX_LINES = 5
 
 export interface ReminderTrip {
@@ -71,20 +70,19 @@ export function eventLinesForDay(events: CalendarEventRow[], day: string): strin
   return lines.sort((a, b) => a.key.localeCompare(b.key)).map((l) => l.text)
 }
 
-export function tripLinesForDay(trips: ReminderTrip[], day: string, openItems: number): string[] {
+export function tripLinesForDay(trips: ReminderTrip[], day: string): string[] {
   const out: string[] = []
   for (const t of trips) {
     if (!isActiveTrip(t) || tripStart(t) !== day) continue
     const name = [t.campsites?.name, t.campsite_name].map((s) => s?.trim()).find(Boolean) || '露營'
     out.push(`明天出發：${name}`)
   }
-  if (out.length > 0 && openItems > 0) out.push(`還有 ${openItems} 項沒帶`)
   return out
 }
 
 // 沒有任何事回 null（不發）。行程放前面，最多 5 行，其餘折成「…還有 N 項」
-export function buildSummary(i: { events: CalendarEventRow[]; trips: ReminderTrip[]; openItems: number; day: string }): Summary | null {
-  const lines = [...tripLinesForDay(i.trips, i.day, i.openItems), ...eventLinesForDay(i.events, i.day)]
+export function buildSummary(i: { events: CalendarEventRow[]; trips: ReminderTrip[]; day: string }): Summary | null {
+  const lines = [...tripLinesForDay(i.trips, i.day), ...eventLinesForDay(i.events, i.day)]
   if (lines.length === 0) return null
   const shown = lines.slice(0, MAX_LINES)
   if (lines.length > MAX_LINES) shown.push(`…還有 ${lines.length - MAX_LINES} 項`)
@@ -97,8 +95,6 @@ export interface ReminderDb {
   // 回傳全部事件，可見範圍由 runReminders 依 RLS 規則過濾
   listEvents(): Promise<CalendarEventRow[]>
   listTrips(day: string): Promise<ReminderTrip[]>
-  // 每個家庭「露營要帶」清單的未完成項目數
-  openPackItems(familyIds: string[]): Promise<Map<string, number>>
   deleteSubscriptions(ids: string[]): Promise<void>
   markSuccess(ids: string[], at: string): Promise<void>
 }
@@ -141,8 +137,6 @@ export async function runReminders(deps: ReminderDeps): Promise<ReminderResult> 
   const userIds = [...new Set(subs.map((s) => s.user_id))]
   const profiles = new Map((await deps.db.listProfiles(userIds)).map((p) => [p.id, p.family_id]))
   const [events, trips] = await Promise.all([deps.db.listEvents(), deps.db.listTrips(day)])
-  const familyIds = [...new Set([...profiles.values()].filter((f): f is string => !!f))]
-  const openByFamily = familyIds.length > 0 ? await deps.db.openPackItems(familyIds) : new Map<string, number>()
 
   const gone: string[] = []
   const ok: string[] = []
@@ -155,7 +149,7 @@ export async function runReminders(deps: ReminderDeps): Promise<ReminderResult> 
         (e) => e.created_by === userId || (e.visibility === 'shared' && fam != null && e.family_id === fam),
       )
       const myTrips = trips.filter((t) => t.user_id === userId || (fam != null && t.family_id === fam))
-      const summary = buildSummary({ events: myEvents, trips: myTrips, openItems: fam ? (openByFamily.get(fam) ?? 0) : 0, day })
+      const summary = buildSummary({ events: myEvents, trips: myTrips, day })
       if (!summary) {
         result.skipped += mine.length
         continue

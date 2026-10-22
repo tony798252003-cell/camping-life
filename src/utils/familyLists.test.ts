@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { defaultListRows, groupItems, nextSortOrder, openCount } from './familyLists'
+import { groupItems, nextSortOrder, openCount, pickTodoList, todoListRow } from './familyLists'
 
 const it_ = (o: { id: string; done?: boolean; done_at?: string | null; sort_order?: number; created_at?: string }) => ({
   done: false, done_at: null, sort_order: 0, created_at: '2026-10-22T00:00:00Z', ...o,
@@ -48,13 +48,18 @@ describe('nextSortOrder', () => {
   })
 })
 
-describe('defaultListRows', () => {
-  it('三張預設清單依序帶家庭 id', () => {
-    // family_id 帶錯會被 RLS WITH CHECK 擋掉，整批建立失敗
-    expect(defaultListRows('f1')).toEqual([
-      { family_id: 'f1', title: '採買', sort_order: 0 },
-      { family_id: 'f1', title: '露營要帶', sort_order: 1 },
-      { family_id: 'f1', title: '家裡待辦', sort_order: 2 },
-    ])
+describe('todoListRow', () => {
+  it('只建立「家庭待辦」並帶家庭 id', () => {
+    // family_id 帶錯會被 RLS WITH CHECK 擋掉，建立失敗
+    expect(todoListRow('f1')).toEqual({ family_id: 'f1', title: '家庭待辦', sort_order: 0 })
+  })
+})
+
+describe('pickTodoList', () => {
+  it('只認標題「家庭待辦」，忽略其他舊清單', () => {
+    // 舊資料可能還有 採買／露營要帶 等空清單；挑錯清單會讓新增的項目看不見
+    const lists = [{ id: 'a', title: '採買' }, { id: 'b', title: '家庭待辦' }, { id: 'c', title: '露營要帶' }]
+    expect(pickTodoList(lists)?.id).toBe('b')
+    expect(pickTodoList([{ id: 'a', title: '採買' }])).toBeUndefined()
   })
 })

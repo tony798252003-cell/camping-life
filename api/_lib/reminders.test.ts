@@ -62,8 +62,8 @@ describe('tomorrowTaipei', () => {
 describe('buildSummary', () => {
   // 為什麼：沒事還推播會讓使用者關掉通知
   it('沒有任何事 → null（不發）', () => {
-    expect(buildSummary({ events: [], trips: [], openItems: 5, day: DAY })).toBeNull()
-    expect(buildSummary({ events: [ev({ id: 'a', start_date: '2026-10-25' })], trips: [], openItems: 0, day: DAY })).toBeNull()
+    expect(buildSummary({ events: [], trips: [], day: DAY })).toBeNull()
+    expect(buildSummary({ events: [ev({ id: 'a', start_date: '2026-10-25' })], trips: [], day: DAY })).toBeNull()
   })
   it('全天事件、定時事件（含時間，排在全天之後）', () => {
     const s = buildSummary({
@@ -72,13 +72,12 @@ describe('buildSummary', () => {
         ev({ id: 'b', title: '繳費' }),
       ],
       trips: [],
-      openItems: 0,
       day: DAY,
     })
     expect(s).toEqual({ title: '明天的提醒', body: '繳費\n09:30 看牙' })
   })
   it('多天事件進行中的那天也算', () => {
-    const s = buildSummary({ events: [ev({ id: 'a', title: '出差', start_date: '2026-10-22', end_date: '2026-10-24' })], trips: [], openItems: 0, day: DAY })
+    const s = buildSummary({ events: [ev({ id: 'a', title: '出差', start_date: '2026-10-22', end_date: '2026-10-24' })], trips: [], day: DAY })
     expect(s?.body).toBe('出差')
   })
   it('每年重複：生日顯示「第 N 年」，起始年當年不加', () => {
@@ -89,32 +88,28 @@ describe('buildSummary', () => {
         ev({ id: 'c', title: '別天', recurrence: 'yearly', start_date: '2020-10-24', end_date: '2020-10-24' }),
       ],
       trips: [],
-      openItems: 0,
       day: DAY,
     })
     expect(s?.body.split('\n').sort()).toEqual(['小明生日（第 6 年）', '新紀念日'])
   })
-  it('明天出發的行程＋未帶項目；沒未完成項目就不加那行', () => {
-    const t = trip({ id: 1 })
-    expect(buildSummary({ events: [], trips: [t], openItems: 3, day: DAY })?.body).toBe('明天出發：山上營地\n還有 3 項沒帶')
-    expect(buildSummary({ events: [], trips: [t], openItems: 0, day: DAY })?.body).toBe('明天出發：山上營地')
+  it('明天出發的行程', () => {
+    expect(buildSummary({ events: [], trips: [trip({ id: 1 })], day: DAY })?.body).toBe('明天出發：山上營地')
   })
-  // 為什麼：「還有 N 項沒帶」是行程提醒的一部分，沒行程時不該單獨出現
-  it('沒有明天出發的行程時，未完成項目不會單獨觸發通知', () => {
-    expect(buildSummary({ events: [], trips: [trip({ id: 1, trip_date: '2026-10-22' })], openItems: 3, day: DAY })).toBeNull()
+  it('不是明天出發的行程不會觸發通知', () => {
+    expect(buildSummary({ events: [], trips: [trip({ id: 1, trip_date: '2026-10-22' })], day: DAY })).toBeNull()
   })
   it('夜衝行程在 trip_date 前一天出發；取消與已合併的不提醒', () => {
     const night = trip({ id: 1, trip_date: '2026-10-24', night_rush: true })
-    expect(buildSummary({ events: [], trips: [night], openItems: 0, day: DAY })?.body).toBe('明天出發：山上營地')
-    expect(buildSummary({ events: [], trips: [trip({ id: 2, status: 'cancelled' }), trip({ id: 3, merged_into_id: 1 })], openItems: 0, day: DAY })).toBeNull()
+    expect(buildSummary({ events: [], trips: [night], day: DAY })?.body).toBe('明天出發：山上營地')
+    expect(buildSummary({ events: [], trips: [trip({ id: 2, status: 'cancelled' }), trip({ id: 3, merged_into_id: 1 })], day: DAY })).toBeNull()
   })
   it('營區名稱優先用關聯營區，都沒有退回「露營」', () => {
-    expect(buildSummary({ events: [], trips: [trip({ id: 1, campsites: { name: '關聯營' } })], openItems: 0, day: DAY })?.body).toBe('明天出發：關聯營')
-    expect(buildSummary({ events: [], trips: [trip({ id: 1, campsite_name: ' ' })], openItems: 0, day: DAY })?.body).toBe('明天出發：露營')
+    expect(buildSummary({ events: [], trips: [trip({ id: 1, campsites: { name: '關聯營' } })], day: DAY })?.body).toBe('明天出發：關聯營')
+    expect(buildSummary({ events: [], trips: [trip({ id: 1, campsite_name: ' ' })], day: DAY })?.body).toBe('明天出發：露營')
   })
   it('超過 5 行折成「…還有 N 項」', () => {
     const events = Array.from({ length: 7 }, (_, i) => ev({ id: `e${i}`, title: `事${i}` }))
-    const lines = buildSummary({ events, trips: [], openItems: 0, day: DAY })!.body.split('\n')
+    const lines = buildSummary({ events, trips: [], day: DAY })!.body.split('\n')
     expect(lines).toHaveLength(6)
     expect(lines[5]).toBe('…還有 2 項')
   })
@@ -132,7 +127,6 @@ function makeDb(over: Partial<ReminderDb> = {}): ReminderDb & { deleted: string[
     listProfiles: async (ids) => ids.map((id) => ({ id, family_id: null })),
     listEvents: async () => [],
     listTrips: async () => [],
-    openPackItems: async () => new Map(),
     deleteSubscriptions: async (ids) => void deleted.push(ids),
     markSuccess: async (ids) => void marked.push(ids),
     ...over,
@@ -155,7 +149,6 @@ describe('runReminders', () => {
         ev({ id: 'a', title: 'u1私人', created_by: 'u1' }),
         ev({ id: 'b', title: 'u1全家', created_by: 'u1', visibility: 'shared', family_id: 'f1' }),
       ],
-      openPackItems: async () => new Map([['f1', 2]]),
     })
     const r = await runReminders({ db, send, now })
     const bodies = new Map(send.mock.calls.map(([s, p]) => [s.endpoint, JSON.parse(p as string).body as string]))
@@ -165,16 +158,15 @@ describe('runReminders', () => {
     expect(r).toMatchObject({ day: DAY, sent: 2, skipped: 1 })
     expect(db.marked).toEqual([['s1', 's2']])
   })
-  it('同家庭成員看得到家庭行程與「露營要帶」未完成數', async () => {
+  it('同家庭成員看得到家庭行程', async () => {
     const send = vi.fn<SendFn>(async () => {})
     const db = makeDb({
       listSubscriptions: async () => [sub('s2', 'u2')],
       listProfiles: async () => [{ id: 'u2', family_id: 'f1' }],
       listTrips: async () => [trip({ id: 1, user_id: 'u1', family_id: 'f1' })],
-      openPackItems: async () => new Map([['f1', 4]]),
     })
     await runReminders({ db, send, now })
-    expect(JSON.parse(send.mock.calls[0]![1] as string)).toEqual({ title: '明天的提醒', body: '明天出發：山上營地\n還有 4 項沒帶', url: '/', tag: 'reminder-2026-10-23' })
+    expect(JSON.parse(send.mock.calls[0]![1] as string)).toEqual({ title: '明天的提醒', body: '明天出發：山上營地', url: '/', tag: 'reminder-2026-10-23' })
     expect(send.mock.calls[0]![2]).toBe('reminder-2026-10-23')
   })
   // 為什麼：404/410 代表裝置已取消訂閱，不清掉每天都會失敗；其他錯誤不能誤刪訂閱

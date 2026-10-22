@@ -43,9 +43,14 @@ const routes = [
                 component: () => import('../components/campsite/AddCampsiteView.vue')
             },
             {
-                path: 'lists/:id',
-                name: 'family-list',
+                path: 'todo',
+                name: 'todo',
                 component: () => import('../views/FamilyListView.vue')
+            },
+            {
+                // 舊的多清單連結
+                path: 'lists/:id',
+                redirect: '/todo'
             },
             {
                 path: 'settings',

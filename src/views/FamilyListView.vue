@@ -1,31 +1,26 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { onMounted, ref } from 'vue'
 import { Check, ChevronDown, ChevronLeft, Plus, Trash2 } from 'lucide-vue-next'
 import { useFamilyLists } from '../composables/useFamilyLists'
 import { useConfirm } from '../composables/useConfirm'
 import type { FamilyListItem } from '../types/database'
 
-const route = useRoute()
-const { lists, loaded, loadFailed, hasFamily, load, listById, groupedOf, addItem, toggle, removeItem, clearDone } = useFamilyLists()
+const { list, grouped, loaded, loadFailed, hasFamily, load, addItem, toggle, removeItem, clearDone } = useFamilyLists()
 const { confirm } = useConfirm()
 
-const listId = computed(() => String(route.params.id))
-const list = computed(() => listById(listId.value))
-const grouped = computed(() => groupedOf(listId.value))
 const draft = ref('')
 const showDone = ref(false)
 
 // 直接開網址進來時 App 可能還沒載完；已載入就不重抓
 onMounted(() => {
-  if (hasFamily.value && lists.value.length === 0) load()
+  if (hasFamily.value && !list.value) load()
 })
 
 const submit = async () => {
   const t = draft.value
   if (!t.trim()) return
   draft.value = ''
-  await addItem(listId.value, t)
+  await addItem(t)
 }
 
 const askRemove = async (i: FamilyListItem) => {
@@ -40,7 +35,7 @@ const askClear = async () => {
     confirmText: '清除',
     type: 'danger',
   })
-  if (ok) await clearDone(listId.value)
+  if (ok) await clearDone()
 }
 </script>
 
@@ -50,7 +45,7 @@ const askClear = async () => {
       <router-link to="/" aria-label="返回首頁" class="-ml-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-primary-700">
         <ChevronLeft class="w-6 h-6" aria-hidden="true" />
       </router-link>
-      <h1 class="flex-1 min-w-0 text-lg font-extrabold text-primary-900 truncate">{{ list?.title ?? '清單' }}</h1>
+      <h1 class="flex-1 min-w-0 text-lg font-extrabold text-primary-900 truncate">家庭待辦</h1>
       <button
         v-if="grouped.done.length"
         type="button"
@@ -71,8 +66,6 @@ const askClear = async () => {
       class="bg-white rounded-[20px] px-4 min-h-[56px] text-left text-[15px] font-bold text-primary-700"
       @click="load()"
     >載入失敗，點此重試</button>
-
-    <p v-else-if="loaded && !list" class="text-[13px] text-slate-500 px-1">找不到這張清單</p>
 
     <template v-else-if="list">
       <form class="flex items-center gap-2" @submit.prevent="submit">

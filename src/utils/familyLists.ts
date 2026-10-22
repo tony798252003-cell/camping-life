@@ -1,10 +1,12 @@
 import type { FamilyListItem } from '../types/database'
 
-// 家庭沒有任何清單時才建立（順序即 sort_order）
-export const DEFAULT_LIST_TITLES = ['採買', '露營要帶', '家裡待辦'] as const
+// App 只使用這一張清單（依標題找）；家庭沒有時才建立
+export const TODO_LIST_TITLE = '家庭待辦'
 
-export const defaultListRows = (familyId: string) =>
-  DEFAULT_LIST_TITLES.map((title, i) => ({ family_id: familyId, title, sort_order: i }))
+export const todoListRow = (familyId: string) => ({ family_id: familyId, title: TODO_LIST_TITLE, sort_order: 0 })
+
+export const pickTodoList = <T extends { title: string }>(lists: T[]): T | undefined =>
+  lists.find((l) => l.title === TODO_LIST_TITLE)
 
 type ItemLike = Pick<FamilyListItem, 'done' | 'done_at' | 'sort_order' | 'created_at'>
 
