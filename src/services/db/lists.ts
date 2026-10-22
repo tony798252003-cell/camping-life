@@ -1,6 +1,6 @@
 import { supabase } from '../../lib/supabase'
 import type { FamilyList, FamilyListItem } from '../../types/database'
-import { defaultListRows } from '../../utils/familyLists'
+import { todoListRow } from '../../utils/familyLists'
 
 export const listQueries = {
   async listLists(): Promise<FamilyList[]> {
@@ -21,10 +21,10 @@ export const listQueries = {
   },
 
   // upsert + ignoreDuplicates：兩支手機同時載入時，靠 (family_id, title) 唯一鍵只會建一份
-  async createDefaults(familyId: string): Promise<void> {
+  async createTodoList(familyId: string): Promise<void> {
     const { error } = await supabase
       .from('family_lists')
-      .upsert(defaultListRows(familyId), { onConflict: 'family_id,title', ignoreDuplicates: true })
+      .upsert(todoListRow(familyId), { onConflict: 'family_id,title', ignoreDuplicates: true })
     if (error) throw error
   },
 
@@ -43,6 +43,11 @@ export const listQueries = {
       .from('family_list_items')
       .update(done ? { done: true, done_by: userId, done_at: new Date().toISOString() } : { done: false, done_by: null, done_at: null })
       .eq('id', id)
+    if (error) throw error
+  },
+
+  async setImportant(id: string, important: boolean): Promise<void> {
+    const { error } = await supabase.from('family_list_items').update({ important }).eq('id', id)
     if (error) throw error
   },
 

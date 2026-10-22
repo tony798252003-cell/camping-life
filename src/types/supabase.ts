@@ -540,6 +540,7 @@ export type Database = {
           done_at: string | null
           done_by: string | null
           id: string
+          important: boolean
           list_id: string
           sort_order: number
           text: string
@@ -551,6 +552,7 @@ export type Database = {
           done_at?: string | null
           done_by?: string | null
           id?: string
+          important?: boolean
           list_id: string
           sort_order?: number
           text: string
@@ -562,6 +564,7 @@ export type Database = {
           done_at?: string | null
           done_by?: string | null
           id?: string
+          important?: boolean
           list_id?: string
           sort_order?: number
           text?: string

@@ -3,7 +3,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { listQueries } from '../services/db/lists'
 import type { FamilyList, FamilyListItem } from '../types/database'
-import { groupItems, nextSortOrder, openCount } from '../utils/familyLists'
+import { groupItems, nextSortOrder, openCount, pickTodoList } from '../utils/familyLists'
 import { useAuth } from './useAuth'
 import { useNotification } from './useNotification'
 import { useUserProfile } from './useUserProfile'
@@ -81,8 +81,8 @@ export function useFamilyLists() {
     try {
       let l = await listQueries.listLists()
       if (g !== generation) return
-      if (l.length === 0) {
-        await listQueries.createDefaults(fid)
+      if (!pickTodoList(l)) {
+        await listQueries.createTodoList(fid)
         if (g !== generation) return
         l = await listQueries.listLists()
         if (g !== generation) return
@@ -117,16 +117,18 @@ export function useFamilyLists() {
     return load()
   }
 
-  const itemsOf = (listId: string) => items.value.filter((i) => i.list_id === listId)
-  const openCountOf = (listId: string) => openCount(itemsOf(listId))
-  const groupedOf = (listId: string) => groupItems(itemsOf(listId))
-  const listById = (id: string) => lists.value.find((l) => l.id === id)
+  // App 只用標題為「家庭待辦」的那張清單；其他清單（舊資料）一律忽略
+  const list = computed(() => pickTodoList(lists.value))
+  const todoItems = computed(() => items.value.filter((i) => i.list_id === list.value?.id))
+  const grouped = computed(() => groupItems(todoItems.value))
+  const openTotal = computed(() => openCount(todoItems.value))
 
-  const addItem = async (listId: string, text: string) => {
+  const addItem = async (text: string) => {
     const t = text.trim()
-    if (!t) return
+    const listId = list.value?.id
+    if (!t || !listId) return
     try {
-      const row = await listQueries.addItem(listId, t, nextSortOrder(itemsOf(listId)))
+      const row = await listQueries.addItem(listId, t, nextSortOrder(todoItems.value))
       items.value = upsertRow(items.value, row)
     } catch (e) {
       console.error('[useFamilyLists] addItem error:', e)
@@ -156,6 +158,21 @@ export function useFamilyLists() {
     }
   }
 
+  const toggleImportant = async (item: FamilyListItem) => {
+    const important = !item.important
+    const prev = item
+    items.value = upsertRow(items.value, { ...item, important })
+    try {
+      await listQueries.setImportant(item.id, important)
+    } catch (e) {
+      console.error('[useFamilyLists] toggleImportant error:', e)
+      // 同 toggle：連點時只有目前仍是這次的樂觀值才還原
+      const cur = items.value.find((i) => i.id === item.id)
+      if (cur && cur.important === important) items.value = upsertRow(items.value, prev)
+      notifyError('更新失敗，請檢查網路')
+    }
+  }
+
   const removeItem = async (id: string) => {
     try {
       await listQueries.removeItem(id)
@@ -166,7 +183,9 @@ export function useFamilyLists() {
     }
   }
 
-  const clearDone = async (listId: string) => {
+  const clearDone = async () => {
+    const listId = list.value?.id
+    if (!listId) return
     try {
       await listQueries.clearDone(listId)
       items.value = items.value.filter((i) => !(i.list_id === listId && i.done))
@@ -188,5 +207,5 @@ export function useFamilyLists() {
 
   const hasFamily = computed(() => !!familyId())
 
-  return { lists, items, loaded, loadFailed, hasFamily, load, reload, listById, openCountOf, groupedOf, addItem, toggle, removeItem, clearDone, reset }
+  return { list, grouped, openTotal, loaded, loadFailed, hasFamily, load, reload, addItem, toggle, toggleImportant, removeItem, clearDone, reset }
 }

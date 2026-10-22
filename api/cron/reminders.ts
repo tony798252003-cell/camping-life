@@ -3,7 +3,6 @@ import type { CalendarEventRow } from '../../src/types/database.js';
 import { addDays } from '../../src/utils/dateRange.js';
 import { HttpError, withErrors } from '../_lib/http.js';
 import {
-    PACK_LIST_TITLE,
     handleReminders,
     type ReminderDb,
     type ReminderTrip,
@@ -52,28 +51,6 @@ const db: ReminderDb = {
             .lte('trip_date', addDays(day, 1));
         if (error) throw error;
         return (data ?? []) as unknown as ReminderTrip[];
-    },
-    async openPackItems(familyIds) {
-        const { data: lists, error } = await supabaseAdmin
-            .from('family_lists')
-            .select('id, family_id')
-            .eq('title', PACK_LIST_TITLE)
-            .in('family_id', familyIds);
-        if (error) throw error;
-        const out = new Map<string, number>();
-        if (!lists || lists.length === 0) return out;
-        const { data: items, error: e2 } = await supabaseAdmin
-            .from('family_list_items')
-            .select('list_id')
-            .eq('done', false)
-            .in('list_id', lists.map((l) => l.id));
-        if (e2) throw e2;
-        const familyOf = new Map(lists.map((l) => [l.id as string, l.family_id as string]));
-        for (const it of items ?? []) {
-            const f = familyOf.get(it.list_id as string);
-            if (f) out.set(f, (out.get(f) ?? 0) + 1);
-        }
-        return out;
     },
     async deleteSubscriptions(ids) {
         const { error } = await supabaseAdmin.from('push_subscriptions').delete().in('id', ids);
