@@ -16,6 +16,7 @@ import { useNewItemSheet } from '../../composables/useNewItemSheet'
 import { useEventOpener } from '../../composables/useEventOpener'
 import { useUserProfile } from '../../composables/useUserProfile'
 import { agendaRange, dayClickAction, eventsOnDay } from '../../utils/calendar/agendaRange'
+import { filterByOwner } from '../../utils/calendar/ownerFilter'
 import { buildMonthWeeks } from '../../utils/calendar/monthLayout'
 import { addDays, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
@@ -23,7 +24,9 @@ import { Plus } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
-const { feed, hiddenCategoryIds, selectedDate, loadGames } = useCalendarFeed()
+const { feed: fullFeed, hiddenCategoryIds, ownerFilter, selectedDate, loadGames } = useCalendarFeed()
+// 全家／我篩選只套用在行事曆頁；首頁 GlanceCalendar 用的是未篩選的 feed，不受影響
+const feed = computed(() => filterByOwner(fullFeed.value, ownerFilter.value))
 const { fetchEvents } = useCalendarEvents()
 const { myCategories: categories, load: loadCategories } = useEventCategories()
 const { showCpbl } = useUserProfile()
@@ -151,6 +154,7 @@ const onAddOnDay = (ymd: string) => {
       :view="view"
       :categories="categories"
       :hidden-category-ids="hiddenCategoryIds"
+      v-model:owner-filter="ownerFilter"
       @prev="step(-1)"
       @next="step(1)"
       @today="setQuery({ date: today })"

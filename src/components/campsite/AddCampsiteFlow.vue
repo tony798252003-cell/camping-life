@@ -11,6 +11,7 @@ import type { Campsite, FieldSources } from '../../types/database'
 import type { CampsiteDraft, DraftField } from '../../types/campsiteDraft'
 import type { PlaceLite } from '../../types/campsiteDraft'
 import DraftFieldRow from './DraftFieldRow.vue'
+import { isLikelyInTaiwan } from '../../utils/coordinates'
 
 const props = defineProps<{ initialPlaceId?: string; initialName?: string; embedded?: boolean }>()
 const emit = defineEmits<{
@@ -273,6 +274,18 @@ async function save() {
       message: `還有 ${unconfirmed.value} 個欄位未確認，要直接存嗎？`,
       type: 'warning',
       confirmText: '直接存檔',
+    })
+    if (!ok) return
+  }
+  const lat = rows.value.latitude?.value
+  const lng = rows.value.longitude?.value
+  if (typeof lat === 'number' && typeof lng === 'number' && !isLikelyInTaiwan(lat, lng)) {
+    const ok = await confirm({
+      title: '座標怪怪的',
+      message: `座標好像不在台灣（緯度 ${lat}、經度 ${lng}），確定要存嗎？`,
+      type: 'warning',
+      confirmText: '照存',
+      cancelText: '修正',
     })
     if (!ok) return
   }
