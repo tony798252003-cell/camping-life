@@ -1,6 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
 import { supabase } from '../lib/supabase'
+import { normalizeJoinCode, savePendingJoinCode, takePendingJoinCode } from '../utils/familyJourney'
+
+const joinSettingsRoute = (code: string) => ({ name: 'settings', query: { view: 'family', ...(code ? { code } : {}) } })
 
 const routes = [
     {
@@ -38,6 +41,11 @@ const routes = [
                 component: () => import('../components/campsite/AddCampsiteView.vue')
             },
             {
+                path: 'lists/:id',
+                name: 'family-list',
+                component: () => import('../views/FamilyListView.vue')
+            },
+            {
                 path: 'settings',
                 name: 'settings',
                 component: () => import('../views/SettingsView.vue')
@@ -48,6 +56,12 @@ const routes = [
                 component: () => import('../views/StatsView.vue')
             }
         ]
+    },
+    {
+        // 邀請連結：導到設定 → 家庭成員並帶入邀請碼，仍須使用者按「加入」確認
+        path: '/join',
+        name: 'join',
+        redirect: (to: { query: Record<string, unknown> }) => joinSettingsRoute(normalizeJoinCode(to.query.code))
     },
     {
         path: '/builder',
@@ -72,9 +86,14 @@ router.beforeEach(async (to, _from, next) => {
         const { data: { session } } = await supabase.auth.getSession()
 
         if (!session && to.name !== 'auth') {
+            // 邀請連結未登入：記下邀請碼，登入（OAuth 整頁跳轉回首頁）後再導回
+            if (to.name === 'settings' && to.query.view === 'family') savePendingJoinCode(normalizeJoinCode(to.query.code))
             next({ name: 'auth' })
-        } else if (session && to.name === 'auth') {
-            next({ name: 'home' })
+        } else if (session && (to.name === 'auth' || to.name === 'home')) {
+            const pending = takePendingJoinCode()
+            if (pending) next(joinSettingsRoute(pending))
+            else if (to.name === 'auth') next({ name: 'home' })
+            else next()
         } else {
             next()
         }

@@ -11,7 +11,10 @@ import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { resolveTripDate } from '../utils/dateRange'
 import { CAMPSITE_REQUIRED_MESSAGE } from '../utils/tripValidation'
 import { useNotification } from '../composables/useNotification'
+import { useAuth } from '../composables/useAuth'
+import { isOwnRow } from '../utils/familyJourney'
 import type { UserProfileState } from '../composables/useUserProfile'
+import { shouldCollapseReview } from '../utils/tripReviewCollapse'
 import { useTripForm } from '../composables/useTripForm'
 
 import TripWeather from './TripWeather.vue'
@@ -75,7 +78,7 @@ const fetchTents = async () => {
   if (!session) return
 
   try {
-    tents.value = toGearItems(await gearQueries.listByUser(session.user.id, 'tent'))
+    tents.value = toGearItems(await gearQueries.listVisible('tent'))
   } catch (error) {
     console.error('Error fetching tents:', error)
   }
@@ -125,6 +128,10 @@ const cancelEdit = () => {
   else handleClose()
 }
 
+// RLS 只允許擁有者刪行程；家人編輯別人的行程不顯示刪除鈕
+const { session: authSession } = useAuth()
+const canDelete = computed(() => isOwnRow(props.trip?.user_id, authSession.value?.user?.id))
+
 // 確認視窗由父層 deleteTrip 處理，這裡直接 emit
 const handleDelete = () => {
   if (!props.trip?.id) return
@@ -153,7 +160,7 @@ const handleSubmit = async () => {
   }
 }
 
-// 帳篷清單只由 fetchTents 載入（使用者自己的帳篷，依建立時間）。
+// 帳篷清單只由 fetchTents 載入（自己 + 家人的帳篷，依建立時間；RLS 決定可見範圍）。
 // 原本 onMounted 另有一支全表查詢與 isOpen watcher 競態，實際上開啟後以 fetchTents 結果為準；
 // 這裡只補「掛載時已開啟」的情況（watch 非 immediate）。
 onMounted(() => {
@@ -205,7 +212,7 @@ onMounted(() => {
                </div>
 
                <button 
-                  v-if="trip?.id"
+                  v-if="trip?.id && canDelete"
                   @click="handleDelete" 
                   class="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
                   title="刪除行程"
@@ -327,7 +334,7 @@ onMounted(() => {
                       </div>
                   </div>
 
-                  <TripReviewSection :form="formData" :trip-id="trip?.id" :collapsed="!trip" />
+                  <TripReviewSection :form="formData" :trip-id="trip?.id" :collapsed="shouldCollapseReview(trip?.trip_date, !trip)" />
 
 
               </div>

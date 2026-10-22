@@ -89,3 +89,27 @@ describe('null category 與跨夜時間', () => {
     expect(normalizeTimedRange('2026-10-17', '2026-10-20', '14:00', '15:00', true)).toEqual({ endDate: '2026-10-20', bumped: false })
   })
 })
+
+describe('recurrence 寫入與還原', () => {
+  // 為什麼：編輯時若沒還原 recurrence，儲存一次就會悄悄把每年重複洗掉
+  it('全天每年重複寫入 yearly 並能還原', () => {
+    const row = toEventRow({ ...allDay, recurrence: 'yearly' })
+    expect(row.recurrence).toBe('yearly')
+    expect(fromEventRow({ ...row, id: 'x', created_by: null } as unknown as CalendarEventRow).recurrence).toBe('yearly')
+  })
+  it('沒設定或非全天一律寫 null', () => {
+    expect(toEventRow(allDay).recurrence).toBeNull()
+    // 為什麼：資料庫與展開都只支援全天重複，timed 事件帶著 yearly 會變成無法顯示的髒資料
+    expect(toEventRow({ ...allDay, allDay: false, endDate: '2026-10-17', recurrence: 'yearly' }).recurrence).toBeNull()
+  })
+})
+
+describe('編輯時改成非全天', () => {
+  // 為什麼：update 與 create 共用 toEventRow；把每年重複的事件改成有時段後，必須把 recurrence 清成 null，
+  // 否則資料庫留下展開不了的 yearly
+  it('由 yearly 全天還原後改成 timed，寫入 recurrence null', () => {
+    const loaded = fromEventRow({ ...toEventRow({ ...allDay, recurrence: 'yearly' }), id: 'x' } as unknown as CalendarEventRow)
+    const row = toEventRow({ ...loaded, allDay: false, endDate: loaded.startDate, startTime: '09:00', endTime: '10:00' })
+    expect(row.recurrence).toBeNull()
+  })
+})

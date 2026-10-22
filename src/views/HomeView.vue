@@ -5,6 +5,7 @@ import { useNewItemSheet } from '../composables/useNewItemSheet'
 import NextTripCard from '../components/home/NextTripCard.vue'
 import GlanceCalendar from '../components/home/GlanceCalendar.vue'
 import HomeAgendaList from '../components/home/HomeAgendaList.vue'
+import HomeLists from '../components/home/HomeLists.vue'
 import EventDetailSheet from '../components/calendar/EventDetailSheet.vue'
 import CpblGameSheet from '../components/calendar/CpblGameSheet.vue'
 import { useCalendarFeed } from '../composables/useCalendarFeed'
@@ -106,6 +107,7 @@ const goCalendar = () => {
       @open-calendar="goCalendar"
     />
     <HomeAgendaList :sections="sections" :selected="selected" @open="onOpen" @clear="selected = null" @add="newItem.open(selected)" />
+    <HomeLists />
     <router-link to="/stats" class="self-center min-h-[44px] flex items-center text-[13px] font-bold text-primary-600">露營統計 ›</router-link>
 
     <EventDetailSheet :event-id="detailEventId" @close="detailEventId = null" />

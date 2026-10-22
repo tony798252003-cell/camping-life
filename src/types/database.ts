@@ -89,3 +89,6 @@ export type EventCategory = Tables<'event_categories'>
 export type NewCalendarEvent = TablesInsert<'calendar_events'>
 
 export type CpblSchedule = Tables<'cpbl_schedule'>
+
+export type FamilyList = Tables<'family_lists'>
+export type FamilyListItem = Tables<'family_list_items'>

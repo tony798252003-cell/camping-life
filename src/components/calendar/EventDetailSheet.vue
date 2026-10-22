@@ -24,7 +24,7 @@ const when = computed(() => {
   const i = input.value
   if (!i) return ''
   const range = i.startDate === i.endDate ? i.startDate : `${i.startDate} ～ ${i.endDate}`
-  return i.allDay ? `${range}　全天` : `${range}　${i.startTime}–${i.endTime}`
+  return i.allDay ? `${range}　全天${i.recurrence === 'yearly' ? '・每年重複' : ''}` : `${range}　${i.startTime}–${i.endTime}`
 })
 
 const onEdit = () => {
@@ -39,7 +39,7 @@ const onDelete = async () => {
   const id = row.value.id
   const ok = await confirm({
     title: '刪除事件',
-    message: `確定要刪除「${row.value.title}」嗎？`,
+    message: `確定要刪除「${row.value.title}」嗎？${row.value.recurrence === 'yearly' ? '（會刪除所有年份）' : ''}`,
     confirmText: '刪除',
     type: 'danger',
   })

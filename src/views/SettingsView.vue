@@ -164,7 +164,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Settings, MapPin, LogOut, ChevronRight, ChevronLeft, Tent as TentIcon, ShieldAlert, Images, Tags, Users } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../composables/useAuth'
@@ -178,6 +178,7 @@ import FamilySettings from '../components/settings/FamilySettings.vue'
 import SystemAssetManager from '../components/SystemAssetManager.vue'
 
 const router = useRouter()
+const route = useRoute()
 
 // session 來自 singleton；直接進入頁面、尚未初始化時 userId 會退回由 getSession 取得
 const { session: authSession } = useAuth()
@@ -188,7 +189,8 @@ const internalUserId = ref<string>('')
 const effectiveUserId = computed(() => authSession.value?.user?.id || internalUserId.value)
 
 type ViewState = 'menu' | 'location' | 'tent' | 'advanced-gear' | 'categories' | 'family' | 'admin'
-const currentView = ref<ViewState>('menu')
+// 從清單頁「先建立或加入家庭」連過來：/settings?view=family 直接開家庭成員
+const currentView = ref<ViewState>(route.query.view === 'family' ? 'family' : 'menu')
 const isAssetManagerOpen = ref(false)
 
 const handleLogout = async () => {

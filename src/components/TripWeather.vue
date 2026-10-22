@@ -53,6 +53,7 @@ const {
 
 // UI Helpers
 import { getSmartWeatherIcon } from '../utils/weatherHelpers'
+import { packingStyle } from '../utils/packingStatusStyle'
 
 const getWeatherIcon = (code: number, pop: number = 0) => {
   return getSmartWeatherIcon(code, pop)
@@ -237,40 +238,16 @@ const chartDataWind = computed(() => {
         <!-- Packing Status Bar (Rich Analysis) -->
         <div v-if="packingStatus"
              class="flex items-center rounded-[18px] px-4 py-3 gap-3 transition-colors"
-             :class="{
-                'bg-emerald-50': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
-                'bg-red-50': packingStatus.status === 'wet',
-                'bg-orange-50': packingStatus.status === 'damp',
-                'bg-yellow-50': packingStatus.status === 'drying',
-             }"
+             :class="packingStyle(packingStatus.status).bg"
         >
-             <component :is="packingStatus.status === 'wet' || packingStatus.status === 'damp' ? CloudRain : Sun" class="w-5 h-5 shrink-0"
-                  :class="{
-                     'text-emerald-600': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
-                     'text-red-600': packingStatus.status === 'wet',
-                     'text-orange-600': packingStatus.status === 'damp' || packingStatus.status === 'risk',
-                     'text-yellow-600': packingStatus.status === 'drying' || packingStatus.status === 'chance',
-                  }"
+             <component :is="packingStyle(packingStatus.status).iconType === 'rain' ? CloudRain : Sun" class="w-5 h-5 shrink-0"
+                  :class="packingStyle(packingStatus.status).icon"
              />
              <div class="flex-1 min-w-0 flex flex-col gap-px">
-                <span class="font-bold text-sm"
-                      :class="{
-                         'text-emerald-800': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
-                         'text-red-800': packingStatus.status === 'wet',
-                         'text-orange-800': packingStatus.status === 'damp',
-                         'text-yellow-800': packingStatus.status === 'drying',
-                      }"
-                >
+                <span class="font-bold text-sm" :class="packingStyle(packingStatus.status).label">
                   收帳預測：{{ packingStatus.label }}
                 </span>
-                <p class="text-xs"
-                   :class="{
-                      'text-emerald-700': packingStatus.status === 'dry' || packingStatus.status === 'perfect',
-                      'text-red-700': packingStatus.status === 'wet',
-                      'text-orange-700': packingStatus.status === 'damp',
-                      'text-yellow-700': packingStatus.status === 'drying',
-                   }"
-                >
+                <p class="text-xs" :class="packingStyle(packingStatus.status).desc">
                    {{ packingStatus.advice }}
                 </p>
              </div>

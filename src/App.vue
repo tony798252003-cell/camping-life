@@ -16,7 +16,9 @@ import { useTripModal } from './composables/useTripModal'
 import { useEventCategories } from './composables/useEventCategories'
 import { useCalendarEvents } from './composables/useCalendarEvents'
 import { useFamily } from './composables/useFamily'
+import { useFamilyLists } from './composables/useFamilyLists'
 import { supabase } from './lib/supabase'
+import { profileQueries } from './services/db/profile'
 import { buildTripSavePayload } from './utils/tripPayload'
 import { todayYmd } from './utils/dateRange'
 import { timelineOrder } from './utils/tripTimeline'
@@ -31,6 +33,7 @@ const { trips, loading, fetchTrips, createTrip, updateTrip, deleteTrip, findTrip
 const categoriesStore = useEventCategories()
 const calendarEventsStore = useCalendarEvents()
 const familyStore = useFamily()
+const listsStore = useFamilyLists()
 
 // Modal state
 const { isOpen: isModalOpen, activeTrip, initialDate, close: closeTripModal } = useTripModal()
@@ -101,6 +104,7 @@ onMounted(async () => {
       categoriesStore.reset()
       calendarEventsStore.reset()
       familyStore.reset()
+      listsStore.reset()
     }
   })
 
@@ -112,9 +116,12 @@ onMounted(async () => {
   // doesn't retrigger a full refetch and unmount the current view
   watch([() => session.value?.user?.id, isAuthReady], async ([userId, ready]) => {
     if (ready && userId) {
+      // 新使用者沒有 profiles 列（沒有 auth trigger），先補一列再讀；失敗不擋載入
+      try { await profileQueries.ensure(userId) } catch (e) { console.warn('[App] ensure profile failed:', e) }
       await fetchProfile(userId)
       await fetchTrips(userId, familyId())
       familyStore.load()
+      listsStore.load()
     } else if (ready && !userId) {
       clearProfile()
       clearTrips()

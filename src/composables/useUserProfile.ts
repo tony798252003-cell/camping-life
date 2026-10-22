@@ -35,7 +35,7 @@ export function useUserProfile() {
                 .from('profiles')
                 .select('latitude, longitude, location_name, is_admin, family_id, show_cpbl')
                 .eq('id', userId)
-                .single()
+                .maybeSingle()
 
             if (error) {
                 console.warn('[useUserProfile] Profile fetch warning:', error.message)

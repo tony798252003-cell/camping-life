@@ -1,5 +1,5 @@
 import type { CalendarEventRow, CpblSchedule, EventCategory } from '../../types/database'
-import { addDays, taipeiMinutes, taipeiYmd, tripRange } from '../dateRange'
+import { addDays, diffDays, taipeiMinutes, taipeiYmd, tripRange } from '../dateRange'
 import { isActiveTrip, type TripLike } from '../nextTrip'
 import type { ViewEvent } from './viewEvent'
 import { creatorNameFor, OWNER_COLOR, ownerOf } from './visibility'
@@ -55,6 +55,33 @@ export function eventToView(
     }
   }
   return v
+}
+
+const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0
+
+// 每年重複的全天事件在 from..to 內的各次出現（純 YMD 字串運算，不碰本地 Date，避免時區位移）。
+// 起始年之前不出現；2/29 在非閏年落在 2/28；多天事件每次保持原本天數。
+// 往前多看一年：跨年的多天事件（12/30–1/2）在 from 當年 1/1 仍要看得到。
+export function expandYearly(base: ViewEvent, from: string, to: string, today: string): ViewEvent[] {
+  const startYear = Number(base.startDate.slice(0, 4))
+  const md = base.startDate.slice(5)
+  const span = diffDays(base.startDate, base.endDate)
+  const out: ViewEvent[] = []
+  for (let y = Math.max(startYear, Number(from.slice(0, 4)) - 1); y <= Number(to.slice(0, 4)); y++) {
+    const startDate = md === '02-29' && !isLeap(y) ? `${y}-02-28` : `${y}-${md}`
+    const endDate = addDays(startDate, span)
+    if (startDate > to || endDate < from) continue
+    const n = y - startYear
+    out.push({
+      ...base,
+      key: `${base.key}:${y}`,
+      title: n > 0 ? `${base.title}（第 ${n} 年）` : base.title,
+      startDate,
+      endDate,
+      past: endDate < today,
+    })
+  }
+  return out
 }
 
 type TripSource = TripLike & {
@@ -117,6 +144,9 @@ export interface FeedInput {
   hiddenCategoryIds: Set<string>
   today: string
   ctx?: ViewContext
+  // 每年重複事件的展開範圍；畫面沒有範圍概念（feed 是整包），預設今年 -3 ～ +10 年。
+  // 限制：月曆翻到這個窗口之外的年份，重複事件不會顯示；要精準就得把可見範圍傳進 feed。
+  range?: { from: string; to: string }
 }
 
 export function buildFeed(i: FeedInput): ViewEvent[] {
@@ -129,10 +159,15 @@ export function buildFeed(i: FeedInput): ViewEvent[] {
   const personal = byKey('personal')
   const hidden = (id: string | null) => id != null && i.hiddenCategoryIds.has(id)
 
+  const thisYear = Number(i.today.slice(0, 4))
+  const range = i.range ?? { from: `${thisYear - 3}-01-01`, to: `${thisYear + 10}-12-31` }
+
   const out: ViewEvent[] = []
   for (const e of i.events) {
     if (hidden(e.category_id ?? personal?.id ?? null)) continue
-    out.push(eventToView(e, cats, i.today, i.ctx))
+    const v = eventToView(e, cats, i.today, i.ctx)
+    if (e.recurrence === 'yearly' && v.allDay) out.push(...expandYearly(v, range.from, range.to, i.today))
+    else out.push(v)
   }
   if (!hidden(camping?.id ?? null)) {
     for (const t of i.trips) {
