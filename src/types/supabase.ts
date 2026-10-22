@@ -773,6 +773,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_push_subscription: {
+        Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
+        Returns: undefined
+      }
       family_member_ids: { Args: never; Returns: string[] }
       get_family_by_invite: { Args: { code: string }; Returns: Json }
       get_family_by_invite_code: {
@@ -790,10 +794,6 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
-      }
-      claim_push_subscription: {
-        Args: { p_endpoint: string; p_p256dh: string; p_auth: string }
-        Returns: undefined
       }
       get_family_members: {
         Args: never
