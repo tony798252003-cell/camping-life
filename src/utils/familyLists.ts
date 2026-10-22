@@ -14,7 +14,7 @@ const byOrder = (a: ItemLike, b: ItemLike) =>
   a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at)
 
 // 重要的排前面，其餘維持原順序（舊→新）；首頁只顯示前 3 項，重要事項不能被擠到「全部」裡看不到
-const byImportantThenOrder = (a: ItemLike, b: ItemLike) => Number(b.important) - Number(a.important) || byOrder(a, b)
+const byImportantThenOrder = (a: ItemLike, b: ItemLike) => Number(!!b.important) - Number(!!a.important) || byOrder(a, b)
 
 // 未完成重要優先、再依新增順序；已完成最近勾的在最上面（剛勾錯時一眼找得到、可取消）
 export const groupItems = <T extends ItemLike>(items: T[]): { open: T[]; done: T[] } => ({

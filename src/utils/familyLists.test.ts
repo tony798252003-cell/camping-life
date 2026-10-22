@@ -25,6 +25,14 @@ describe('groupItems', () => {
     ])
     expect(g.open.map((i) => i.id)).toEqual(['star1', 'star2', 'old', 'mid'])
   })
+  it('important 欄位缺值（例如 migration 前或 realtime 舊列）時當成不重要，排序仍正確', () => {
+    // Number(undefined) 是 NaN，NaN 會讓比較函式失效、重要項目排不到前面（本機 QA 實際遇到）
+    const g = groupItems([
+      it_({ id: 'old', sort_order: 0, important: undefined as unknown as boolean }),
+      it_({ id: 'star', sort_order: 2, important: true }),
+    ])
+    expect(g.open.map((i) => i.id)).toEqual(['star', 'old'])
+  })
   it('已完成項目不受重要標記影響', () => {
     // 已完成區照「最近勾的在前」才能馬上取消誤勾；星號不該改變這個順序
     const g = groupItems([
