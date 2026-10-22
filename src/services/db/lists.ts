@@ -46,6 +46,11 @@ export const listQueries = {
     if (error) throw error
   },
 
+  async setImportant(id: string, important: boolean): Promise<void> {
+    const { error } = await supabase.from('family_list_items').update({ important }).eq('id', id)
+    if (error) throw error
+  },
+
   async removeItem(id: string): Promise<void> {
     const { error } = await supabase.from('family_list_items').delete().eq('id', id)
     if (error) throw error

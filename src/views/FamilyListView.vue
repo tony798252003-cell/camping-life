@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { Check, ChevronDown, ChevronLeft, Plus, Trash2 } from 'lucide-vue-next'
+import { Check, ChevronDown, ChevronLeft, Plus, Star, Trash2 } from 'lucide-vue-next'
 import { useFamilyLists } from '../composables/useFamilyLists'
 import { useConfirm } from '../composables/useConfirm'
 import type { FamilyListItem } from '../types/database'
 
-const { list, grouped, loaded, loadFailed, hasFamily, load, addItem, toggle, removeItem, clearDone } = useFamilyLists()
+const { list, grouped, loaded, loadFailed, hasFamily, load, addItem, toggle, toggleImportant, removeItem, clearDone } = useFamilyLists()
 const { confirm } = useConfirm()
 
 const draft = ref('')
@@ -97,6 +97,15 @@ const askClear = async () => {
             <span class="w-6 h-6 rounded-full border-2 border-primary-300 transition-colors"></span>
           </button>
           <span class="flex-1 min-w-0 text-[15px] font-semibold text-primary-900 break-words py-2">{{ i.text }}</span>
+          <button
+            type="button"
+            :aria-pressed="i.important"
+            :aria-label="`${i.important ? '取消重要' : '標為重要'}：${i.text}`"
+            class="min-w-[44px] min-h-[44px] flex items-center justify-center"
+            @click="toggleImportant(i)"
+          >
+            <Star class="w-5 h-5" :fill="i.important ? '#f59e0b' : 'none'" :stroke="i.important ? '#f59e0b' : '#cbd5e1'" aria-hidden="true" />
+          </button>
           <button
             type="button"
             :aria-label="`刪除 ${i.text}`"

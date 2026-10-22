@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ChevronRight } from 'lucide-vue-next'
+import { ChevronRight, Star } from 'lucide-vue-next'
 import { useFamilyLists } from '../../composables/useFamilyLists'
 
-const { list, grouped, openTotal, loaded, loadFailed, hasFamily, load, addItem, toggle } = useFamilyLists()
+const { list, grouped, openTotal, loaded, loadFailed, hasFamily, load, addItem, toggle, toggleImportant } = useFamilyLists()
 
 const MAX_SHOWN = 3
 const shown = computed(() => grouped.value.open.slice(0, MAX_SHOWN))
@@ -62,6 +62,15 @@ const submit = async (e: Event) => {
             <span class="w-[22px] h-[22px] rounded-full border-2 border-primary-300"></span>
           </button>
           <span class="flex-1 min-w-0 text-[15px] text-primary-900 break-words py-2">{{ i.text }}</span>
+          <button
+            type="button"
+            :aria-pressed="i.important"
+            :aria-label="`${i.important ? '取消重要' : '標為重要'}：${i.text}`"
+            class="min-w-[44px] min-h-[48px] flex items-center justify-center"
+            @click="toggleImportant(i)"
+          >
+            <Star class="w-5 h-5" :fill="i.important ? '#f59e0b' : 'none'" :stroke="i.important ? '#f59e0b' : '#cbd5e1'" aria-hidden="true" />
+          </button>
         </li>
       </ul>
       <form class="flex items-center" @submit.prevent>

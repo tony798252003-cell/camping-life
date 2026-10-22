@@ -158,6 +158,21 @@ export function useFamilyLists() {
     }
   }
 
+  const toggleImportant = async (item: FamilyListItem) => {
+    const important = !item.important
+    const prev = item
+    items.value = upsertRow(items.value, { ...item, important })
+    try {
+      await listQueries.setImportant(item.id, important)
+    } catch (e) {
+      console.error('[useFamilyLists] toggleImportant error:', e)
+      // 同 toggle：連點時只有目前仍是這次的樂觀值才還原
+      const cur = items.value.find((i) => i.id === item.id)
+      if (cur && cur.important === important) items.value = upsertRow(items.value, prev)
+      notifyError('更新失敗，請檢查網路')
+    }
+  }
+
   const removeItem = async (id: string) => {
     try {
       await listQueries.removeItem(id)
@@ -192,5 +207,5 @@ export function useFamilyLists() {
 
   const hasFamily = computed(() => !!familyId())
 
-  return { list, grouped, openTotal, loaded, loadFailed, hasFamily, load, reload, addItem, toggle, removeItem, clearDone, reset }
+  return { list, grouped, openTotal, loaded, loadFailed, hasFamily, load, reload, addItem, toggle, toggleImportant, removeItem, clearDone, reset }
 }

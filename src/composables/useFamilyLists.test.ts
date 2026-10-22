@@ -22,7 +22,7 @@ import { useFamilyLists } from './useFamilyLists'
 
 const q = vi.mocked(listQueries)
 const list = { id: 'l1', family_id: 'f1', title: '家庭待辦', sort_order: 0, created_by: null, created_at: '2026-10-22T00:00:00Z' }
-const item = { id: 'i1', list_id: 'l1', text: '牛奶', done: false, done_by: null, done_at: null, sort_order: 0, created_by: null, created_at: '2026-10-22T00:00:00Z' }
+const item = { id: 'i1', list_id: 'l1', text: '牛奶', done: false, done_by: null, done_at: null, important: false, sort_order: 0, created_by: null, created_at: '2026-10-22T00:00:00Z' }
 
 // 勾選後項目會從未完成移到已完成，所以兩組合併後取第一筆
 const firstOf = <T,>(g: { open: T[]; done: T[] }) => [...g.open, ...g.done][0]!
