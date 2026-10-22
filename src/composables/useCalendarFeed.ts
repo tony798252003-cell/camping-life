@@ -4,7 +4,9 @@ import type { CpblSchedule } from '../types/database'
 import { buildFeed } from '../utils/calendar/eventSources'
 import { todayYmd } from '../utils/dateRange'
 import { useCalendarEvents } from './useCalendarEvents'
+import { useAuth } from './useAuth'
 import { useEventCategories } from './useEventCategories'
+import { useFamily } from './useFamily'
 import { useTrips } from './useTrips'
 import { useUserProfile } from './useUserProfile'
 
@@ -30,6 +32,8 @@ export function useCalendarFeed() {
   const { categories } = useEventCategories()
   const { trips } = useTrips()
   const { showCpbl } = useUserProfile()
+  const { session } = useAuth()
+  const { names } = useFamily()
 
   const feed = computed(() =>
     buildFeed({
@@ -40,6 +44,7 @@ export function useCalendarFeed() {
       showCpbl: showCpbl.value,
       hiddenCategoryIds: hiddenCategoryIds.value,
       today: todayYmd(),
+      ctx: { meId: session.value?.user?.id ?? null, names: names.value },
     }),
   )
 

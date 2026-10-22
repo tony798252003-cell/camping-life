@@ -5,6 +5,8 @@ import { allDayFor, layoutDay } from '../../utils/calendar/timeGridLayout'
 import { addDays, diffDays, taipeiMinutes, weekdayMon0 } from '../../utils/dateRange'
 import { useTrips } from '../../composables/useTrips'
 import TripDayWeather from './TripDayWeather.vue'
+import { subtitle } from '../../utils/calendar/glance'
+import { OWNER_LABEL } from '../../utils/calendar/visibility'
 
 const props = defineProps<{ date: string; events: ViewEvent[]; today: string }>()
 const emit = defineEmits<{
@@ -82,10 +84,12 @@ onBeforeUnmount(() => clearInterval(timer))
         class="w-full flex items-center gap-2 text-left text-[15px]"
       >
         <button type="button" class="flex-1 min-w-0 flex items-center gap-2 text-left" @click="emit('open', e)">
-          <span class="w-1 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
-          <span class="truncate font-medium" :class="e.past ? 'opacity-50' : ''">{{ e.title }}</span>
-          <span v-if="dayLabel(e)" class="text-xs text-primary-500 shrink-0">{{ dayLabel(e) }}</span>
-          <span v-if="nightRushLabel(e)" class="text-xs text-primary-500 shrink-0">{{ nightRushLabel(e) }}</span>
+          <span class="w-1.5 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
+          <span class="flex flex-col min-w-0 flex-1" :class="e.past ? 'opacity-50' : ''">
+            <span class="truncate font-medium">{{ e.title }}</span>
+            <span class="text-[11px] font-semibold text-slate-500 truncate">{{ subtitle(e, ['全天', dayLabel(e), nightRushLabel(e)].filter(Boolean).join(' · ')) }}</span>
+          </span>
+          <span class="text-xs font-black shrink-0" :style="{ color: e.color }">{{ OWNER_LABEL[e.owner] }}</span>
         </button>
         <TripDayWeather v-if="tripOf(e)" :trip="tripOf(e)!" :date="date" />
       </div>

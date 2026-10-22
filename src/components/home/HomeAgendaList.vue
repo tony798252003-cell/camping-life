@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ViewEvent } from '../../utils/calendar/viewEvent'
-import { displayTitle, timeLabel } from '../../utils/calendar/glance'
+import { displayTitle, subtitle, timeLabel } from '../../utils/calendar/glance'
+import { OWNER_LABEL } from '../../utils/calendar/visibility'
 
 // selected 有值 = 顯示某一天（可清除、可新增）；null = 本週行程
 defineProps<{ sections: { label: string; day: string; items: ViewEvent[] }[]; selected: string | null }>()
@@ -37,11 +38,12 @@ const emit = defineEmits<{ (e: 'open', ev: ViewEvent): void; (e: 'clear'): void;
         class="w-full flex items-center gap-3 bg-white/90 rounded-[18px] px-3.5 py-3 min-h-[56px] text-left"
         @click="emit('open', e)"
       >
-        <span class="w-1 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
-        <span class="flex flex-col min-w-0">
+        <span class="w-1.5 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
+        <span class="flex flex-col min-w-0 flex-1">
           <span class="text-[15px] font-bold text-primary-900 truncate">{{ displayTitle(e) }}</span>
-          <span class="text-[11px] font-semibold text-slate-500">{{ timeLabel(e, s.day) }}</span>
+          <span class="text-[11px] font-semibold text-slate-500 truncate">{{ subtitle(e, timeLabel(e, s.day)) }}</span>
         </span>
+        <span class="text-xs font-black shrink-0" :style="{ color: e.color }">{{ OWNER_LABEL[e.owner] }}</span>
       </button>
     </template>
   </section>

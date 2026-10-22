@@ -27,56 +27,88 @@ const feed = (o: Partial<Parameters<typeof buildFeed>[0]> = {}) =>
 describe('eventToView', () => {
   it('全天事件讀 start_date/end_date', () => {
     // 新版寫入的真正資料在這兩欄
-    const v = eventToView(ev({ is_all_day: true, start_date: '2026-10-17', end_date: '2026-10-19' }), catMap, '#8b5cf6', today)
+    const v = eventToView(ev({ is_all_day: true, start_date: '2026-10-17', end_date: '2026-10-19' }), catMap, today)
     expect(v).toMatchObject({ allDay: true, startDate: '2026-10-17', endDate: '2026-10-19' })
   })
   it('start_date 為 null 退回 start_time 的台北日期', () => {
     // 舊資料不能從畫面消失（Review Focus 2）；UTC 04:00 = 台北中午
-    const v = eventToView(ev({ is_all_day: true, start_date: null, start_time: '2026-10-17T04:00:00Z', end_time: '2026-10-17T04:00:00Z' }), catMap, '#8b5cf6', today)
+    const v = eventToView(ev({ is_all_day: true, start_date: null, start_time: '2026-10-17T04:00:00Z', end_time: '2026-10-17T04:00:00Z' }), catMap, today)
     expect(v).toMatchObject({ startDate: '2026-10-17', endDate: '2026-10-17' })
   })
   it('跨午夜的 timed 事件不是多天事件', () => {
     // 時間軸要用 startMin/endMin 排；台北 22:00 到隔天 01:00
-    const v = eventToView(ev({ start_time: '2026-10-17T14:00:00Z', end_time: '2026-10-17T17:00:00Z' }), catMap, '#8b5cf6', today)
+    const v = eventToView(ev({ start_time: '2026-10-17T14:00:00Z', end_time: '2026-10-17T17:00:00Z' }), catMap, today)
     expect(v).toMatchObject({ allDay: false, startDate: '2026-10-17', endDate: '2026-10-18', startMin: 1320, endMin: 60 })
   })
   it('結束在隔天 00:00 的 timed 事件算到前一天 24:00', () => {
     // 為什麼：否則隔天會多出一個 0 分鐘的幽靈項目撐亂時間軸
-    const v = eventToView(ev({ start_time: '2026-10-17T14:00:00Z', end_time: '2026-10-17T16:00:00Z' }), catMap, '#8b5cf6', today)
+    const v = eventToView(ev({ start_time: '2026-10-17T14:00:00Z', end_time: '2026-10-17T16:00:00Z' }), catMap, today)
     expect(v).toMatchObject({ startDate: '2026-10-17', endDate: '2026-10-17', startMin: 1320, endMin: 1440 })
   })
-  it('顏色跟著分類，null 用個人色；past 看 endDate', () => {
-    // 使用者改分類色，事件顏色要一起變
-    expect(eventToView(ev({ category_id: 'c-work' }), catMap, '#123456', today).color).toBe('#3b82f6')
-    expect(eventToView(ev({}), catMap, '#123456', today).color).toBe('#123456')
-    expect(eventToView(ev({}), catMap, '#123456', '2026-10-18').past).toBe(true)
-    expect(eventToView(ev({}), catMap, '#123456', today).past).toBe(false)
+  it('past 看 endDate', () => {
+    expect(eventToView(ev({}), catMap, '2026-10-18').past).toBe(true)
+    expect(eventToView(ev({}), catMap, today).past).toBe(false)
+  })
+  // 為什麼：C5 規定顏色代表「誰看得到」；若仍跟分類色，全家與私人事件在畫面上分不出來
+  it('顏色由可見性決定，與分類色無關', () => {
+    const shared = eventToView(ev({ category_id: 'c-work', visibility: 'shared' }), catMap, today)
+    const priv = eventToView(ev({ category_id: 'c-work', visibility: 'private' }), catMap, today)
+    expect(shared).toMatchObject({ color: '#8E7DBE', owner: 'family', categoryName: 'work' })
+    expect(priv).toMatchObject({ color: '#4A9E9B', owner: 'me' })
+  })
+  // 為什麼：家人新增的全家事件要標示是誰排的；自己的或私人的標了反而是噪音
+  it('creatorName 只有全家事件且建立者不是自己才有', () => {
+    const ctx = { meId: 'me', names: new Map([['wife', '小美']]) }
+    expect(eventToView(ev({ visibility: 'shared', created_by: 'wife' }), catMap, today, ctx).creatorName).toBe('小美')
+    expect(eventToView(ev({ visibility: 'shared', created_by: 'me' }), catMap, today, ctx).creatorName).toBeUndefined()
+    expect(eventToView(ev({ visibility: 'private', created_by: 'me' }), catMap, today, ctx).creatorName).toBeUndefined()
   })
 })
 
 describe('tripToView', () => {
   it('duration_days 3 → endDate +2；0 或 null 當 1 天', () => {
     // 舊資料天數不完整時行程不能壞掉（Review Focus 2）
-    expect(tripToView(trip({ duration_days: 3 }), '#10b981', 'c-camp', today).endDate).toBe('2026-10-22')
-    expect(tripToView(trip({ duration_days: 0 }), '#10b981', 'c-camp', today).endDate).toBe('2026-10-20')
-    expect(tripToView(trip({ duration_days: null }), '#10b981', 'c-camp', today).endDate).toBe('2026-10-20')
+    expect(tripToView(trip({ duration_days: 3 }), 'c-camp', today).endDate).toBe('2026-10-22')
+    expect(tripToView(trip({ duration_days: 0 }), 'c-camp', today).endDate).toBe('2026-10-20')
+    expect(tripToView(trip({ duration_days: null }), 'c-camp', today).endDate).toBe('2026-10-20')
   })
   it('夜衝 startDate 為前一天', () => {
     // 前一晚就要出發，月曆空白會讓人排到別的事
-    const v = tripToView(trip({ trip_date: '2026-10-23', night_rush: true }), '#10b981', 'c-camp', today)
+    const v = tripToView(trip({ trip_date: '2026-10-23', night_rush: true }), 'c-camp', today)
     expect(v).toMatchObject({ startDate: '2026-10-22', nightRushDate: '2026-10-22', allDay: true })
     expect(feed({ trips: [trip({ trip_date: '2026-10-23', night_rush: true })] })[0]?.startDate).toBe('2026-10-22')
   })
   it('campsite_id 為 null 用快照名，都空則「露營」', () => {
     // 舊行程缺營區關聯時不能從 feed 消失
-    expect(tripToView(trip({ campsite_id: null, campsites: null, campsite_name: '舊營區' }), 'c', null, today).title).toBe('舊營區')
+    expect(tripToView(trip({ campsite_id: null, campsites: null, campsite_name: '舊營區' }), null, today).title).toBe('舊營區')
     const t = trip({ campsite_id: null, campsites: null, campsite_name: null })
-    expect(tripToView(t, 'c', null, today).title).toBe('露營')
+    expect(tripToView(t, null, today).title).toBe('露營')
     expect(feed({ trips: [t] })).toHaveLength(1)
   })
 })
 
+describe('trip / game 的固定歸屬', () => {
+  // 為什麼：規格定義露營行程一律全家、中職賽程一律「我」，不受分類或可見性欄位影響
+  it('trip -> 全家色；cpbl -> 我的色', () => {
+    expect(tripToView(trip(), 'c-camp', today)).toMatchObject({ color: '#8E7DBE', owner: 'family' })
+    expect(gameToView(game({}), today)).toMatchObject({ color: '#4A9E9B', owner: 'me' })
+  })
+})
+
 describe('buildFeed', () => {
+  // 為什麼：SELECT 現在也會回家人的分類；若系統分類（露營/棒球）沒限定自己的，
+  // 家人的露營分類 id 會被拿來當篩選依據，自己隱藏露營時行程不會被隱藏
+  it('系統分類只認自己的（ctx.meId）', () => {
+    const wifeCamp = { ...CAMP, id: 'w-camp', owner_id: 'wife' } as EventCategory
+    const mine = cats.map((c) => ({ ...c, owner_id: 'me' }) as EventCategory)
+    const f = feed({
+      categories: [wifeCamp, ...mine],
+      trips: [trip()],
+      hiddenCategoryIds: new Set(['c-camp']),
+      ctx: { meId: 'me', names: new Map() },
+    })
+    expect(f).toHaveLength(0)
+  })
   it('cancelled 與已合併的行程不出現', () => {
     // 合併後只留主行程，避免重複
     expect(feed({ trips: [trip({ status: 'cancelled' }), trip({ id: 2, merged_into_id: 1 })] })).toHaveLength(0)
@@ -90,7 +122,7 @@ describe('buildFeed', () => {
     expect(isRakutenGame(game({}))).toBe(true)
     const f = feed({ games: [game({}), game({ id: 'G2', home_team_name: '中信兄弟', visiting_team_name: '統一7-ELEVEn獅' })] })
     expect(f.map((x) => x.sourceId)).toEqual(['G1'])
-    expect(gameToView(game({}), '#9d1c32', today).title).toBe('⚾ 樂天桃猿 vs 統一7-ELEVEn獅')
+    expect(gameToView(game({}), today).title).toBe('⚾ 樂天桃猿 vs 統一7-ELEVEn獅')
   })
   it('showCpbl=false 沒有 cpbl 項目，但棒球分類的使用者事件仍在', () => {
     // Review Focus 5：關開關不能吃掉使用者自建的棒球事件

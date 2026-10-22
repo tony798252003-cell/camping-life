@@ -1,3 +1,5 @@
+import type { Owner } from './visibility'
+
 // 行事曆統一顯示用的事件型別：行程、使用者事件、中職比賽都轉成 ViewEvent。
 export type ViewEventSource = 'event' | 'trip' | 'cpbl'
 
@@ -7,7 +9,10 @@ export interface ViewEvent {
   source: ViewEventSource
   sourceId: string | number
   title: string
-  color: string
+  color: string // 由可見性決定（全家／我），不是分類色
+  owner: Owner
+  categoryName?: string // 副標用
+  creatorName?: string // 只有「全家事件、建立者不是自己」才有
   categoryId: string | null
   allDay: boolean
   startDate: string // 含頭尾，台北時間

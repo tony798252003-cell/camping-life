@@ -1,12 +1,16 @@
 import { ref, computed } from 'vue'
+import { useAuth } from './useAuth'
 import { categoryQueries } from '../services/db/categories'
 import type { EventCategory } from '../types/database'
 import { useNotification } from './useNotification'
 
+// categories：所有看得到的分類（含家人的，供全家事件顯示分類名稱）；選單、設定、系統分類一律用 myCategories
 const categories = ref<EventCategory[]>([])
+const { session } = useAuth()
+const myCategories = computed(() => categories.value.filter((c) => c.owner_id === session.value?.user?.id))
 const bySystemKey = computed(() => {
   const map: Record<string, EventCategory> = {}
-  for (const c of categories.value) if (c.system_key) map[c.system_key] = c
+  for (const c of myCategories.value) if (c.system_key) map[c.system_key] = c
   return map
 })
 let loadPromise: Promise<void> | null = null
@@ -19,8 +23,9 @@ export function useEventCategories() {
     loadPromise ??= (async () => {
       try {
         let list = await categoryQueries.list()
-        if (list.length === 0) {
-          await categoryQueries.ensureDefaults()
+        const uid = session.value?.user?.id
+        if (uid && !list.some((c) => c.owner_id === uid)) {
+          await categoryQueries.ensureDefaults(uid)
           list = await categoryQueries.list()
         }
         categories.value = list
@@ -57,5 +62,5 @@ export function useEventCategories() {
     categories.value = []
   }
 
-  return { categories, bySystemKey, load, create, update, remove, reset }
+  return { categories, myCategories, bySystemKey, load, create, update, remove, reset }
 }

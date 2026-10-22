@@ -6,6 +6,7 @@ import { buildMonthWeeks } from '../../utils/calendar/monthLayout'
 import { cellTint, weekRow } from '../../utils/calendar/glance'
 import { eventsOnDay } from '../../utils/calendar/agendaRange'
 import { weekdayMon0 } from '../../utils/dateRange'
+import OwnerLegend from '../calendar/OwnerLegend.vue'
 
 const props = defineProps<{ events: ViewEvent[]; today: string; expanded: boolean; selected: string | null }>()
 const emit = defineEmits<{
@@ -75,6 +76,7 @@ const cellStyle = (d: string) => {
         </template>
       </template>
     </div>
+    <OwnerLegend class="mt-2.5" />
   </section>
   </div>
 </template>

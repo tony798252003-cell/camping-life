@@ -690,6 +690,7 @@ export type Database = {
           name: string
         }[]
       }
+      join_family_by_code: { Args: { code_input: string }; Returns: string }
       kick_family_member: {
         Args: { target_user_id: string }
         Returns: undefined

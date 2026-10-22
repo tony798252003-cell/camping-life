@@ -15,6 +15,7 @@ import { useTrips } from './composables/useTrips'
 import { useTripModal } from './composables/useTripModal'
 import { useEventCategories } from './composables/useEventCategories'
 import { useCalendarEvents } from './composables/useCalendarEvents'
+import { useFamily } from './composables/useFamily'
 import { supabase } from './lib/supabase'
 import { buildTripSavePayload } from './utils/tripPayload'
 import { todayYmd } from './utils/dateRange'
@@ -29,6 +30,7 @@ const { userProfile, fetchProfile, clearProfile, familyId } = useUserProfile()
 const { trips, loading, fetchTrips, createTrip, updateTrip, deleteTrip, findTripById, clearTrips } = useTrips()
 const categoriesStore = useEventCategories()
 const calendarEventsStore = useCalendarEvents()
+const familyStore = useFamily()
 
 // Modal state
 const { isOpen: isModalOpen, activeTrip, initialDate, close: closeTripModal } = useTripModal()
@@ -98,6 +100,7 @@ onMounted(async () => {
       clearProfile()
       categoriesStore.reset()
       calendarEventsStore.reset()
+      familyStore.reset()
     }
   })
 
@@ -111,6 +114,7 @@ onMounted(async () => {
     if (ready && userId) {
       await fetchProfile(userId)
       await fetchTrips(userId, familyId())
+      familyStore.load()
     } else if (ready && !userId) {
       clearProfile()
       clearTrips()

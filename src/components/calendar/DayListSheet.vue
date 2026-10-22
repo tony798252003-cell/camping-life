@@ -2,6 +2,8 @@
 import { Plus } from 'lucide-vue-next'
 import type { ViewEvent } from '../../utils/calendar/viewEvent'
 import { isHoliday } from '../../utils/holidays'
+import { subtitle } from '../../utils/calendar/glance'
+import { OWNER_LABEL } from '../../utils/calendar/visibility'
 
 const props = defineProps<{ open: boolean; date: string; items: ViewEvent[] }>()
 const emit = defineEmits<{
@@ -37,9 +39,12 @@ const time = (e: ViewEvent) =>
               :class="{ 'opacity-50': e.past }"
               @click="emit('open', e)"
             >
-              <span class="w-1 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
-              <span class="text-[11px] font-semibold text-slate-500 w-10 shrink-0">{{ time(e) }}</span>
-              <span class="text-[15px] font-bold text-primary-900 truncate">{{ e.title }}</span>
+              <span class="w-1.5 self-stretch rounded-full shrink-0" :style="{ backgroundColor: e.color }"></span>
+              <span class="flex flex-col min-w-0 flex-1">
+                <span class="text-[15px] font-bold text-primary-900 truncate">{{ e.title }}</span>
+                <span class="text-[11px] font-semibold text-slate-500 truncate">{{ subtitle(e, time(e)) }}</span>
+              </span>
+              <span class="text-xs font-black shrink-0" :style="{ color: e.color }">{{ OWNER_LABEL[e.owner] }}</span>
             </button>
           </li>
         </ul>
