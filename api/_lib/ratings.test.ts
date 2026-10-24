@@ -32,10 +32,10 @@ describe('selectStale', () => {
     const rows = [row(1, '2026-08-01T00:00:00Z'), row(2, '2026-07-01T00:00:00Z'), row(3, null)]
     expect(selectStale(rows, NOW, 2).map((r) => r.id)).toEqual([3, 2])
   })
-  it('預設單次上限 600，避免 API 費用失控', () => {
+  it('預設單次上限 250：每週跑一次、60 秒內做完；每月最多 ~1000 次仍在 Google 免費額度內', () => {
     const rows = Array.from({ length: 700 }, (_, i) => row(i + 1, null))
     expect(selectStale(rows, NOW)).toHaveLength(MAX_PER_RUN)
-    expect(MAX_PER_RUN).toBe(600)
+    expect(MAX_PER_RUN).toBe(250)
   })
 })
 

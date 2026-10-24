@@ -2,7 +2,7 @@ import { HttpError, json, withErrors } from '../_lib/http.js';
 import { fetchRating, runRatingsRefresh, type RatingCandidate } from '../_lib/ratings.js';
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
 
-export const config = { maxDuration: 300 };
+export const config = { maxDuration: 60 };
 
 const PAGE = 1000;
 

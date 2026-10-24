@@ -2,7 +2,7 @@
 import { headers } from './places.js'
 
 export const STALE_DAYS = 30
-export const MAX_PER_RUN = 600
+export const MAX_PER_RUN = 250
 export const CONCURRENCY = 3
 export const RATING_MASK = 'id,rating,userRatingCount,businessStatus'
 
