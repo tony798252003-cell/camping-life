@@ -331,8 +331,12 @@ export type Database = {
           created_by: string | null
           district: string | null
           field_sources: Json
+          google_business_status: string | null
           google_maps_url: string | null
           google_place_id: string | null
+          google_rating: number | null
+          google_rating_at: string | null
+          google_rating_count: number | null
           id: number
           is_verified: boolean | null
           latitude: number | null
@@ -374,8 +378,12 @@ export type Database = {
           created_by?: string | null
           district?: string | null
           field_sources?: Json
+          google_business_status?: string | null
           google_maps_url?: string | null
           google_place_id?: string | null
+          google_rating?: number | null
+          google_rating_at?: string | null
+          google_rating_count?: number | null
           id?: number
           is_verified?: boolean | null
           latitude?: number | null
@@ -417,8 +425,12 @@ export type Database = {
           created_by?: string | null
           district?: string | null
           field_sources?: Json
+          google_business_status?: string | null
           google_maps_url?: string | null
           google_place_id?: string | null
+          google_rating?: number | null
+          google_rating_at?: string | null
+          google_rating_count?: number | null
           id?: number
           is_verified?: boolean | null
           latitude?: number | null

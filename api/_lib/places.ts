@@ -37,7 +37,7 @@ interface RawPlace {
   websiteUri?: string
 }
 
-function headers(mask: string): Record<string, string> {
+export function headers(mask: string): Record<string, string> {
   const key = process.env.GOOGLE_PLACES_SERVER_KEY
   if (!key) throw new Error('GOOGLE_PLACES_SERVER_KEY is not set')
   return {
