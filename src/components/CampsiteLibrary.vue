@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight, Settings2 } from 'lucide-vue-next'
-import { supabase } from '../lib/supabase'
+import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight } from 'lucide-vue-next'
 import { campsiteQueries } from '../services/db/campsites'
-import { profileQueries } from '../services/db/profile'
 import { toCampsites } from '../utils/dbRows'
+import {
+  ALTITUDE_BANDS,
+  FEATURE_CHIPS,
+  altitudeBandKey,
+  isHiddenByGoogle,
+  matchesAltitude,
+  matchesSegment,
+  sortCampsites,
+  GOOGLE_MIN_RATING,
+  type CampsiteSort,
+  type VisitedSegment,
+} from '../utils/campsiteFilters'
+import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { useUserProfile } from '../composables/useUserProfile'
 import type { Campsite } from '../types/database'
 import CampsiteEditModal from './CampsiteEditModal.vue'
@@ -17,7 +28,10 @@ const route = useRoute()
 const router = useRouter()
 const campsites = ref<Campsite[]>([])
 const visitedIds = ref<Set<number>>(new Set()) // completed or booked campsite_ids
-const hideVisited = ref(true)
+const segment = ref<VisitedSegment>('unvisited')
+const sortBy = ref<CampsiteSort>('rating')
+const googleOnly = ref(true) // 「Google 4.0★+」快捷標籤，預設開
+const activeFeatureKeys = ref<string[]>([])
 const loading = ref(false)
 // 新增營區流程的「查看」會帶 ?q= 過來
 const searchQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
@@ -54,44 +68,32 @@ function applyFilters(newFilters: CampsiteFilters) {
   filters.value = newFilters
 }
 
-// Quick chips
-interface QuickChip {
-  key: string
-  label: string
-  apply: (f: CampsiteFilters) => void
-  isActive: (f: CampsiteFilters) => boolean
-}
-
-const QUICK_CHIPS: QuickChip[] = [
-  { key: 'alt800', label: '800m+', apply: f => { f.altitudeMin = 800 }, isActive: f => f.altitudeMin === 800 },
-  { key: 'alt1000', label: '1000m+', apply: f => { f.altitudeMin = 1000 }, isActive: f => f.altitudeMin === 1000 },
-  { key: 'shelter', label: '有雨棚', apply: f => { if (!f.spotTypes.includes('雨棚')) f.spotTypes.push('雨棚') }, isActive: f => f.spotTypes.includes('雨棚') },
-  { key: 'forest', label: '森林', apply: f => { if (!f.sceneryFeatures.includes('森林')) f.sceneryFeatures.push('森林') }, isActive: f => f.sceneryFeatures.includes('森林') },
-  { key: 'water', label: '有戲水', apply: f => { if (!f.waterFeatures.includes('溪流')) f.waterFeatures.push('溪流') }, isActive: f => f.waterFeatures.includes('溪流') },
-  { key: 'playground', label: '有遊樂', apply: f => { if (!f.playgroundFeatures.includes('溜滑梯')) f.playgroundFeatures.push('溜滑梯') }, isActive: f => f.playgroundFeatures.length > 0 },
-  { key: 'cap15', label: '15帳+', apply: f => { f.capacityMin = 15 }, isActive: f => f.capacityMin === 15 },
-  { key: 'cap20', label: '20帳+', apply: f => { f.capacityMin = 20 }, isActive: f => f.capacityMin === 20 },
-  { key: 'cap30', label: '30帳+', apply: f => { f.capacityMin = 30 }, isActive: f => f.capacityMin === 30 },
+const SEGMENTS: { key: VisitedSegment; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'visited', label: '去過' },
+  { key: 'unvisited', label: '沒去過' },
 ]
 
-function isChipActive(chip: QuickChip) {
-  return chip.isActive(filters.value)
+const segmentCounts = computed(() => {
+  const visited = campsites.value.filter(c => visitedIds.value.has(c.id)).length
+  return { all: campsites.value.length, visited, unvisited: campsites.value.length - visited }
+})
+
+const altitudeBand = computed(() => altitudeBandKey(filters.value.altitudeMin, filters.value.altitudeMax))
+
+function setCity(city: string) {
+  filters.value = { ...filters.value, city, district: '' }
 }
 
-function toggleQuickChip(chip: QuickChip) {
-  const f = { ...filters.value, spotTypes: [...filters.value.spotTypes], sceneryFeatures: [...filters.value.sceneryFeatures], waterFeatures: [...filters.value.waterFeatures], playgroundFeatures: [...filters.value.playgroundFeatures] }
-  if (chip.isActive(f)) {
-    // 取消
-    if (chip.key === 'alt800' || chip.key === 'alt1000') f.altitudeMin = null
-    else if (chip.key === 'shelter') f.spotTypes = f.spotTypes.filter(t => t !== '雨棚')
-    else if (chip.key === 'forest') f.sceneryFeatures = f.sceneryFeatures.filter(t => t !== '森林')
-    else if (chip.key === 'water') f.waterFeatures = f.waterFeatures.filter(t => t !== '溪流')
-    else if (chip.key === 'playground') f.playgroundFeatures = []
-    else if (chip.key.startsWith('cap')) f.capacityMin = null
-  } else {
-    chip.apply(f)
-  }
-  filters.value = f
+function setAltitudeBand(key: string) {
+  const band = ALTITUDE_BANDS.find(b => b.key === key)
+  filters.value = { ...filters.value, altitudeMin: band?.min ?? null, altitudeMax: band?.max ?? null }
+}
+
+function toggleFeature(key: string) {
+  activeFeatureKeys.value = activeFeatureKeys.value.includes(key)
+    ? activeFeatureKeys.value.filter(k => k !== key)
+    : [...activeFeatureKeys.value, key]
 }
 
 const handleEdit = (site: Campsite) => {
@@ -137,7 +139,7 @@ const fetchCampsites = async () => {
   }
 }
 
-const filteredCampsites = computed(() => {
+const matchesBeforeGoogle = computed(() => {
   let result = campsites.value
 
   // 文字搜尋
@@ -168,55 +170,31 @@ const filteredCampsites = computed(() => {
   if (f.spotTypes.length)
     result = result.filter(c => f.spotTypes.some(tag => c.spot_types?.includes(tag)))
 
-  if (f.altitudeMin !== null)
-    result = result.filter(c => c.altitude !== null && c.altitude !== undefined && c.altitude >= f.altitudeMin!)
-
-  if (f.altitudeMax !== null)
-    result = result.filter(c => c.altitude !== null && c.altitude !== undefined && c.altitude <= f.altitudeMax!)
+  result = result.filter(c => matchesAltitude(c.altitude, f.altitudeMin, f.altitudeMax))
 
   if (f.capacityMin !== null)
     result = result.filter(c => (c.total_capacity ?? 0) >= f.capacityMin!)
 
-  if (hideVisited.value)
-    result = result.filter(c => !visitedIds.value.has(c.id))
+  const chips = FEATURE_CHIPS.filter(c => activeFeatureKeys.value.includes(c.key))
+  if (chips.length) result = result.filter(c => chips.every(chip => chip.test(c)))
 
-  return result
+  return result.filter(c => matchesSegment(segment.value, visitedIds.value.has(c.id)))
 })
 
-// Quick chip preferences
-const enabledChipKeys = ref<string[]>(QUICK_CHIPS.map(c => c.key)) // 預設全開
-const isChipConfigOpen = ref(false)
-const userId = ref<string | null>(null)
+// Google 低分／歇業隱藏（去過的不隱藏）；hiddenCount 讓使用者知道有東西被藏起來
+const hiddenByGoogleCount = computed(() =>
+  googleOnly.value ? matchesBeforeGoogle.value.filter(c => isHiddenByGoogle(c, visitedIds.value.has(c.id))).length : 0
+)
 
-const visibleChips = computed(() => QUICK_CHIPS.filter(c => enabledChipKeys.value.includes(c.key)))
-
-async function loadChipPrefs() {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return
-  userId.value = session.user.id
-  const chips = await profileQueries.getCampsiteQuickChips(session.user.id)
-  if (chips?.length) {
-    enabledChipKeys.value = chips
-  }
-}
-
-async function saveChipPrefs() {
-  if (!userId.value) return
-  await profileQueries.setCampsiteQuickChips(userId.value, enabledChipKeys.value)
-}
-
-function toggleChipKey(key: string) {
-  if (enabledChipKeys.value.includes(key)) {
-    enabledChipKeys.value = enabledChipKeys.value.filter(k => k !== key)
-  } else {
-    enabledChipKeys.value = [...enabledChipKeys.value, key]
-  }
-  saveChipPrefs()
-}
+const filteredCampsites = computed(() => {
+  const list = googleOnly.value
+    ? matchesBeforeGoogle.value.filter(c => !isHiddenByGoogle(c, visitedIds.value.has(c.id)))
+    : matchesBeforeGoogle.value
+  return sortCampsites(list, sortBy.value)
+})
 
 onMounted(() => {
   fetchCampsites()
-  loadChipPrefs()
 })
 </script>
 
@@ -260,49 +238,80 @@ onMounted(() => {
         </button>
       </div>
 
+      <!-- 去過 / 沒去過 -->
+      <div class="mb-2 flex bg-sky-100 rounded-2xl p-[3px] text-sm font-bold" role="group" aria-label="營區範圍">
+        <button
+          v-for="seg in SEGMENTS"
+          :key="seg.key"
+          @click="segment = seg.key"
+          :aria-pressed="segment === seg.key"
+          class="flex-1 py-2 rounded-xl transition-all"
+          :class="segment === seg.key ? 'bg-white text-primary-900 shadow-sm' : 'text-sky-700'"
+        >{{ seg.label }} {{ segmentCounts[seg.key] }}</button>
+      </div>
+
+      <!-- 縣市 / 海拔 / 排序 -->
+      <div class="mb-2 grid grid-cols-2 gap-2 text-left">
+        <label class="bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
+          <span class="flex-shrink-0">縣市</span>
+          <select
+            :value="filters.city"
+            @change="setCity(($event.target as HTMLSelectElement).value)"
+            class="min-w-0 bg-transparent text-sky-600 font-bold text-right outline-none"
+            aria-label="縣市"
+          >
+            <option value="">不拘</option>
+            <option v-for="city in TAIWAN_LOCATIONS" :key="city.id" :value="city.id">{{ city.name }}</option>
+          </select>
+        </label>
+        <label class="bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
+          <span class="flex-shrink-0">海拔</span>
+          <select
+            :value="altitudeBand"
+            @change="setAltitudeBand(($event.target as HTMLSelectElement).value)"
+            class="min-w-0 bg-transparent text-sky-600 font-bold text-right outline-none"
+            aria-label="海拔"
+          >
+            <option value="">不拘</option>
+            <option v-for="b in ALTITUDE_BANDS" :key="b.key" :value="b.key">{{ b.label }}</option>
+          </select>
+        </label>
+        <label class="col-span-2 bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
+          <span class="flex-shrink-0">排序</span>
+          <select
+            v-model="sortBy"
+            class="min-w-0 bg-transparent text-sky-600 font-bold text-right outline-none"
+            aria-label="排序"
+          >
+            <option value="rating">Google 評分高→低</option>
+            <option value="name">名稱</option>
+          </select>
+        </label>
+      </div>
+
       <!-- Quick Filter Chips -->
       <div class="mb-1 flex gap-2 overflow-x-auto pb-2 scrollbar-hide items-center">
         <button
-          v-for="chip in visibleChips"
+          @click="googleOnly = !googleOnly"
+          :aria-pressed="googleOnly"
+          class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
+          :class="googleOnly ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200'"
+        >Google {{ GOOGLE_MIN_RATING.toFixed(1) }}★+</button>
+        <button
+          v-for="chip in FEATURE_CHIPS"
           :key="chip.key"
-          @click="toggleQuickChip(chip)"
+          @click="toggleFeature(chip.key)"
+          :aria-pressed="activeFeatureKeys.includes(chip.key)"
           class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-          :class="isChipActive(chip) ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200'"
+          :class="activeFeatureKeys.includes(chip.key) ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200'"
         >{{ chip.label }}</button>
-        <button
-          @click="hideVisited = !hideVisited"
-          class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-          :class="hideVisited ? 'bg-gray-700 text-white border-gray-700' : 'bg-white text-gray-600 border-gray-200'"
-        >隱藏去過</button>
-        <button
-          @click="isChipConfigOpen = true"
-          class="flex-shrink-0 p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-          title="自訂快捷篩選"
-        ><Settings2 class="w-4 h-4" /></button>
       </div>
+      <button
+        v-if="hiddenByGoogleCount > 0"
+        @click="googleOnly = false"
+        class="mb-1 text-xs text-gray-500 underline underline-offset-2"
+      >已隱藏 {{ hiddenByGoogleCount }} 間低於 4.0 星或評論太少的營區（點此顯示）</button>
     </div><!-- end sticky -->
-
-    <!-- Chip 設定 Modal -->
-    <Teleport to="body">
-      <div v-if="isChipConfigOpen" class="fixed inset-0 bg-black/40 z-50 flex items-end" @click.self="isChipConfigOpen = false">
-        <div class="bg-white w-full rounded-t-2xl p-5">
-          <div class="flex items-center justify-between mb-4">
-            <span class="font-bold text-gray-800">自訂快捷篩選</span>
-            <button @click="isChipConfigOpen = false" class="text-gray-400 hover:text-gray-600">✕</button>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="chip in QUICK_CHIPS"
-              :key="chip.key"
-              @click="toggleChipKey(chip.key)"
-              class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-              :class="enabledChipKeys.includes(chip.key) ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-400 border-gray-200'"
-            >{{ chip.label }}</button>
-          </div>
-          <p class="text-xs text-gray-400 mt-3">點選開啟或關閉，會自動儲存</p>
-        </div>
-      </div>
-    </Teleport>
 
     <!-- List -->
     <div v-if="loading" class="px-3 py-12">
@@ -327,6 +336,7 @@ onMounted(() => {
               <span class="font-semibold text-sm text-primary-900 group-hover:text-accent-sky transition-colors truncate">{{ site.name }}</span>
               <span v-if="site.booking_difficulty === 'hard'" class="flex-shrink-0 text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full font-bold">需搶</span>
               <span v-else-if="site.booking_difficulty === 'moderate'" class="flex-shrink-0 text-[10px] bg-orange-50 text-orange-400 px-1.5 py-0.5 rounded-full">稍難</span>
+              <span v-if="site.google_business_status === 'CLOSED_TEMPORARILY'" class="flex-shrink-0 text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold">暫停營業</span>
             </div>
             <div class="flex items-center gap-2 mt-0.5">
               <span class="text-xs text-gray-400 truncate">{{ site.city }}{{ site.district }}</span>
@@ -338,6 +348,7 @@ onMounted(() => {
 
           <!-- 右：海拔 + 帳數 + pending admin actions -->
           <div class="flex-shrink-0 flex items-center gap-2">
+            <span v-if="site.google_rating != null" class="text-xs font-extrabold text-amber-700 whitespace-nowrap">★ {{ site.google_rating.toFixed(1) }} <span class="text-gray-400 font-semibold">({{ site.google_rating_count ?? 0 }})</span></span>
             <span v-if="site.altitude" class="text-[10px] text-purple-500 font-medium">{{ site.altitude }}m</span>
             <span
               v-if="site.total_capacity"
