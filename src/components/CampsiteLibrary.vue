@@ -20,6 +20,10 @@ import {
   upcomingMonths,
   splitByBookableMonth,
   formatYmdSlash,
+  featuresInSeason,
+  seasonalFeatures,
+  seasonalFirst,
+  isWinterCold,
   GOOGLE_MIN_RATING,
   type CampsiteSort,
   type VisitedSegment,
@@ -268,10 +272,15 @@ const googleVisible = computed(() =>
 const monthSplit = computed(() => bookMonth.value ? splitByBookableMonth(googleVisible.value, bookMonth.value) : null)
 const noBookDataCount = computed(() => monthSplit.value?.noData.length ?? 0)
 
+// 選了月份才有季節推薦；1–12，0＝不拘
+const selectedMonthNum = computed(() => bookMonth.value ? Number(bookMonth.value.slice(5)) : 0)
+const monthSeasonFeatures = computed(() => selectedMonthNum.value ? featuresInSeason(selectedMonthNum.value) : [])
+
 const filteredCampsites = computed(() => {
   const split = monthSplit.value
   const list = !split ? googleVisible.value : showNoBookData.value ? [...split.matched, ...split.noData] : split.matched
-  return sortCampsites(list, sortBy.value, c => driveSeconds.value[c.id])
+  const sorted = sortCampsites(list, sortBy.value, c => driveSeconds.value[c.id])
+  return selectedMonthNum.value ? seasonalFirst(sorted, selectedMonthNum.value) : sorted
 })
 
 onMounted(() => {
@@ -380,6 +389,7 @@ onMounted(() => {
             <option v-for="m in monthOptions" :key="m.key" :value="m.key">{{ m.label }}</option>
           </select>
         </label>
+        <p v-if="monthSeasonFeatures.length" class="col-span-2 -mt-1 px-1 text-[11px] text-green-700">{{ selectedMonthNum }}月當季：{{ monthSeasonFeatures.join('、') }} — 有這些景觀的營區排在前面</p>
         <label class="col-span-2 bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
           <span class="flex-shrink-0">排序</span>
           <select
@@ -448,13 +458,15 @@ onMounted(() => {
               <span v-else-if="site.booking_difficulty === 'moderate'" class="flex-shrink-0 text-[10px] bg-orange-50 text-orange-400 px-1.5 py-0.5 rounded-full">稍難</span>
               <span v-if="site.google_business_status === 'CLOSED_TEMPORARILY'" class="flex-shrink-0 text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold">暫停營業</span>
             </div>
-            <div class="flex items-center gap-2 mt-0.5">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
               <span class="text-xs text-gray-400 truncate">{{ site.city }}{{ site.district }}</span>
               <span v-if="site.scenery_features?.length" class="text-[10px] text-green-600">{{ site.scenery_features[0] }}</span>
               <span v-if="site.water_features?.length" class="text-[10px]">💧</span>
               <span v-if="site.playground_features?.length" class="text-[10px]">🎠</span>
               <span v-if="driveSeconds[site.id] !== undefined" class="text-[10px] text-gray-400 whitespace-nowrap">{{ formatDriveDuration(driveSeconds[site.id]!) }}</span>
               <span v-if="site.bookable_until" class="text-[10px] text-gray-400 whitespace-nowrap">可訂到 {{ formatYmdSlash(site.bookable_until) }}</span>
+              <span v-if="selectedMonthNum && seasonalFeatures(site, selectedMonthNum).length" class="flex-shrink-0 text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap">當季：{{ seasonalFeatures(site, selectedMonthNum).join('、') }}</span>
+              <span v-if="selectedMonthNum && isWinterCold(site.altitude, selectedMonthNum)" class="flex-shrink-0 text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap">冬季低溫</span>
             </div>
           </div>
 
