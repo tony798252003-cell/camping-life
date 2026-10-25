@@ -12,6 +12,10 @@ import {
     isBookableInMonth,
     splitByBookableMonth,
     formatYmdSlash,
+    DRIVE_BANDS,
+    driveBandKey,
+    matchesDriveBand,
+    formatDriveDuration,
 } from './campsiteFilters'
 
 const band = (key: string) => ALTITUDE_BANDS.find(b => b.key === key)!
@@ -152,6 +156,55 @@ describe('排序', () => {
         expect(out.map(c => c.name)).toEqual(['A', 'B'])
         expect(src[0]!.name).toBe('B')
         expect(out).not.toBe(src)
+    })
+})
+
+describe('車程級距', () => {
+    it('剛好 60 分鐘算「1 小時內」，多 1 秒才進「1–2 小時」，各級上限都含在該級', () => {
+        expect(driveBandKey(3600)).toBe('lt1h')
+        expect(driveBandKey(3601)).toBe('1-2h')
+        expect(driveBandKey(7200)).toBe('1-2h')
+        expect(driveBandKey(7201)).toBe('2-3h')
+        expect(driveBandKey(10800)).toBe('2-3h')
+        expect(driveBandKey(10801)).toBe('gt3h')
+    })
+    it('每個已知車程只落在一個級距，下拉選單不會漏掉或重複營區', () => {
+        for (const sec of [0, 1800, 3600, 3601, 7200, 7201, 10800, 10801, 30000]) {
+            expect(DRIVE_BANDS.filter(b => matchesDriveBand(sec, b.key))).toHaveLength(1)
+        }
+    })
+    it('未知車程只在「不拘」顯示，選了級距就隱藏（不知道多遠，不能說它在 1 小時內）', () => {
+        expect(driveBandKey(undefined)).toBeNull()
+        expect(matchesDriveBand(undefined, '')).toBe(true)
+        for (const b of DRIVE_BANDS) expect(matchesDriveBand(undefined, b.key)).toBe(false)
+    })
+})
+
+describe('車程顯示', () => {
+    it('滿一小時顯示 h + 兩位數分鐘，未滿只顯示分鐘，前面加「約」表示是估計', () => {
+        expect(formatDriveDuration(6000)).toBe('約 1h40m')
+        expect(formatDriveDuration(3900)).toBe('約 1h05m')
+        expect(formatDriveDuration(2700)).toBe('約 45m')
+    })
+    it('四捨五入到分鐘，59 分 40 秒顯示成 1h00m 而不是 60m', () => {
+        expect(formatDriveDuration(3580)).toBe('約 1h00m')
+    })
+})
+
+describe('車程排序', () => {
+    const s = (name: string, sec: number | null) => ({ name, sec, ...g(4.5, 100) })
+    const bySec = (c: { sec: number | null }) => c.sec
+    it('近到遠，未知車程排最後（不能排在確定很近的營區前面）', () => {
+        const out = sortCampsites([s('未知', null), s('遠', 9000), s('近', 1200)], 'drive', bySec)
+        expect(out.map(c => c.name)).toEqual(['近', '遠', '未知'])
+    })
+    it('車程相同時比名稱，讓順序穩定不跳動', () => {
+        const out = sortCampsites([s('B', 3000), s('A', 3000)], 'drive', bySec)
+        expect(out.map(c => c.name)).toEqual(['A', 'B'])
+    })
+    it('車程還沒算出來（沒給 driveSeconds）時全部當未知，退回名稱排序而不是報錯', () => {
+        const out = sortCampsites([s('B', 100), s('A', 9000)], 'drive')
+        expect(out.map(c => c.name)).toEqual(['A', 'B'])
     })
 })
 

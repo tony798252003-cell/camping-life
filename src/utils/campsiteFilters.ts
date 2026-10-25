@@ -85,13 +85,63 @@ export function matchesSegment(segment: VisitedSegment, visited: boolean, favori
     return (segment === 'visited') === visited
 }
 
+// ---- 車程（OSRM 估計，未含路況）----
+export interface DriveBand {
+    key: string
+    label: string
+    maxSeconds: number | null // 含上限；null＝沒有上限
+}
+
+// 剛好 60 分鐘算「1 小時內」：使用者說「1 小時內」時會把剛好 1 小時算進去；後面各級同理
+export const DRIVE_BANDS: DriveBand[] = [
+    { key: 'lt1h', label: '1 小時內', maxSeconds: 3600 },
+    { key: '1-2h', label: '1–2 小時', maxSeconds: 7200 },
+    { key: '2-3h', label: '2–3 小時', maxSeconds: 10800 },
+    { key: 'gt3h', label: '3 小時以上', maxSeconds: null },
+]
+
+// 未知車程（沒座標或查詢失敗）回 null，不歸到任何級距
+export function driveBandKey(seconds: number | null | undefined): string | null {
+    if (seconds === null || seconds === undefined) return null
+    return DRIVE_BANDS.find(b => b.maxSeconds === null || seconds <= b.maxSeconds)!.key
+}
+
+// 和海拔一樣：不拘時全部保留；選了級距，未知車程無法證明符合就不顯示
+export function matchesDriveBand(seconds: number | null | undefined, bandKey: string): boolean {
+    if (!bandKey) return true
+    return driveBandKey(seconds) === bandKey
+}
+
+// 6000 秒 → 「約 1h40m」；未滿一小時 → 「約 45m」
+export function formatDriveDuration(seconds: number): string {
+    const totalMin = Math.round(seconds / 60)
+    const h = Math.floor(totalMin / 60)
+    const m = totalMin % 60
+    return h > 0 ? `約 ${h}h${String(m).padStart(2, '0')}m` : `約 ${m}m`
+}
+
 // ---- 排序 ----
-export type CampsiteSort = 'rating' | 'name'
+export type CampsiteSort = 'rating' | 'name' | 'drive'
 
 // 評分高→低；沒評分的排最後（它們是自己新增的，不該蓋過有證據的好營區）；同分評論多的在前，再比名稱讓順序穩定
-export function sortCampsites<T extends GoogleFields & { name: string }>(list: T[], sort: CampsiteSort): T[] {
+// 車程近→遠需要 driveSeconds；未知車程排最後（不知道多遠，不該排在確定很近的前面）
+export function sortCampsites<T extends GoogleFields & { name: string }>(
+    list: T[],
+    sort: CampsiteSort,
+    driveSeconds?: (c: T) => number | null | undefined
+): T[] {
     const byName = (a: T, b: T) => a.name.localeCompare(b.name, 'zh-Hant')
     if (sort === 'name') return [...list].sort(byName)
+    if (sort === 'drive') {
+        return [...list].sort((a, b) => {
+            const da = driveSeconds?.(a) ?? null
+            const db = driveSeconds?.(b) ?? null
+            if (da === null && db === null) return byName(a, b)
+            if (da === null) return 1
+            if (db === null) return -1
+            return da !== db ? da - db : byName(a, b)
+        })
+    }
     return [...list].sort((a, b) => {
         const ra = a.google_rating ?? null
         const rb = b.google_rating ?? null
