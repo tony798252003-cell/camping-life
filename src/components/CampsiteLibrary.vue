@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight, Star } from 'lucide-vue-next'
 import { campsiteQueries } from '../services/db/campsites'
@@ -7,10 +7,13 @@ import { campsiteFavoriteQueries } from '../services/db/campsiteFavorites'
 import { toCampsites } from '../utils/dbRows'
 import {
   ALTITUDE_BANDS,
+  DRIVE_BANDS,
   FEATURE_CHIPS,
   altitudeBandKey,
   isHiddenByGoogle,
   matchesAltitude,
+  matchesDriveBand,
+  formatDriveDuration,
   matchesSegment,
   isVisitedTrip,
   sortCampsites,
@@ -24,12 +27,13 @@ import {
 import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { todayYmd } from '../utils/dateRange'
 import { useUserProfile } from '../composables/useUserProfile'
+import { DEFAULT_ORIGIN, fetchDriveDurations } from '../composables/useTravelTime'
 import { useNotification } from '../composables/useNotification'
 import type { Campsite } from '../types/database'
 import CampsiteEditModal from './CampsiteEditModal.vue'
 import CampsiteFilterSheet, { type CampsiteFilters } from './CampsiteFilterSheet.vue'
 
-const { isAdmin, familyId } = useUserProfile()
+const { isAdmin, familyId, userOrigin } = useUserProfile()
 const { error: notifyError } = useNotification()
 
 const route = useRoute()
@@ -42,6 +46,8 @@ const sortBy = ref<CampsiteSort>('rating')
 const monthOptions = upcomingMonths(todayYmd())
 const bookMonth = ref('') // 要去的月份 YYYY-MM；空字串＝不拘
 const showNoBookData = ref(false)
+const driveBand = ref('') // 車程級距 key；空字串＝不拘
+const driveSeconds = ref<Record<number, number>>({}) // campsiteId → 秒；沒有＝未知（還在算、沒座標或查不到）
 const googleOnly = ref(true) // 「Google 4.0★+」快捷標籤，預設開
 const activeFeatureKeys = ref<string[]>([])
 const loading = ref(false)
@@ -184,6 +190,25 @@ const fetchCampsites = async () => {
   }
 }
 
+// 起點：家裡座標，沒設定就用預設起點
+const driveOrigin = computed(() => {
+  const o = userOrigin()
+  return { lat: o?.latitude || DEFAULT_ORIGIN.lat, lng: o?.longitude || DEFAULT_ORIGIN.lng }
+})
+
+// 背景算車程，不擋列表；起點或營區清單變了就重算（快取命中的不會再打 API）
+let driveRun = 0
+watch([driveOrigin, campsites], async ([origin, list]) => {
+  const run = ++driveRun
+  const dests = list
+    .filter(c => c.latitude && c.longitude)
+    .map(c => ({ id: c.id, lat: c.latitude!, lng: c.longitude! }))
+  if (!dests.length) return
+  await fetchDriveDurations(origin.lat, origin.lng, dests, known => {
+    if (run === driveRun) driveSeconds.value = known
+  })
+})
+
 const matchesBeforeGoogle = computed(() => {
   let result = campsites.value
 
@@ -217,6 +242,8 @@ const matchesBeforeGoogle = computed(() => {
 
   result = result.filter(c => matchesAltitude(c.altitude, f.altitudeMin, f.altitudeMax))
 
+  if (driveBand.value) result = result.filter(c => matchesDriveBand(driveSeconds.value[c.id], driveBand.value))
+
   if (f.capacityMin !== null)
     result = result.filter(c => (c.total_capacity ?? 0) >= f.capacityMin!)
 
@@ -244,7 +271,7 @@ const noBookDataCount = computed(() => monthSplit.value?.noData.length ?? 0)
 const filteredCampsites = computed(() => {
   const split = monthSplit.value
   const list = !split ? googleVisible.value : showNoBookData.value ? [...split.matched, ...split.noData] : split.matched
-  return sortCampsites(list, sortBy.value)
+  return sortCampsites(list, sortBy.value, c => driveSeconds.value[c.id])
 })
 
 onMounted(() => {
@@ -304,7 +331,7 @@ onMounted(() => {
         >{{ seg.label }} {{ segmentCounts[seg.key] }}</button>
       </div>
 
-      <!-- 縣市 / 海拔 / 排序 -->
+      <!-- 縣市 / 海拔 / 車程 / 排序 -->
       <div class="mb-2 grid grid-cols-2 gap-2 text-left">
         <label class="bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
           <span class="flex-shrink-0">縣市</span>
@@ -331,6 +358,17 @@ onMounted(() => {
           </select>
         </label>
         <label class="col-span-2 bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
+          <span class="flex-shrink-0">車程</span>
+          <select
+            v-model="driveBand"
+            class="min-w-0 bg-transparent text-sky-600 font-bold text-right outline-none"
+            aria-label="車程"
+          >
+            <option value="">不拘</option>
+            <option v-for="b in DRIVE_BANDS" :key="b.key" :value="b.key">{{ b.label }}</option>
+          </select>
+        </label>
+        <label class="col-span-2 bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
           <span class="flex-shrink-0">要去的月份</span>
           <select
             v-model="bookMonth"
@@ -351,6 +389,7 @@ onMounted(() => {
           >
             <option value="rating">Google 評分高→低</option>
             <option value="name">名稱</option>
+            <option value="drive">車程近→遠</option>
           </select>
         </label>
       </div>
@@ -414,6 +453,7 @@ onMounted(() => {
               <span v-if="site.scenery_features?.length" class="text-[10px] text-green-600">{{ site.scenery_features[0] }}</span>
               <span v-if="site.water_features?.length" class="text-[10px]">💧</span>
               <span v-if="site.playground_features?.length" class="text-[10px]">🎠</span>
+              <span v-if="driveSeconds[site.id] !== undefined" class="text-[10px] text-gray-400 whitespace-nowrap">{{ formatDriveDuration(driveSeconds[site.id]!) }}</span>
               <span v-if="site.bookable_until" class="text-[10px] text-gray-400 whitespace-nowrap">可訂到 {{ formatYmdSlash(site.bookable_until) }}</span>
             </div>
           </div>
