@@ -313,6 +313,9 @@ export type Database = {
           address: string | null
           altitude: number | null
           amenities: Json | null
+          bookable_checked_at: string | null
+          bookable_source: string | null
+          bookable_until: string | null
           booking_available_until: string | null
           booking_difficulty: string | null
           booking_last_available_date: string | null
@@ -348,6 +351,8 @@ export type Database = {
           phone: string | null
           playground_features: string[] | null
           recommended_spots: string | null
+          saturday_full_ratio: number | null
+          saturday_sample: number | null
           scenery_features: string[] | null
           shower_restrictions: string | null
           spot_types: string[] | null
@@ -360,6 +365,9 @@ export type Database = {
           address?: string | null
           altitude?: number | null
           amenities?: Json | null
+          bookable_checked_at?: string | null
+          bookable_source?: string | null
+          bookable_until?: string | null
           booking_available_until?: string | null
           booking_difficulty?: string | null
           booking_last_available_date?: string | null
@@ -395,6 +403,8 @@ export type Database = {
           phone?: string | null
           playground_features?: string[] | null
           recommended_spots?: string | null
+          saturday_full_ratio?: number | null
+          saturday_sample?: number | null
           scenery_features?: string[] | null
           shower_restrictions?: string | null
           spot_types?: string[] | null
@@ -407,6 +417,9 @@ export type Database = {
           address?: string | null
           altitude?: number | null
           amenities?: Json | null
+          bookable_checked_at?: string | null
+          bookable_source?: string | null
+          bookable_until?: string | null
           booking_available_until?: string | null
           booking_difficulty?: string | null
           booking_last_available_date?: string | null
@@ -442,6 +455,8 @@ export type Database = {
           phone?: string | null
           playground_features?: string[] | null
           recommended_spots?: string | null
+          saturday_full_ratio?: number | null
+          saturday_sample?: number | null
           scenery_features?: string[] | null
           shower_restrictions?: string | null
           spot_types?: string[] | null
