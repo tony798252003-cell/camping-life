@@ -16,6 +16,10 @@ import {
     driveBandKey,
     matchesDriveBand,
     formatDriveDuration,
+    featuresInSeason,
+    seasonalFeatures,
+    seasonalFirst,
+    isWinterCold,
 } from './campsiteFilters'
 
 const band = (key: string) => ALTITUDE_BANDS.find(b => b.key === key)!
@@ -247,5 +251,53 @@ describe('要去的月份', () => {
     })
     it('日期顯示不補零', () => {
         expect(formatYmdSlash('2027-04-04')).toBe('2027/4/4')
+    })
+})
+
+describe('季節推薦', () => {
+    const site = (name: string, ...scenery: string[]) => ({ name, scenery_features: scenery })
+    it('落羽松 11–1 月跨年：1 月還是當季，2 月就不是（不能用 start <= m <= end 判斷）', () => {
+        const c = site('a', '落羽松')
+        expect(seasonalFeatures(c, 11)).toEqual(['落羽松'])
+        expect(seasonalFeatures(c, 1)).toEqual(['落羽松'])
+        expect(seasonalFeatures(c, 2)).toEqual([])
+        expect(seasonalFeatures(c, 10)).toEqual([])
+    })
+    it('雲海 10–2 月跨年：12 月、2 月當季，3 月不是', () => {
+        const c = site('a', '雲海')
+        expect(seasonalFeatures(c, 12)).toEqual(['雲海'])
+        expect(seasonalFeatures(c, 2)).toEqual(['雲海'])
+        expect(seasonalFeatures(c, 3)).toEqual([])
+    })
+    it('營區沒有的景觀不算當季，即使那個月正是花季（不能推薦沒櫻花的營區去賞櫻）', () => {
+        expect(seasonalFeatures(site('a', '森林', '夜景'), 2)).toEqual([])
+        expect(seasonalFeatures({ scenery_features: null }, 2)).toEqual([])
+    })
+    it('只回傳當季的，順序跟提示列一致（依季節表），不是營區資料的順序', () => {
+        expect(seasonalFeatures(site('a', '雲海', '螢火蟲', '楓葉', '落羽松'), 11)).toEqual(['落羽松', '楓葉', '雲海'])
+        expect(featuresInSeason(11)).toEqual(['落羽松', '楓葉', '雲海'])
+        expect(featuresInSeason(4)).toEqual(['螢火蟲', '桐花'])
+        expect(featuresInSeason(7)).toEqual([])
+    })
+    it('有當季景觀的排前面，但兩組內保持原本排序（不打亂使用者選的評分／車程排序）', () => {
+        const list = [site('甲'), site('乙', '楓葉'), site('丙'), site('丁', '雲海')]
+        expect(seasonalFirst(list, 11).map(c => c.name)).toEqual(['乙', '丁', '甲', '丙'])
+        expect(seasonalFirst(list, 7).map(c => c.name)).toEqual(['甲', '乙', '丙', '丁'])
+        expect(seasonalFirst(list, 11)).not.toBe(list)
+    })
+})
+
+describe('冬季低溫提示', () => {
+    it('12、1、2 月且海拔剛好 1500m 就提醒（含邊界），1499m 不提醒', () => {
+        for (const m of [12, 1, 2]) expect(isWinterCold(1500, m)).toBe(true)
+        expect(isWinterCold(1499, 12)).toBe(false)
+    })
+    it('3 月、11 月不算冬季，高海拔也不提醒', () => {
+        expect(isWinterCold(2000, 3)).toBe(false)
+        expect(isWinterCold(2000, 11)).toBe(false)
+    })
+    it('沒有海拔資料不提醒（不知道多高，不能說會冷）', () => {
+        expect(isWinterCold(null, 1)).toBe(false)
+        expect(isWinterCold(undefined, 1)).toBe(false)
     })
 })

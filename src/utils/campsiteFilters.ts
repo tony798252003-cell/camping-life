@@ -196,3 +196,39 @@ export function formatYmdSlash(ymd: string): string {
     const [y, m, d] = ymd.split('-').map(Number)
     return `${y}/${m}/${d}`
 }
+
+// ---- 季節推薦（跟著「要去的月份」）----
+// 台灣大致的觀賞月份；跨年的（落羽松 11–1、雲海 10–2）直接把月份列出來，不必處理 start > end
+export const SEASONAL: { feature: string; months: number[] }[] = [
+    { feature: '櫻花', months: [1, 2, 3] },
+    { feature: '落羽松', months: [11, 12, 1] },
+    { feature: '楓葉', months: [11, 12] },
+    { feature: '雲海', months: [10, 11, 12, 1, 2] },
+    { feature: '螢火蟲', months: [4, 5] },
+    { feature: '桐花', months: [4, 5] },
+]
+
+// month 1–12；依 SEASONAL 的順序回傳，提示列和卡片徽章的順序才一致
+export function featuresInSeason(month: number): string[] {
+    return SEASONAL.filter(s => s.months.includes(month)).map(s => s.feature)
+}
+
+// 營區自己有、而且該月正當季的景觀；沒有的景觀不算（不能因為是櫻花季就推薦沒櫻花的營區）
+export function seasonalFeatures(c: Pick<Campsite, 'scenery_features'>, month: number): string[] {
+    return featuresInSeason(month).filter(f => c.scenery_features?.includes(f))
+}
+
+// 有當季景觀的排前面；兩組內維持原本排序（評分／名稱／車程），只是往前提，不打亂使用者選的排序
+export function seasonalFirst<T extends Pick<Campsite, 'scenery_features'>>(list: T[], month: number): T[] {
+    const inSeason: T[] = []
+    const rest: T[] = []
+    for (const c of list) (seasonalFeatures(c, month).length ? inSeason : rest).push(c)
+    return [...inSeason, ...rest]
+}
+
+// 12–2 月去海拔 1500m（含）以上，夜間常接近或低於 0°C，提醒要準備保暖
+export const WINTER_MONTHS = [12, 1, 2]
+export const WINTER_COLD_MIN_ALTITUDE = 1500
+export function isWinterCold(altitude: number | null | undefined, month: number): boolean {
+    return WINTER_MONTHS.includes(month) && altitude !== null && altitude !== undefined && altitude >= WINTER_COLD_MIN_ALTITUDE
+}
