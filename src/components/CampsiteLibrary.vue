@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight } from 'lucide-vue-next'
+import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight, Star } from 'lucide-vue-next'
 import { campsiteQueries } from '../services/db/campsites'
+import { campsiteFavoriteQueries } from '../services/db/campsiteFavorites'
 import { toCampsites } from '../utils/dbRows'
 import {
   ALTITUDE_BANDS,
@@ -23,16 +24,19 @@ import {
 import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { todayYmd } from '../utils/dateRange'
 import { useUserProfile } from '../composables/useUserProfile'
+import { useNotification } from '../composables/useNotification'
 import type { Campsite } from '../types/database'
 import CampsiteEditModal from './CampsiteEditModal.vue'
 import CampsiteFilterSheet, { type CampsiteFilters } from './CampsiteFilterSheet.vue'
 
-const { isAdmin } = useUserProfile()
+const { isAdmin, familyId } = useUserProfile()
+const { error: notifyError } = useNotification()
 
 const route = useRoute()
 const router = useRouter()
 const campsites = ref<Campsite[]>([])
 const visitedIds = ref<Set<number>>(new Set()) // completed or booked campsite_ids
+const favoriteIds = ref<Set<number>>(new Set()) // 全家共用的最愛
 const segment = ref<VisitedSegment>('unvisited')
 const sortBy = ref<CampsiteSort>('rating')
 const monthOptions = upcomingMonths(todayYmd())
@@ -80,12 +84,39 @@ const SEGMENTS: { key: VisitedSegment; label: string }[] = [
   { key: 'all', label: '全部' },
   { key: 'visited', label: '去過' },
   { key: 'unvisited', label: '沒去過' },
+  { key: 'favorite', label: '★ 最愛' },
 ]
 
 const segmentCounts = computed(() => {
   const visited = campsites.value.filter(c => visitedIds.value.has(c.id)).length
-  return { all: campsites.value.length, visited, unvisited: campsites.value.length - visited }
+  const favorite = campsites.value.filter(c => favoriteIds.value.has(c.id)).length
+  return { all: campsites.value.length, visited, unvisited: campsites.value.length - visited, favorite }
 })
+
+// 樂觀切換：先改畫面，失敗再還原（連點時只有目前仍是這次的樂觀值才還原）
+async function toggleFavorite(id: number) {
+  const fid = familyId()
+  if (!fid) {
+    notifyError('加入家庭後才能使用最愛')
+    return
+  }
+  const next = !favoriteIds.value.has(id)
+  const setFav = (on: boolean) => {
+    const s = new Set(favoriteIds.value)
+    if (on) s.add(id)
+    else s.delete(id)
+    favoriteIds.value = s
+  }
+  setFav(next)
+  try {
+    if (next) await campsiteFavoriteQueries.add(fid, id)
+    else await campsiteFavoriteQueries.remove(fid, id)
+  } catch (e) {
+    console.error('[CampsiteLibrary] toggleFavorite error:', e)
+    if (favoriteIds.value.has(id) === next) setFav(!next)
+    notifyError('更新失敗，請檢查網路')
+  }
+}
 
 const altitudeBand = computed(() => altitudeBandKey(filters.value.altitudeMin, filters.value.altitudeMax))
 
@@ -117,6 +148,11 @@ const fetchCampsites = async () => {
   loading.value = true
   try {
     campsites.value = toCampsites(await campsiteQueries.listActive())
+
+    // 最愛失敗不影響營區列表
+    campsiteFavoriteQueries.listIds()
+      .then(ids => { favoriteIds.value = new Set(ids) })
+      .catch(e => console.error('Error fetching campsite favorites:', e))
 
     // Fetch visited/booked ids
     const tripData = await campsiteQueries.listTripVisitRefs()
@@ -187,17 +223,17 @@ const matchesBeforeGoogle = computed(() => {
   const chips = FEATURE_CHIPS.filter(c => activeFeatureKeys.value.includes(c.key))
   if (chips.length) result = result.filter(c => chips.every(chip => chip.test(c)))
 
-  return result.filter(c => matchesSegment(segment.value, visitedIds.value.has(c.id)))
+  return result.filter(c => matchesSegment(segment.value, visitedIds.value.has(c.id), favoriteIds.value.has(c.id)))
 })
 
-// Google 低分／歇業隱藏（去過的不隱藏）；hiddenCount 讓使用者知道有東西被藏起來
+// Google 低分／歇業隱藏（去過、最愛的不隱藏）；hiddenCount 讓使用者知道有東西被藏起來
 const hiddenByGoogleCount = computed(() =>
-  googleOnly.value ? matchesBeforeGoogle.value.filter(c => isHiddenByGoogle(c, visitedIds.value.has(c.id))).length : 0
+  googleOnly.value ? matchesBeforeGoogle.value.filter(c => isHiddenByGoogle(c, visitedIds.value.has(c.id), favoriteIds.value.has(c.id))).length : 0
 )
 
 const googleVisible = computed(() =>
   googleOnly.value
-    ? matchesBeforeGoogle.value.filter(c => !isHiddenByGoogle(c, visitedIds.value.has(c.id)))
+    ? matchesBeforeGoogle.value.filter(c => !isHiddenByGoogle(c, visitedIds.value.has(c.id), favoriteIds.value.has(c.id)))
     : matchesBeforeGoogle.value
 )
 
@@ -394,6 +430,15 @@ onMounted(() => {
               v-else-if="isAdmin()"
               class="text-[10px] text-gray-300 font-medium"
             >?帳</span>
+            <button
+              type="button"
+              @click.stop="toggleFavorite(site.id)"
+              :aria-pressed="favoriteIds.has(site.id)"
+              :aria-label="favoriteIds.has(site.id) ? '取消最愛' : '加入最愛'"
+              class="-my-2 w-11 h-11 flex items-center justify-center rounded-full active:scale-90 transition-transform"
+            >
+              <Star class="w-5 h-5" :class="favoriteIds.has(site.id) ? 'text-amber-400 fill-amber-400' : 'text-gray-300'" />
+            </button>
             <ChevronRight class="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
           </div>
        </div>
@@ -416,8 +461,10 @@ onMounted(() => {
       :is-open="isEditModalOpen"
       :campsite="editingCampsite"
       :is-editable="isAdmin()"
+      :is-favorite="favoriteIds.has(editingCampsite.id)"
       @close="isEditModalOpen = false"
       @saved="handleEditSaved"
+      @toggle-favorite="toggleFavorite(editingCampsite.id)"
     />
 
     <CampsiteFilterSheet
