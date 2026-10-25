@@ -24,10 +24,10 @@ export const campsiteQueries = {
   },
 
   // 營區庫「去過／已訂」標記用；失敗回 null（不影響營區列表）
-  async listTripVisitRefs(): Promise<Pick<Tables<'camping_trips'>, 'campsite_id' | 'campsite_name' | 'status'>[] | null> {
+  async listTripVisitRefs(): Promise<Pick<Tables<'camping_trips'>, 'campsite_id' | 'campsite_name' | 'status' | 'trip_date'>[] | null> {
     const { data, error } = await supabase
       .from('camping_trips')
-      .select('campsite_id, campsite_name, status')
+      .select('campsite_id, campsite_name, status, trip_date')
       .is('merged_into_id', null)
     return error ? null : data
   },

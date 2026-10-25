@@ -69,6 +69,13 @@ export const FEATURE_CHIPS: FeatureChip[] = [
 ]
 
 // ---- 去過 / 沒去過 ----
+// 行程 status 幾乎都停在 planning（沒人回頭改），所以跟首頁／統計一樣以日期判斷：日期已過且沒取消就算去過
+export function isVisitedTrip(t: { status: string | null; trip_date: string | null }, today: string): boolean {
+    if (t.status === 'cancelled') return false
+    if (t.status === 'completed' || t.status === 'booked') return true
+    return !!t.trip_date && t.trip_date < today
+}
+
 export type VisitedSegment = 'all' | 'visited' | 'unvisited'
 
 export function matchesSegment(segment: VisitedSegment, visited: boolean): boolean {
@@ -93,4 +100,43 @@ export function sortCampsites<T extends GoogleFields & { name: string }>(list: T
         const cb = b.google_rating_count ?? 0
         return cb !== ca ? cb - ca : byName(a, b)
     })
+}
+
+// ---- 要去的月份（依「目前可訂到」）----
+export interface MonthOption {
+    key: string // YYYY-MM
+    label: string // 2026年11月
+}
+
+// 從今天所在的月份起連續 count 個月；today 用 todayYmd()（台北），不依賴系統時區
+export function upcomingMonths(today: string, count = 12): MonthOption[] {
+    const [y, m] = today.split('-').map(Number) as [number, number]
+    return Array.from({ length: count }, (_, i) => {
+        const idx = y * 12 + (m - 1) + i
+        const year = Math.floor(idx / 12)
+        const month = (idx % 12) + 1
+        return { key: `${year}-${String(month).padStart(2, '0')}`, label: `${year}年${month}月` }
+    })
+}
+
+// 該月 1 號已經開放訂位 → 至少有一部分月份可訂；YYYY-MM-DD 字串可直接比大小
+export function isBookableInMonth(bookableUntil: string | null | undefined, monthKey: string): boolean {
+    return !!bookableUntil && bookableUntil >= `${monthKey}-01`
+}
+
+// 沒有 bookable_until 的無法判斷，獨立成 noData 讓 UI 決定要不要顯示
+export function splitByBookableMonth<T extends { bookable_until?: string | null }>(list: T[], monthKey: string): { matched: T[]; noData: T[] } {
+    const matched: T[] = []
+    const noData: T[] = []
+    for (const c of list) {
+        if (!c.bookable_until) noData.push(c)
+        else if (isBookableInMonth(c.bookable_until, monthKey)) matched.push(c)
+    }
+    return { matched, noData }
+}
+
+// 2027-04-24 → 2027/4/24
+export function formatYmdSlash(ymd: string): string {
+    const [y, m, d] = ymd.split('-').map(Number)
+    return `${y}/${m}/${d}`
 }

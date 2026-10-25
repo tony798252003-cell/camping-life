@@ -15,6 +15,7 @@ import CampsiteRules from './campsite/CampsiteRules.vue'
 import CampsiteCapacityZones from './campsite/CampsiteCapacityZones.vue'
 import CampsiteLayoutImage from './campsite/CampsiteLayoutImage.vue'
 import CampsiteBookingInfo from './campsite/CampsiteBookingInfo.vue'
+import CampsiteBookingStatus from './campsite/CampsiteBookingStatus.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -172,6 +173,8 @@ const save = async () => {
             </div>
             <p v-if="isEditable" class="text-[11px] text-amber-800">按「確認」後記得按下方「儲存變更」；直接修改欄位也會視為已確認。</p>
          </div>
+
+         <CampsiteBookingStatus :form="form" />
 
          <CampsiteBasicFields v-model:tags-string="tagsString" :form="form" :is-editable="isEditable" />
 

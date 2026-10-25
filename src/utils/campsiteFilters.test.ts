@@ -6,7 +6,12 @@ import {
     isHiddenByGoogle,
     matchesAltitude,
     matchesSegment,
+    isVisitedTrip,
     sortCampsites,
+    upcomingMonths,
+    isBookableInMonth,
+    splitByBookableMonth,
+    formatYmdSlash,
 } from './campsiteFilters'
 
 const band = (key: string) => ALTITUDE_BANDS.find(b => b.key === key)!
@@ -102,6 +107,15 @@ describe('去過／沒去過分段', () => {
         expect(matchesSegment('unvisited', false)).toBe(true)
         expect(matchesSegment('unvisited', true)).toBe(false)
     })
+
+    it('行程 status 停在 planning 時，日期已過就算去過（否則「去過」永遠是 0）', () => {
+        const today = '2026-10-25'
+        expect(isVisitedTrip({ status: 'planning', trip_date: '2026-10-24' }, today)).toBe(true)
+        expect(isVisitedTrip({ status: 'planning', trip_date: '2026-10-25' }, today)).toBe(false)
+        expect(isVisitedTrip({ status: 'planning', trip_date: null }, today)).toBe(false)
+        expect(isVisitedTrip({ status: 'booked', trip_date: '2027-01-01' }, today)).toBe(true)
+        expect(isVisitedTrip({ status: 'cancelled', trip_date: '2024-01-01' }, today)).toBe(false)
+    })
 })
 
 describe('排序', () => {
@@ -120,5 +134,37 @@ describe('排序', () => {
         expect(out.map(c => c.name)).toEqual(['A', 'B'])
         expect(src[0]!.name).toBe('B')
         expect(out).not.toBe(src)
+    })
+})
+
+describe('要去的月份', () => {
+    it('從今天所在月份起 12 個月，跨年時年份要進位', () => {
+        const m = upcomingMonths('2026-10-25')
+        expect(m).toHaveLength(12)
+        expect(m[0]).toEqual({ key: '2026-10', label: '2026年10月' })
+        expect(m[3]).toEqual({ key: '2027-01', label: '2027年1月' })
+        expect(m[11]!.key).toBe('2027-09')
+    })
+    it('可訂到上個月最後一天：該月完全還沒開放，要隱藏', () => {
+        expect(isBookableInMonth('2026-11-30', '2026-12')).toBe(false)
+    })
+    it('可訂到該月 1 號：至少第一天可訂，要顯示', () => {
+        expect(isBookableInMonth('2026-12-01', '2026-12')).toBe(true)
+        expect(isBookableInMonth('2027-04-24', '2026-12')).toBe(true)
+    })
+    it('沒有 bookable_until 不能證明可訂，但也不是「不可訂」，所以分到 noData', () => {
+        expect(isBookableInMonth(null, '2026-12')).toBe(false)
+        const list = [
+            { n: 'a', bookable_until: '2026-11-30' },
+            { n: 'b', bookable_until: '2026-12-01' },
+            { n: 'c', bookable_until: null },
+            { n: 'd' },
+        ]
+        const { matched, noData } = splitByBookableMonth(list, '2026-12')
+        expect(matched.map(c => c.n)).toEqual(['b'])
+        expect(noData.map(c => c.n)).toEqual(['c', 'd'])
+    })
+    it('日期顯示不補零', () => {
+        expect(formatYmdSlash('2027-04-04')).toBe('2027/4/4')
     })
 })
