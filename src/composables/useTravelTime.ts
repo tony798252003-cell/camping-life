@@ -322,6 +322,81 @@ export const estimateTripDuration = async (
     }
 }
 
+// === 營區庫：起點到多個營區的車程（OSRM table，一次多筆）===
+// 只看 OSRM 的純車程，不套路況權重（UI 標「約」表示是估計值）
+// 快取以起點（約百公尺精度）分 key：{ [campsiteId]: 秒 }；營區座標改了不會自動失效
+const DRIVE_TABLE_CACHE_PREFIX = 'camping_drive_table_'
+const DRIVE_TABLE_CHUNK = 100
+
+export interface DriveDestination {
+    id: number
+    lat: number
+    lng: number
+}
+
+const loadDriveTableCache = (key: string): Record<number, number> => {
+    try {
+        const stored = localStorage.getItem(key)
+        return stored ? JSON.parse(stored) : {}
+    } catch (e) {
+        return {}
+    }
+}
+
+// 回傳已知的車程；每完成一批就呼叫 onChunk，讓畫面邊算邊更新。失敗的營區只是沒有資料（未知）
+export const fetchDriveDurations = async (
+    originLat: number,
+    originLng: number,
+    dests: DriveDestination[],
+    onChunk?: (known: Record<number, number>) => void
+): Promise<Record<number, number>> => {
+    const cacheKey = `${DRIVE_TABLE_CACHE_PREFIX}${originLat.toFixed(3)},${originLng.toFixed(3)}`
+    const known = loadDriveTableCache(cacheKey)
+    onChunk?.({ ...known })
+
+    const missing = dests.filter(d => known[d.id] === undefined)
+    for (let i = 0; i < missing.length; i += DRIVE_TABLE_CHUNK) {
+        if (isRateLimited) break
+        const chunk = missing.slice(i, i + DRIVE_TABLE_CHUNK)
+        const coords = [`${originLng},${originLat}`, ...chunk.map(d => `${d.lng},${d.lat}`)].join(';')
+        const url = `https://router.project-osrm.org/table/v1/driving/${coords}?sources=0&annotations=duration`
+
+        try {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 10000)
+            const response = await fetch(url, { signal: controller.signal })
+            clearTimeout(timeoutId)
+
+            if (response.status === 429) {
+                isRateLimited = true
+                setTimeout(() => { isRateLimited = false }, RATE_LIMIT_COOLDOWN)
+                break
+            }
+            if (!response.ok) throw new Error(`OSRM table error: ${response.status}`)
+
+            const data = await response.json()
+            const row: (number | null)[] | undefined = data.durations?.[0]
+            if (data.code !== 'Ok' || !row) throw new Error(`OSRM table: ${data.code}`)
+
+            // row[0] 是起點自己，第 k 個目的地在 row[k + 1]；null 代表路線不通
+            chunk.forEach((d, k) => {
+                const sec = row[k + 1]
+                if (typeof sec === 'number') known[d.id] = Math.round(sec)
+            })
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify(known))
+            } catch (e) { }
+            onChunk?.({ ...known })
+        } catch (err) {
+            console.warn('OSRM table request failed', err)
+        }
+
+        if (i + DRIVE_TABLE_CHUNK < missing.length) await new Promise(r => setTimeout(r, RATE_LIMIT_DELAY))
+    }
+
+    return known
+}
+
 export function useTravelTime() {
     const travelTime = ref<string | null>(null)
     const loading = ref(false)

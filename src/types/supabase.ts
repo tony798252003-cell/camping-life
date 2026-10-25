@@ -308,6 +308,42 @@ export type Database = {
           },
         ]
       }
+      campsite_favorites: {
+        Row: {
+          campsite_id: number
+          created_at: string
+          created_by: string | null
+          family_id: string
+        }
+        Insert: {
+          campsite_id: number
+          created_at?: string
+          created_by?: string | null
+          family_id: string
+        }
+        Update: {
+          campsite_id?: number
+          created_at?: string
+          created_by?: string | null
+          family_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campsite_favorites_campsite_id_fkey"
+            columns: ["campsite_id"]
+            isOneToOne: false
+            referencedRelation: "campsites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campsite_favorites_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campsites: {
         Row: {
           address: string | null

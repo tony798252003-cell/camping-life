@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { X, Loader2, Navigation, Phone } from 'lucide-vue-next'
+import { X, Loader2, Navigation, Phone, Star } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { campsiteQueries } from '../services/db/campsites'
 import type { TablesInsert, TablesUpdate } from '../types/supabase'
@@ -21,9 +21,10 @@ const props = defineProps<{
   isOpen: boolean
   campsite: Campsite
   isEditable?: boolean
+  isFavorite?: boolean
 }>()
 
-const emit = defineEmits(['close', 'saved'])
+const emit = defineEmits(['close', 'saved', 'toggle-favorite'])
 
 const {
   form, tagsString, nightRushStart, nightRushEnd, showerStart, showerEnd, isShower24H,
@@ -139,9 +140,21 @@ const save = async () => {
       <!-- Header -->
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
         <h3 class="font-bold text-gray-800">{{ isEditable ? '編輯營地資料' : '營地詳細資訊' }}</h3>
-        <button @click="cancel" class="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-white transition">
-           <X class="w-5 h-5" />
-        </button>
+        <div class="flex items-center">
+          <button
+            v-if="campsite.id"
+            type="button"
+            @click="emit('toggle-favorite')"
+            :aria-pressed="isFavorite"
+            :aria-label="isFavorite ? '取消最愛' : '加入最愛'"
+            class="w-11 h-11 flex items-center justify-center rounded-full hover:bg-white active:scale-90 transition"
+          >
+            <Star class="w-5 h-5" :class="isFavorite ? 'text-amber-400 fill-amber-400' : 'text-gray-400'" />
+          </button>
+          <button @click="cancel" class="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-white transition">
+             <X class="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
 

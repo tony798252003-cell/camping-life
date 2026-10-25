@@ -1,15 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight } from 'lucide-vue-next'
+import { Search, MapPin, Plus, SlidersHorizontal, ChevronRight, Star } from 'lucide-vue-next'
 import { campsiteQueries } from '../services/db/campsites'
+import { campsiteFavoriteQueries } from '../services/db/campsiteFavorites'
 import { toCampsites } from '../utils/dbRows'
 import {
   ALTITUDE_BANDS,
+  DRIVE_BANDS,
   FEATURE_CHIPS,
   altitudeBandKey,
   isHiddenByGoogle,
   matchesAltitude,
+  matchesDriveBand,
+  formatDriveDuration,
   matchesSegment,
   isVisitedTrip,
   sortCampsites,
@@ -23,21 +27,27 @@ import {
 import { TAIWAN_LOCATIONS } from '../constants/locations'
 import { todayYmd } from '../utils/dateRange'
 import { useUserProfile } from '../composables/useUserProfile'
+import { DEFAULT_ORIGIN, fetchDriveDurations } from '../composables/useTravelTime'
+import { useNotification } from '../composables/useNotification'
 import type { Campsite } from '../types/database'
 import CampsiteEditModal from './CampsiteEditModal.vue'
 import CampsiteFilterSheet, { type CampsiteFilters } from './CampsiteFilterSheet.vue'
 
-const { isAdmin } = useUserProfile()
+const { isAdmin, familyId, userOrigin } = useUserProfile()
+const { error: notifyError } = useNotification()
 
 const route = useRoute()
 const router = useRouter()
 const campsites = ref<Campsite[]>([])
 const visitedIds = ref<Set<number>>(new Set()) // completed or booked campsite_ids
+const favoriteIds = ref<Set<number>>(new Set()) // 全家共用的最愛
 const segment = ref<VisitedSegment>('unvisited')
 const sortBy = ref<CampsiteSort>('rating')
 const monthOptions = upcomingMonths(todayYmd())
 const bookMonth = ref('') // 要去的月份 YYYY-MM；空字串＝不拘
 const showNoBookData = ref(false)
+const driveBand = ref('') // 車程級距 key；空字串＝不拘
+const driveSeconds = ref<Record<number, number>>({}) // campsiteId → 秒；沒有＝未知（還在算、沒座標或查不到）
 const googleOnly = ref(true) // 「Google 4.0★+」快捷標籤，預設開
 const activeFeatureKeys = ref<string[]>([])
 const loading = ref(false)
@@ -80,12 +90,39 @@ const SEGMENTS: { key: VisitedSegment; label: string }[] = [
   { key: 'all', label: '全部' },
   { key: 'visited', label: '去過' },
   { key: 'unvisited', label: '沒去過' },
+  { key: 'favorite', label: '★ 最愛' },
 ]
 
 const segmentCounts = computed(() => {
   const visited = campsites.value.filter(c => visitedIds.value.has(c.id)).length
-  return { all: campsites.value.length, visited, unvisited: campsites.value.length - visited }
+  const favorite = campsites.value.filter(c => favoriteIds.value.has(c.id)).length
+  return { all: campsites.value.length, visited, unvisited: campsites.value.length - visited, favorite }
 })
+
+// 樂觀切換：先改畫面，失敗再還原（連點時只有目前仍是這次的樂觀值才還原）
+async function toggleFavorite(id: number) {
+  const fid = familyId()
+  if (!fid) {
+    notifyError('加入家庭後才能使用最愛')
+    return
+  }
+  const next = !favoriteIds.value.has(id)
+  const setFav = (on: boolean) => {
+    const s = new Set(favoriteIds.value)
+    if (on) s.add(id)
+    else s.delete(id)
+    favoriteIds.value = s
+  }
+  setFav(next)
+  try {
+    if (next) await campsiteFavoriteQueries.add(fid, id)
+    else await campsiteFavoriteQueries.remove(fid, id)
+  } catch (e) {
+    console.error('[CampsiteLibrary] toggleFavorite error:', e)
+    if (favoriteIds.value.has(id) === next) setFav(!next)
+    notifyError('更新失敗，請檢查網路')
+  }
+}
 
 const altitudeBand = computed(() => altitudeBandKey(filters.value.altitudeMin, filters.value.altitudeMax))
 
@@ -118,6 +155,11 @@ const fetchCampsites = async () => {
   try {
     campsites.value = toCampsites(await campsiteQueries.listActive())
 
+    // 最愛失敗不影響營區列表
+    campsiteFavoriteQueries.listIds()
+      .then(ids => { favoriteIds.value = new Set(ids) })
+      .catch(e => console.error('Error fetching campsite favorites:', e))
+
     // Fetch visited/booked ids
     const tripData = await campsiteQueries.listTripVisitRefs()
 
@@ -147,6 +189,25 @@ const fetchCampsites = async () => {
     loading.value = false
   }
 }
+
+// 起點：家裡座標，沒設定就用預設起點
+const driveOrigin = computed(() => {
+  const o = userOrigin()
+  return { lat: o?.latitude || DEFAULT_ORIGIN.lat, lng: o?.longitude || DEFAULT_ORIGIN.lng }
+})
+
+// 背景算車程，不擋列表；起點或營區清單變了就重算（快取命中的不會再打 API）
+let driveRun = 0
+watch([driveOrigin, campsites], async ([origin, list]) => {
+  const run = ++driveRun
+  const dests = list
+    .filter(c => c.latitude && c.longitude)
+    .map(c => ({ id: c.id, lat: c.latitude!, lng: c.longitude! }))
+  if (!dests.length) return
+  await fetchDriveDurations(origin.lat, origin.lng, dests, known => {
+    if (run === driveRun) driveSeconds.value = known
+  })
+})
 
 const matchesBeforeGoogle = computed(() => {
   let result = campsites.value
@@ -181,23 +242,25 @@ const matchesBeforeGoogle = computed(() => {
 
   result = result.filter(c => matchesAltitude(c.altitude, f.altitudeMin, f.altitudeMax))
 
+  if (driveBand.value) result = result.filter(c => matchesDriveBand(driveSeconds.value[c.id], driveBand.value))
+
   if (f.capacityMin !== null)
     result = result.filter(c => (c.total_capacity ?? 0) >= f.capacityMin!)
 
   const chips = FEATURE_CHIPS.filter(c => activeFeatureKeys.value.includes(c.key))
   if (chips.length) result = result.filter(c => chips.every(chip => chip.test(c)))
 
-  return result.filter(c => matchesSegment(segment.value, visitedIds.value.has(c.id)))
+  return result.filter(c => matchesSegment(segment.value, visitedIds.value.has(c.id), favoriteIds.value.has(c.id)))
 })
 
-// Google 低分／歇業隱藏（去過的不隱藏）；hiddenCount 讓使用者知道有東西被藏起來
+// Google 低分／歇業隱藏（去過、最愛的不隱藏）；hiddenCount 讓使用者知道有東西被藏起來
 const hiddenByGoogleCount = computed(() =>
-  googleOnly.value ? matchesBeforeGoogle.value.filter(c => isHiddenByGoogle(c, visitedIds.value.has(c.id))).length : 0
+  googleOnly.value ? matchesBeforeGoogle.value.filter(c => isHiddenByGoogle(c, visitedIds.value.has(c.id), favoriteIds.value.has(c.id))).length : 0
 )
 
 const googleVisible = computed(() =>
   googleOnly.value
-    ? matchesBeforeGoogle.value.filter(c => !isHiddenByGoogle(c, visitedIds.value.has(c.id)))
+    ? matchesBeforeGoogle.value.filter(c => !isHiddenByGoogle(c, visitedIds.value.has(c.id), favoriteIds.value.has(c.id)))
     : matchesBeforeGoogle.value
 )
 
@@ -208,7 +271,7 @@ const noBookDataCount = computed(() => monthSplit.value?.noData.length ?? 0)
 const filteredCampsites = computed(() => {
   const split = monthSplit.value
   const list = !split ? googleVisible.value : showNoBookData.value ? [...split.matched, ...split.noData] : split.matched
-  return sortCampsites(list, sortBy.value)
+  return sortCampsites(list, sortBy.value, c => driveSeconds.value[c.id])
 })
 
 onMounted(() => {
@@ -268,7 +331,7 @@ onMounted(() => {
         >{{ seg.label }} {{ segmentCounts[seg.key] }}</button>
       </div>
 
-      <!-- 縣市 / 海拔 / 排序 -->
+      <!-- 縣市 / 海拔 / 車程 / 排序 -->
       <div class="mb-2 grid grid-cols-2 gap-2 text-left">
         <label class="bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
           <span class="flex-shrink-0">縣市</span>
@@ -295,6 +358,17 @@ onMounted(() => {
           </select>
         </label>
         <label class="col-span-2 bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
+          <span class="flex-shrink-0">車程</span>
+          <select
+            v-model="driveBand"
+            class="min-w-0 bg-transparent text-sky-600 font-bold text-right outline-none"
+            aria-label="車程"
+          >
+            <option value="">不拘</option>
+            <option v-for="b in DRIVE_BANDS" :key="b.key" :value="b.key">{{ b.label }}</option>
+          </select>
+        </label>
+        <label class="col-span-2 bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
           <span class="flex-shrink-0">要去的月份</span>
           <select
             v-model="bookMonth"
@@ -315,6 +389,7 @@ onMounted(() => {
           >
             <option value="rating">Google 評分高→低</option>
             <option value="name">名稱</option>
+            <option value="drive">車程近→遠</option>
           </select>
         </label>
       </div>
@@ -378,6 +453,7 @@ onMounted(() => {
               <span v-if="site.scenery_features?.length" class="text-[10px] text-green-600">{{ site.scenery_features[0] }}</span>
               <span v-if="site.water_features?.length" class="text-[10px]">💧</span>
               <span v-if="site.playground_features?.length" class="text-[10px]">🎠</span>
+              <span v-if="driveSeconds[site.id] !== undefined" class="text-[10px] text-gray-400 whitespace-nowrap">{{ formatDriveDuration(driveSeconds[site.id]!) }}</span>
               <span v-if="site.bookable_until" class="text-[10px] text-gray-400 whitespace-nowrap">可訂到 {{ formatYmdSlash(site.bookable_until) }}</span>
             </div>
           </div>
@@ -394,6 +470,15 @@ onMounted(() => {
               v-else-if="isAdmin()"
               class="text-[10px] text-gray-300 font-medium"
             >?帳</span>
+            <button
+              type="button"
+              @click.stop="toggleFavorite(site.id)"
+              :aria-pressed="favoriteIds.has(site.id)"
+              :aria-label="favoriteIds.has(site.id) ? '取消最愛' : '加入最愛'"
+              class="-my-2 w-11 h-11 flex items-center justify-center rounded-full active:scale-90 transition-transform"
+            >
+              <Star class="w-5 h-5" :class="favoriteIds.has(site.id) ? 'text-amber-400 fill-amber-400' : 'text-gray-300'" />
+            </button>
             <ChevronRight class="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
           </div>
        </div>
@@ -416,8 +501,10 @@ onMounted(() => {
       :is-open="isEditModalOpen"
       :campsite="editingCampsite"
       :is-editable="isAdmin()"
+      :is-favorite="favoriteIds.has(editingCampsite.id)"
       @close="isEditModalOpen = false"
       @saved="handleEditSaved"
+      @toggle-favorite="toggleFavorite(editingCampsite.id)"
     />
 
     <CampsiteFilterSheet
