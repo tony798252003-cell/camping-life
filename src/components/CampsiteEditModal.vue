@@ -15,6 +15,7 @@ import CampsiteRules from './campsite/CampsiteRules.vue'
 import CampsiteCapacityZones from './campsite/CampsiteCapacityZones.vue'
 import CampsiteLayoutImage from './campsite/CampsiteLayoutImage.vue'
 import CampsiteBookingInfo from './campsite/CampsiteBookingInfo.vue'
+import CampsiteBookingStatus from './campsite/CampsiteBookingStatus.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -190,6 +191,8 @@ const save = async () => {
          <CampsiteCapacityZones :form="form" :is-editable="isEditable" />
 
          <CampsiteLayoutImage :form="form" :is-editable="isEditable" />
+
+         <CampsiteBookingStatus :form="form" />
 
          <CampsiteBookingInfo :form="form" :is-editable="isEditable" />
 

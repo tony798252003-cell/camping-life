@@ -12,11 +12,15 @@ import {
   matchesAltitude,
   matchesSegment,
   sortCampsites,
+  upcomingMonths,
+  splitByBookableMonth,
+  formatYmdSlash,
   GOOGLE_MIN_RATING,
   type CampsiteSort,
   type VisitedSegment,
 } from '../utils/campsiteFilters'
 import { TAIWAN_LOCATIONS } from '../constants/locations'
+import { todayYmd } from '../utils/dateRange'
 import { useUserProfile } from '../composables/useUserProfile'
 import type { Campsite } from '../types/database'
 import CampsiteEditModal from './CampsiteEditModal.vue'
@@ -30,6 +34,9 @@ const campsites = ref<Campsite[]>([])
 const visitedIds = ref<Set<number>>(new Set()) // completed or booked campsite_ids
 const segment = ref<VisitedSegment>('unvisited')
 const sortBy = ref<CampsiteSort>('rating')
+const monthOptions = upcomingMonths(todayYmd())
+const bookMonth = ref('') // 要去的月份 YYYY-MM；空字串＝不拘
+const showNoBookData = ref(false)
 const googleOnly = ref(true) // 「Google 4.0★+」快捷標籤，預設開
 const activeFeatureKeys = ref<string[]>([])
 const loading = ref(false)
@@ -186,10 +193,19 @@ const hiddenByGoogleCount = computed(() =>
   googleOnly.value ? matchesBeforeGoogle.value.filter(c => isHiddenByGoogle(c, visitedIds.value.has(c.id))).length : 0
 )
 
-const filteredCampsites = computed(() => {
-  const list = googleOnly.value
+const googleVisible = computed(() =>
+  googleOnly.value
     ? matchesBeforeGoogle.value.filter(c => !isHiddenByGoogle(c, visitedIds.value.has(c.id)))
     : matchesBeforeGoogle.value
+)
+
+// 選了月份：只留該月至少部分已開放的；沒有訂位資料的另外計數，點了才顯示
+const monthSplit = computed(() => bookMonth.value ? splitByBookableMonth(googleVisible.value, bookMonth.value) : null)
+const noBookDataCount = computed(() => monthSplit.value?.noData.length ?? 0)
+
+const filteredCampsites = computed(() => {
+  const split = monthSplit.value
+  const list = !split ? googleVisible.value : showNoBookData.value ? [...split.matched, ...split.noData] : split.matched
   return sortCampsites(list, sortBy.value)
 })
 
@@ -277,6 +293,18 @@ onMounted(() => {
           </select>
         </label>
         <label class="col-span-2 bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
+          <span class="flex-shrink-0">要去的月份</span>
+          <select
+            v-model="bookMonth"
+            @change="showNoBookData = false"
+            class="min-w-0 bg-transparent text-sky-600 font-bold text-right outline-none"
+            aria-label="要去的月份"
+          >
+            <option value="">不拘</option>
+            <option v-for="m in monthOptions" :key="m.key" :value="m.key">{{ m.label }}</option>
+          </select>
+        </label>
+        <label class="col-span-2 bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
           <span class="flex-shrink-0">排序</span>
           <select
             v-model="sortBy"
@@ -311,6 +339,11 @@ onMounted(() => {
         @click="googleOnly = false"
         class="mb-1 text-xs text-gray-500 underline underline-offset-2"
       >已隱藏 {{ hiddenByGoogleCount }} 間低於 4.0 星或評論太少的營區（點此顯示）</button>
+      <button
+        v-if="noBookDataCount > 0 && !showNoBookData"
+        @click="showNoBookData = true"
+        class="mb-1 block mx-auto text-xs text-gray-500 underline underline-offset-2"
+      >另有 {{ noBookDataCount }} 間沒有訂位資料（點此顯示）</button>
     </div><!-- end sticky -->
 
     <!-- List -->
@@ -334,7 +367,7 @@ onMounted(() => {
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1.5">
               <span class="font-semibold text-sm text-primary-900 group-hover:text-accent-sky transition-colors truncate">{{ site.name }}</span>
-              <span v-if="site.booking_difficulty === 'hard'" class="flex-shrink-0 text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full font-bold">需搶</span>
+              <span v-if="site.booking_difficulty === 'hard'" class="flex-shrink-0 text-[10px] bg-[#ffedd5] text-[#c2410c] px-1.5 py-0.5 rounded-full font-bold">難訂</span>
               <span v-else-if="site.booking_difficulty === 'moderate'" class="flex-shrink-0 text-[10px] bg-orange-50 text-orange-400 px-1.5 py-0.5 rounded-full">稍難</span>
               <span v-if="site.google_business_status === 'CLOSED_TEMPORARILY'" class="flex-shrink-0 text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold">暫停營業</span>
             </div>
@@ -343,6 +376,7 @@ onMounted(() => {
               <span v-if="site.scenery_features?.length" class="text-[10px] text-green-600">{{ site.scenery_features[0] }}</span>
               <span v-if="site.water_features?.length" class="text-[10px]">💧</span>
               <span v-if="site.playground_features?.length" class="text-[10px]">🎠</span>
+              <span v-if="site.bookable_until" class="text-[10px] text-gray-400 whitespace-nowrap">可訂到 {{ formatYmdSlash(site.bookable_until) }}</span>
             </div>
           </div>
 
