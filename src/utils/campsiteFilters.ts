@@ -39,10 +39,10 @@ export const GOOGLE_MIN_REVIEWS = 20
 
 type GoogleFields = Pick<Campsite, 'google_rating' | 'google_rating_count' | 'google_business_status'>
 
-// 去過的營區不隱藏（自己住過，不該被別人的分數藏起來）；
+// 去過或加入最愛的營區不隱藏（自己住過／自己挑的，不該被別人的分數藏起來）；
 // 沒有 Google 資料的（自己手動新增）也不隱藏，因為「沒資料」不等於「低分」
-export function isHiddenByGoogle(c: GoogleFields, visited: boolean): boolean {
-    if (visited) return false
+export function isHiddenByGoogle(c: GoogleFields, visited: boolean, favorite = false): boolean {
+    if (visited || favorite) return false
     if (c.google_business_status === 'CLOSED_PERMANENTLY') return true
     if (c.google_rating === null || c.google_rating === undefined) return false
     return c.google_rating < GOOGLE_MIN_RATING || (c.google_rating_count ?? 0) < GOOGLE_MIN_REVIEWS
@@ -76,10 +76,13 @@ export function isVisitedTrip(t: { status: string | null; trip_date: string | nu
     return !!t.trip_date && t.trip_date < today
 }
 
-export type VisitedSegment = 'all' | 'visited' | 'unvisited'
+export type VisitedSegment = 'all' | 'visited' | 'unvisited' | 'favorite'
 
-export function matchesSegment(segment: VisitedSegment, visited: boolean): boolean {
-    return segment === 'all' || (segment === 'visited') === visited
+// 最愛和去過無關：最愛分段只看最愛，去過／沒去過只看去過
+export function matchesSegment(segment: VisitedSegment, visited: boolean, favorite: boolean): boolean {
+    if (segment === 'all') return true
+    if (segment === 'favorite') return favorite
+    return (segment === 'visited') === visited
 }
 
 // ---- 排序 ----

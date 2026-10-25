@@ -75,6 +75,11 @@ describe('Google 隱藏規則', () => {
         expect(isHiddenByGoogle(g(3.2, 5), true)).toBe(false)
         expect(isHiddenByGoogle(g(4.8, 900, 'CLOSED_PERMANENTLY'), true)).toBe(false)
     })
+    it('加入最愛的營區不隱藏：自己挑的不該被別人的分數藏起來，否則最愛清單會少東西', () => {
+        expect(isHiddenByGoogle(g(3.2, 5), false, true)).toBe(false)
+        expect(isHiddenByGoogle(g(4.8, 900, 'CLOSED_PERMANENTLY'), false, true)).toBe(false)
+        expect(isHiddenByGoogle(g(3.2, 5), false, false)).toBe(true)
+    })
 })
 
 describe('快捷標籤', () => {
@@ -100,12 +105,25 @@ describe('快捷標籤', () => {
 
 describe('去過／沒去過分段', () => {
     it('全部不分；去過與沒去過互斥', () => {
-        expect(matchesSegment('all', true)).toBe(true)
-        expect(matchesSegment('all', false)).toBe(true)
-        expect(matchesSegment('visited', true)).toBe(true)
-        expect(matchesSegment('visited', false)).toBe(false)
-        expect(matchesSegment('unvisited', false)).toBe(true)
-        expect(matchesSegment('unvisited', true)).toBe(false)
+        expect(matchesSegment('all', true, false)).toBe(true)
+        expect(matchesSegment('all', false, false)).toBe(true)
+        expect(matchesSegment('visited', true, false)).toBe(true)
+        expect(matchesSegment('visited', false, false)).toBe(false)
+        expect(matchesSegment('unvisited', false, false)).toBe(true)
+        expect(matchesSegment('unvisited', true, false)).toBe(false)
+    })
+
+    it('最愛分段顯示所有最愛，不論去過沒去過（想再去的和還沒去的都要在）', () => {
+        expect(matchesSegment('favorite', true, true)).toBe(true)
+        expect(matchesSegment('favorite', false, true)).toBe(true)
+        expect(matchesSegment('favorite', true, false)).toBe(false)
+        expect(matchesSegment('favorite', false, false)).toBe(false)
+    })
+
+    it('最愛不影響去過／沒去過分段', () => {
+        expect(matchesSegment('visited', true, true)).toBe(true)
+        expect(matchesSegment('unvisited', false, true)).toBe(true)
+        expect(matchesSegment('unvisited', true, true)).toBe(false)
     })
 
     it('行程 status 停在 planning 時，日期已過就算去過（否則「去過」永遠是 0）', () => {
