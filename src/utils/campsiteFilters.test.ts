@@ -6,6 +6,7 @@ import {
     isHiddenByGoogle,
     matchesAltitude,
     matchesSegment,
+    isVisitedTrip,
     sortCampsites,
     upcomingMonths,
     isBookableInMonth,
@@ -105,6 +106,15 @@ describe('去過／沒去過分段', () => {
         expect(matchesSegment('visited', false)).toBe(false)
         expect(matchesSegment('unvisited', false)).toBe(true)
         expect(matchesSegment('unvisited', true)).toBe(false)
+    })
+
+    it('行程 status 停在 planning 時，日期已過就算去過（否則「去過」永遠是 0）', () => {
+        const today = '2026-10-25'
+        expect(isVisitedTrip({ status: 'planning', trip_date: '2026-10-24' }, today)).toBe(true)
+        expect(isVisitedTrip({ status: 'planning', trip_date: '2026-10-25' }, today)).toBe(false)
+        expect(isVisitedTrip({ status: 'planning', trip_date: null }, today)).toBe(false)
+        expect(isVisitedTrip({ status: 'booked', trip_date: '2027-01-01' }, today)).toBe(true)
+        expect(isVisitedTrip({ status: 'cancelled', trip_date: '2024-01-01' }, today)).toBe(false)
     })
 })
 

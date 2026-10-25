@@ -11,6 +11,7 @@ import {
   isHiddenByGoogle,
   matchesAltitude,
   matchesSegment,
+  isVisitedTrip,
   sortCampsites,
   upcomingMonths,
   splitByBookableMonth,
@@ -123,8 +124,9 @@ const fetchCampsites = async () => {
     if (tripData) {
       const visited = new Set<number>()
       const visitedNames = new Set<string>()
+      const today = todayYmd()
       tripData.forEach(t => {
-        const isVisited = t.status === 'completed' || t.status === 'booked'
+        const isVisited = isVisitedTrip(t, today)
         if (t.campsite_id) {
           if (isVisited) visited.add(t.campsite_id)
         } else if (t.campsite_name && isVisited) {

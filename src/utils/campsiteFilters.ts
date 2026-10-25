@@ -69,6 +69,13 @@ export const FEATURE_CHIPS: FeatureChip[] = [
 ]
 
 // ---- 去過 / 沒去過 ----
+// 行程 status 幾乎都停在 planning（沒人回頭改），所以跟首頁／統計一樣以日期判斷：日期已過且沒取消就算去過
+export function isVisitedTrip(t: { status: string | null; trip_date: string | null }, today: string): boolean {
+    if (t.status === 'cancelled') return false
+    if (t.status === 'completed' || t.status === 'booked') return true
+    return !!t.trip_date && t.trip_date < today
+}
+
 export type VisitedSegment = 'all' | 'visited' | 'unvisited'
 
 export function matchesSegment(segment: VisitedSegment, visited: boolean): boolean {

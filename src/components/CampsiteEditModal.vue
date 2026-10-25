@@ -174,6 +174,8 @@ const save = async () => {
             <p v-if="isEditable" class="text-[11px] text-amber-800">按「確認」後記得按下方「儲存變更」；直接修改欄位也會視為已確認。</p>
          </div>
 
+         <CampsiteBookingStatus :form="form" />
+
          <CampsiteBasicFields v-model:tags-string="tagsString" :form="form" :is-editable="isEditable" />
 
          <CampsiteAmenities :form="form" :is-editable="isEditable" />
@@ -191,8 +193,6 @@ const save = async () => {
          <CampsiteCapacityZones :form="form" :is-editable="isEditable" />
 
          <CampsiteLayoutImage :form="form" :is-editable="isEditable" />
-
-         <CampsiteBookingStatus :form="form" />
 
          <CampsiteBookingInfo :form="form" :is-editable="isEditable" />
 
