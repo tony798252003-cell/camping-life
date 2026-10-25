@@ -62,6 +62,8 @@ const PLAY_WATER = ['戲水池', '溪流', '河流', '瀑布', '滑水道']
 export const FEATURE_CHIPS: FeatureChip[] = [
     { key: 'shelter', label: '有雨棚', test: c => !!c.spot_types?.includes('雨棚') },
     { key: 'cloud', label: '有雲海', test: c => !!c.scenery_features?.includes('雲海') },
+    { key: 'sakura', label: '櫻花', test: c => !!c.scenery_features?.includes('櫻花') },
+    { key: 'taxodium', label: '落羽松', test: c => !!c.scenery_features?.includes('落羽松') },
     { key: 'night', label: '有夜景', test: c => !!c.scenery_features?.includes('夜景') },
     { key: 'water', label: '可玩水', test: c => PLAY_WATER.some(w => c.water_features?.includes(w)) },
     { key: 'kids', label: '親子', test: c => !!c.playground_features?.length },

@@ -105,6 +105,12 @@ describe('快捷標籤', () => {
         expect(chip('shelter').test({ ...base, spot_types: ['雨棚'] })).toBe(true)
         expect(chip('shelter').test({ ...base, scenery_features: ['雨棚'] })).toBe(false)
     })
+    it('櫻花與落羽松各自獨立，不會互相命中', () => {
+        expect(chip('sakura').test({ ...base, scenery_features: ['櫻花'] })).toBe(true)
+        expect(chip('sakura').test({ ...base, scenery_features: ['落羽松'] })).toBe(false)
+        expect(chip('taxodium').test({ ...base, scenery_features: ['落羽松'] })).toBe(true)
+        expect(chip('taxodium').test(base)).toBe(false)
+    })
 })
 
 describe('去過／沒去過分段', () => {
