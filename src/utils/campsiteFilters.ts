@@ -49,7 +49,7 @@ export function isHiddenByGoogle(c: GoogleFields, visited: boolean, favorite = f
 }
 
 // ---- 快捷標籤（和進階篩選互相獨立，兩邊都是 AND）----
-type FeatureFields = Pick<Campsite, 'spot_types' | 'scenery_features' | 'water_features' | 'playground_features'>
+type FeatureFields = Pick<Campsite, 'spot_types' | 'scenery_features' | 'water_features' | 'playground_features' | 'tags'>
 
 export interface FeatureChip {
     key: string
@@ -60,6 +60,7 @@ export interface FeatureChip {
 const PLAY_WATER = ['戲水池', '溪流', '河流', '瀑布', '滑水道']
 
 export const FEATURE_CHIPS: FeatureChip[] = [
+    { key: 'threads', label: '脆友推薦', test: c => !!c.tags?.includes('脆友推薦') },
     { key: 'shelter', label: '有雨棚', test: c => !!c.spot_types?.includes('雨棚') },
     { key: 'cloud', label: '有雲海', test: c => !!c.scenery_features?.includes('雲海') },
     { key: 'sakura', label: '櫻花', test: c => !!c.scenery_features?.includes('櫻花') },

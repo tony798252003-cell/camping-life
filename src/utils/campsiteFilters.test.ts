@@ -88,7 +88,7 @@ describe('Google 隱藏規則', () => {
 
 describe('快捷標籤', () => {
     const chip = (k: string) => FEATURE_CHIPS.find(c => c.key === k)!
-    const base = { spot_types: null, scenery_features: null, water_features: null, playground_features: null }
+    const base = { spot_types: null, scenery_features: null, water_features: null, playground_features: null, tags: null }
     it('可玩水只算能下去玩的水域，不含其他水域標籤', () => {
         expect(chip('water').test({ ...base, water_features: ['瀑布'] })).toBe(true)
         expect(chip('water').test({ ...base, water_features: ['湖泊'] })).toBe(false)
@@ -104,6 +104,10 @@ describe('快捷標籤', () => {
         expect(chip('forest').test({ ...base, scenery_features: ['森林'] })).toBe(true)
         expect(chip('shelter').test({ ...base, spot_types: ['雨棚'] })).toBe(true)
         expect(chip('shelter').test({ ...base, scenery_features: ['雨棚'] })).toBe(false)
+    })
+    it('脆友推薦看 tags，不是景觀', () => {
+        expect(chip('threads').test({ ...base, tags: ['脆友推薦'] })).toBe(true)
+        expect(chip('threads').test({ ...base, scenery_features: ['脆友推薦'] })).toBe(false)
     })
     it('櫻花與落羽松各自獨立，不會互相命中', () => {
         expect(chip('sakura').test({ ...base, scenery_features: ['櫻花'] })).toBe(true)
