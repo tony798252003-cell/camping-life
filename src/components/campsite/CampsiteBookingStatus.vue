@@ -6,11 +6,6 @@ import type { Campsite } from '../../types/database'
 
 const props = defineProps<{ form: Partial<Campsite> }>()
 
-const PLATFORM_LABEL: Record<string, string> = {
-  icamping: '愛露營 iCamping',
-  campingfun: '露營樂 Campingfun',
-}
-
 const hasSample = computed(() => props.form.saturday_sample != null && props.form.saturday_full_ratio != null)
 const difficulty = computed(() => {
   const d = props.form.booking_difficulty
@@ -19,10 +14,7 @@ const difficulty = computed(() => {
 const checkedAt = computed(() =>
   props.form.bookable_checked_at ? formatYmdSlash(taipeiYmd(props.form.bookable_checked_at)) : ''
 )
-const platform = computed(() => {
-  const p = props.form.booking_platform
-  return p ? (PLATFORM_LABEL[p] ?? p) : ''
-})
+const platform = computed(() => props.form.booking_platform ?? '')
 // form 會把空的 booking_difficulty 補成 normal，所以只有 hard／moderate 才算「有資料」
 const hasData = computed(() =>
   !!(props.form.bookable_until || props.form.bookable_checked_at || props.form.booking_platform ||
