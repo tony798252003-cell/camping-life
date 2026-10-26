@@ -61,6 +61,14 @@ describe('layoutWeek', () => {
     expect([...l.cpblDays]).toEqual(['2026-10-21'])
     expect(l.dots['2026-10-21'] ?? []).toEqual([])
   })
+  it('露營（含夜衝那晚）每天都進 tripDays，橫條照畫', () => {
+    // 月格右上角的帳篷要涵蓋整趟，跨週也只標本週那幾天；但橫條不能因此消失
+    const t = ev({ key: 'trip:1', source: 'trip', startDate: '2026-10-24', endDate: '2026-10-26', nightRushDate: '2026-10-24' })
+    expect([...layoutWeek(W1, [t]).tripDays]).toEqual(['2026-10-24', '2026-10-25'])
+    expect([...layoutWeek(W2, [t]).tripDays]).toEqual(['2026-10-26'])
+    expect(layoutWeek(W1, [t]).bars.length).toBe(1)
+    expect(layoutWeek(W1, [multi('a', '2026-10-20', '2026-10-21')]).tripDays.size).toBe(0)
+  })
   it('跨午夜的 timed 事件不是 bar，涵蓋的每天各一個 dot', () => {
     // 22:00–02:00 兩天都有活動，月格兩天都要看得到
     const t = ev({ key: 't', allDay: false, startDate: '2026-10-17', endDate: '2026-10-18', startMin: 1320, endMin: 120 })
