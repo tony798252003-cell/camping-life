@@ -15,7 +15,10 @@ export interface WeekLayout {
   dots: Record<string, ViewEvent[]>
   cpblDays: Set<string>
   tripDays: Set<string> // 露營日（含夜衝那晚），月格右上角畫帳篷
+  practiceDays: Set<string> // 「練球」分類（兒子練球／比賽），月格右上角畫棒球；看球不算
 }
+
+export const PRACTICE_CATEGORY = '練球'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -43,12 +46,16 @@ export function layoutWeek(week: string[], events: ViewEvent[], maxBars = 2): We
   const dots: Record<string, ViewEvent[]> = {}
   const cpblDays = new Set<string>()
   const tripDays = new Set<string>()
+  const practiceDays = new Set<string>()
   const bars: WeekBar[] = []
 
   const barEvents: ViewEvent[] = []
   for (const e of inWeek) {
     if (e.source === 'trip') {
       for (const d of eachDay(e.startDate < first ? first : e.startDate, e.endDate > last ? last : e.endDate)) tripDays.add(d)
+    }
+    if (e.source === 'event' && e.categoryName === PRACTICE_CATEGORY) {
+      for (const d of eachDay(e.startDate < first ? first : e.startDate, e.endDate > last ? last : e.endDate)) practiceDays.add(d)
     }
     if (e.source === 'cpbl') {
       for (const d of eachDay(e.startDate < first ? first : e.startDate, e.endDate > last ? last : e.endDate)) cpblDays.add(d)
@@ -80,5 +87,5 @@ export function layoutWeek(week: string[], events: ViewEvent[], maxBars = 2): We
       continuesBefore: e.startDate < first, continuesAfter: e.endDate > last,
     })
   }
-  return { bars, dots, cpblDays, tripDays }
+  return { bars, dots, cpblDays, tripDays, practiceDays }
 }

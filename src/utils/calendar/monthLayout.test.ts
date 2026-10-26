@@ -69,6 +69,15 @@ describe('layoutWeek', () => {
     expect(layoutWeek(W1, [t]).bars.length).toBe(1)
     expect(layoutWeek(W1, [multi('a', '2026-10-20', '2026-10-21')]).tripDays.size).toBe(0)
   })
+  it('只有「練球」分類進 practiceDays，看球（棒球分類、桃猿賽程）不算', () => {
+    // 棒球圖示是兒子練球／比賽專用，跟去看職棒要分開；練球事件本身的 dot 照畫
+    const p = ev({ key: 'p', categoryName: '練球', startDate: '2026-10-24', endDate: '2026-10-24' })
+    const watch = ev({ key: 'w', categoryName: '棒球', startDate: '2026-10-21', endDate: '2026-10-21' })
+    const g = ev({ key: 'cpbl:2', source: 'cpbl', categoryName: '桃猿賽程', startDate: '2026-10-22', endDate: '2026-10-22' })
+    const l = layoutWeek(W1, [p, watch, g])
+    expect([...l.practiceDays]).toEqual(['2026-10-24'])
+    expect(l.dots['2026-10-24']!.map((x) => x.key)).toEqual(['p'])
+  })
   it('跨午夜的 timed 事件不是 bar，涵蓋的每天各一個 dot', () => {
     // 22:00–02:00 兩天都有活動，月格兩天都要看得到
     const t = ev({ key: 't', allDay: false, startDate: '2026-10-17', endDate: '2026-10-18', startMin: 1320, endMin: 120 })

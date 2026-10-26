@@ -64,13 +64,13 @@ const nightRushFirst = (b: WeekBar) => !!b.event.nightRushDate && !b.continuesBe
             class="inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold leading-none"
             :class="d === today ? 'bg-primary-600 text-white' : isHoliday(d) ? 'text-red-500' : 'text-primary-900'"
           >{{ Number(d.slice(8)) }}</span>
-          <!-- 右上角：露營日帳篷、桃猿比賽日棒球 -->
+          <!-- 右上角：露營日帳篷、練球日棒球 -->
           <span
-            v-if="w.layout.tripDays.has(d) || w.layout.cpblDays.has(d)"
+            v-if="w.layout.tripDays.has(d) || w.layout.practiceDays.has(d)"
             class="absolute -top-1 -right-3 flex flex-col items-center gap-px"
           >
             <Tent v-if="w.layout.tripDays.has(d)" class="w-[11px] h-[11px] text-[#4A9E9B]" :stroke-width="2.5" aria-label="露營" />
-            <svg v-if="w.layout.cpblDays.has(d)" viewBox="0 0 12 12" class="w-[11px] h-[11px]" aria-label="棒球比賽">
+            <svg v-if="w.layout.practiceDays.has(d)" viewBox="0 0 12 12" class="w-[11px] h-[11px]" aria-label="練球">
               <circle cx="6" cy="6" r="5" fill="#fff" stroke="#9d1c32" stroke-width="1.3" />
               <path d="M3.4 2.3c1 1 1 6.4 0 7.4M8.6 2.3c-1 1-1 6.4 0 7.4" fill="none" stroke="#9d1c32" stroke-width="1" />
             </svg>
@@ -85,6 +85,7 @@ const nightRushFirst = (b: WeekBar) => !!b.event.nightRushDate && !b.continuesBe
             :class="{ 'opacity-50': e.past }"
             :style="{ backgroundColor: e.color }"
           ></span>
+          <span v-if="w.layout.cpblDays.has(d)" class="w-[5px] h-[5px] rounded-full bg-[#9d1c32]"></span>
         </span>
       </button>
 
