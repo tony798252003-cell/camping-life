@@ -16,7 +16,7 @@ import { useEventOpener } from '../composables/useEventOpener'
 import { useToday } from '../composables/useToday'
 import { useUserProfile } from '../composables/useUserProfile'
 import { buildMonthWeeks } from '../utils/calendar/monthLayout'
-import { dayLabel, weekAgenda, weekRow } from '../utils/calendar/glance'
+import { dayLabel, glanceAgendaDays, glanceAgendaTitle, glanceMonth, rangeAgenda, weekRow } from '../utils/calendar/glance'
 import { addDays } from '../utils/dateRange'
 import { isHoliday } from '../utils/holidays'
 
@@ -37,8 +37,11 @@ const readExpanded = () => {
   }
 }
 const expanded = ref(readExpanded())
+// 速覽換期間：收合時幾週後、展開時幾個月後；切換收合／展開就回到本週／本月
+const offset = ref(0)
 const toggle = () => {
   expanded.value = !expanded.value
+  offset.value = 0
   try {
     localStorage.setItem(STORAGE_KEY, expanded.value ? '1' : '0')
   } catch {
@@ -46,15 +49,15 @@ const toggle = () => {
   }
 }
 
-// 速覽可見範圍（本週或整月）＋明天，賽程只抓這段
+// 速覽可見範圍（換過的週或月）＋本週＋明天，賽程只抓這段；下方清單固定是本週，換期間也要保留
 const loadRange = computed(() => {
-  const days = expanded.value
-    ? buildMonthWeeks(Number(today.value.slice(0, 4)), Number(today.value.slice(5, 7))).flat()
-    : weekRow(today.value)
+  const { year, month } = glanceMonth(today.value, offset.value)
+  const days = expanded.value ? buildMonthWeeks(year, month).flat() : weekRow(addDays(today.value, offset.value * 7))
+  const thisWeek = weekRow(today.value)
   const tomorrow = addDays(today.value, 1)
-  const first = days[0]!
-  const last = days[days.length - 1]!
-  return { from: first < today.value ? first : today.value, to: last > tomorrow ? last : tomorrow }
+  const first = days[0]! < thisWeek[0]! ? days[0]! : thisWeek[0]!
+  const last = [days[days.length - 1]!, thisWeek[6]!, tomorrow].reduce((a, b) => (a > b ? a : b))
+  return { from: first, to: last }
 })
 watch(
   [loadRange, showCpbl],
@@ -77,12 +80,15 @@ onMounted(() => {
 const selected = ref<string | null>(null)
 const newItem = useNewItemSheet()
 const label = (d: string) => dayLabel(d, today.value, isHoliday(d)?.name)
+const agendaTitle = computed(() => glanceAgendaTitle(today.value, expanded.value, offset.value))
+// 換期間就取消選取的日子，清單直接顯示新期間
+watch(offset, () => { selected.value = null })
 const sections = computed(() => {
   if (selected.value) {
     const d = selected.value
     return [{ label: label(d), day: d, items: eventsOnDay(d, feed.value) }]
   }
-  return weekAgenda(today.value, feed.value).map((s) => ({ ...s, label: label(s.day) }))
+  return rangeAgenda(glanceAgendaDays(today.value, expanded.value, offset.value), feed.value).map((s) => ({ ...s, label: label(s.day) }))
 })
 // 再點同一天 = 取消選取
 const onSelect = (d: string) => {
@@ -100,12 +106,15 @@ const goCalendar = () => {
       :events="feed"
       :today="today"
       :expanded="expanded"
+      :offset="offset"
       @toggle="toggle"
+      @shift="(n) => (offset += n)"
+      @reset="offset = 0"
       :selected="selected"
       @select="onSelect"
       @open-calendar="goCalendar"
     />
-    <HomeAgendaList :sections="sections" :selected="selected" @open="onOpen" @clear="selected = null" @add="newItem.open(selected)" />
+    <HomeAgendaList :sections="sections" :selected="selected" :title="agendaTitle" @open="onOpen" @clear="selected = null" @add="newItem.open(selected)" />
     <HomeLists />
     <NextTripCard />
     <router-link to="/stats" class="self-center min-h-[44px] flex items-center text-[13px] font-bold text-primary-600">露營統計 ›</router-link>

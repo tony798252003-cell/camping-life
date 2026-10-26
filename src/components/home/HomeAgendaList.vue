@@ -3,25 +3,25 @@ import type { ViewEvent } from '../../utils/calendar/viewEvent'
 import { displayTitle, subtitle, timeLabel } from '../../utils/calendar/glance'
 import { OWNER_LABEL } from '../../utils/calendar/visibility'
 
-// selected 有值 = 顯示某一天（可清除、可新增）；null = 本週行程
-defineProps<{ sections: { label: string; day: string; items: ViewEvent[] }[]; selected: string | null }>()
+// selected 有值 = 顯示某一天（可清除、可新增）；null = 速覽目前那段期間（title：本週行程／11/2–11/8行程／12 月行程）
+defineProps<{ sections: { label: string; day: string; items: ViewEvent[] }[]; selected: string | null; title: string }>()
 const emit = defineEmits<{ (e: 'open', ev: ViewEvent): void; (e: 'clear'): void; (e: 'add'): void }>()
 </script>
 
 <template>
   <section class="flex flex-col gap-2">
     <div class="flex items-center justify-between px-1 min-h-[16px]">
-      <h2 class="text-xs font-bold uppercase tracking-widest text-slate-500">{{ selected ? sections[0]?.label : '本週行程' }}</h2>
+      <h2 class="text-xs font-bold uppercase tracking-widest text-slate-500">{{ selected ? sections[0]?.label : title }}</h2>
       <button
         v-if="selected"
         type="button"
         class="-my-3 min-h-[44px] px-3 rounded-[12px] bg-primary-100 text-primary-700 text-[13px] font-extrabold"
         @click="emit('clear')"
-      >回到本週</button>
+      >取消選取</button>
     </div>
 
     <template v-if="sections.length === 0 || sections.every((s) => s.items.length === 0)">
-      <p class="text-[13px] text-slate-500 px-1">{{ selected ? '這天沒有行程' : '本週沒有安排，好好休息' }}</p>
+      <p class="text-[13px] text-slate-500 px-1">{{ selected ? '這天沒有行程' : title === '本週行程' ? '本週沒有安排，好好休息' : '這段期間沒有安排' }}</p>
       <button
         v-if="selected"
         type="button"

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { ViewEvent } from './viewEvent'
-import { cellTint, dayAgenda, dayLabel, displayTitle, subtitle, timeLabel, weekAgenda, weekRow } from './glance'
+import { cellTint, dayAgenda, dayLabel, displayTitle, glanceAgendaDays, glanceAgendaTitle, glanceLabel, glanceMonth, subtitle, timeLabel, weekAgenda, weekRow } from './glance'
 
 const ev = (o: Partial<ViewEvent> & { key: string }): ViewEvent => ({
   source: 'event', sourceId: o.key, title: o.key, color: '#10b981', owner: 'me', categoryId: null,
@@ -101,5 +101,47 @@ describe('subtitle', () => {
   })
   it('沒有分類、沒有建立者就只剩時間', () => {
     expect(subtitle(base, '全天')).toBe('全天')
+  })
+})
+
+describe('glanceMonth', () => {
+  it('跨年往前往後都正確', () => {
+    // 首頁展開整月往左右滑會跨年，12 月 +1 必須是隔年 1 月，不能變 13 月
+    expect(glanceMonth('2026-12-15', 1)).toEqual({ year: 2027, month: 1 })
+    expect(glanceMonth('2026-01-15', -1)).toEqual({ year: 2025, month: 12 })
+    expect(glanceMonth('2026-10-26', 0)).toEqual({ year: 2026, month: 10 })
+  })
+})
+
+describe('glanceLabel', () => {
+  it('收合：本週叫「這週」，其他週顯示週一到週日', () => {
+    // 滑到別週還寫「這週」會讓人以為看的是本週
+    expect(glanceLabel('2026-10-26', false, 0)).toBe('這週')
+    expect(glanceLabel('2026-10-26', false, 1)).toBe('11/2–11/8')
+    expect(glanceLabel('2026-10-28', false, -1)).toBe('10/19–10/25')
+  })
+  it('展開：今年只寫月份，跨年才加年份', () => {
+    // 今年加年份太擠；但滑到明年 1 月只寫「1 月」會跟今年 1 月混淆
+    expect(glanceLabel('2026-10-26', true, 0)).toBe('10 月')
+    expect(glanceLabel('2026-10-26', true, 2)).toBe('12 月')
+    expect(glanceLabel('2026-10-26', true, 3)).toBe('2027 年 1 月')
+  })
+})
+
+describe('glanceAgendaDays / glanceAgendaTitle', () => {
+  it('收合換週時清單跟著換到那一週', () => {
+    // 速覽滑到下週，下面列的行程也要是下週，否則上下對不起來
+    const d = glanceAgendaDays('2026-10-26', false, 1)
+    expect(d[0]).toBe('2026-11-02')
+    expect(d[6]).toBe('2026-11-08')
+    expect(glanceAgendaTitle('2026-10-26', false, 1)).toBe('11/2–11/8行程')
+  })
+  it('展開換月時清單是那個月（不含鄰月補格）；回到 0 仍是本週', () => {
+    const d = glanceAgendaDays('2026-10-26', true, 1)
+    expect(d[0]).toBe('2026-11-01')
+    expect(d[d.length - 1]).toBe('2026-11-30')
+    expect(glanceAgendaDays('2026-10-26', true, 0)).toEqual(glanceAgendaDays('2026-10-26', false, 0))
+    expect(glanceAgendaTitle('2026-10-26', true, 0)).toBe('本週行程')
+    expect(glanceAgendaTitle('2026-10-26', true, 1)).toBe('11 月行程')
   })
 })
