@@ -24,6 +24,7 @@ import TripStartLocation from './trip/TripStartLocation.vue'
 import TripCampsiteInfoPanel from './trip/TripCampsiteInfoPanel.vue'
 import TripGearSection from './trip/TripGearSection.vue'
 import TripReviewSection from './trip/TripReviewSection.vue'
+import TripDateSuggest from './trip/TripDateSuggest.vue'
 
 interface Props {
   isOpen: boolean
@@ -84,6 +85,12 @@ const fetchTents = async () => {
   }
 }
 
+// 建議日期標「尚未開放」用：已選營區的可訂到日期（編輯時取自行程的營區，換營區時跟著換）
+const campsiteBookableUntil = ref<string | null>(null)
+watch([() => props.trip, () => props.isOpen], () => {
+  campsiteBookableUntil.value = props.trip?.campsites?.bookable_until ?? null
+}, { immediate: true })
+
 const selectCampsite = (campsite: Campsite) => {
   // 新增行程選營區後日期不能變空白（QA）：空白時補回預設日期，已填的保留
   if (!props.trip) formData.value.trip_date = resolveTripDate(formData.value.trip_date, props.initialDate)
@@ -94,6 +101,7 @@ const selectCampsite = (campsite: Campsite) => {
     formData.value.longitude = campsite.longitude
   }
   if (campsite.altitude) formData.value.altitude = campsite.altitude
+  campsiteBookableUntil.value = campsite.bookable_until ?? null
   if (campsite.city) {
     selectedCity.value = campsite.city
     selectedDistrict.value = campsite.district || ''
@@ -253,8 +261,9 @@ onMounted(() => {
 
                   <!-- Content -->
                   <div class="absolute inset-0 flex flex-col items-center justify-center p-6 z-10 text-center">
-                      <!-- Date Pill -->
-                      <div class="flex items-center gap-1.5 mb-3 bg-white/75 rounded-full px-3.5 py-1.5">
+                      <!-- Date Pill + 建議日期 -->
+                      <div class="flex items-center gap-2 mb-3">
+                      <div class="flex items-center gap-1.5 bg-white/75 rounded-full px-3.5 py-1.5">
                           <input 
                               v-model="formData.trip_date" 
                               type="date" 
@@ -270,6 +279,8 @@ onMounted(() => {
                               />
                               <span class="text-[13px] text-primary-800 font-bold">天</span>
                           </div>
+                      </div>
+                      <TripDateSuggest :form="formData" :trip-id="trip?.id ?? null" :bookable-until="campsiteBookableUntil" />
                       </div>
 
                       <!-- Title: 營區搜尋 / 已選營區 -->
