@@ -16,7 +16,7 @@ import { useEventOpener } from '../composables/useEventOpener'
 import { useToday } from '../composables/useToday'
 import { useUserProfile } from '../composables/useUserProfile'
 import { buildMonthWeeks } from '../utils/calendar/monthLayout'
-import { dayLabel, glanceMonth, weekAgenda, weekRow } from '../utils/calendar/glance'
+import { dayLabel, glanceAgendaDays, glanceAgendaTitle, glanceMonth, rangeAgenda, weekRow } from '../utils/calendar/glance'
 import { addDays } from '../utils/dateRange'
 import { isHoliday } from '../utils/holidays'
 
@@ -80,12 +80,15 @@ onMounted(() => {
 const selected = ref<string | null>(null)
 const newItem = useNewItemSheet()
 const label = (d: string) => dayLabel(d, today.value, isHoliday(d)?.name)
+const agendaTitle = computed(() => glanceAgendaTitle(today.value, expanded.value, offset.value))
+// 換期間就取消選取的日子，清單直接顯示新期間
+watch(offset, () => { selected.value = null })
 const sections = computed(() => {
   if (selected.value) {
     const d = selected.value
     return [{ label: label(d), day: d, items: eventsOnDay(d, feed.value) }]
   }
-  return weekAgenda(today.value, feed.value).map((s) => ({ ...s, label: label(s.day) }))
+  return rangeAgenda(glanceAgendaDays(today.value, expanded.value, offset.value), feed.value).map((s) => ({ ...s, label: label(s.day) }))
 })
 // 再點同一天 = 取消選取
 const onSelect = (d: string) => {
@@ -111,7 +114,7 @@ const goCalendar = () => {
       @select="onSelect"
       @open-calendar="goCalendar"
     />
-    <HomeAgendaList :sections="sections" :selected="selected" @open="onOpen" @clear="selected = null" @add="newItem.open(selected)" />
+    <HomeAgendaList :sections="sections" :selected="selected" :title="agendaTitle" @open="onOpen" @clear="selected = null" @add="newItem.open(selected)" />
     <HomeLists />
     <NextTripCard />
     <router-link to="/stats" class="self-center min-h-[44px] flex items-center text-[13px] font-bold text-primary-600">露營統計 ›</router-link>

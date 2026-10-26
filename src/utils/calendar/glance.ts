@@ -1,3 +1,4 @@
+import { buildMonthWeeks } from './monthLayout'
 // 首頁「行事曆速覽」與「今天」清單用的純函式（無 DOM、無 composable）。
 import { addDays, weekdayMon0 } from '../dateRange'
 import { eventsOnDay } from './agendaRange'
@@ -36,7 +37,11 @@ export const displayTitle = (e: ViewEvent) => e.title.replace(/^⚾\s*/, '')
 
 // 本週行程：週一到週日逐日分組，只留有事件的日子；每天順序與月列表相同（eventsOnDay），不截斷
 export function weekAgenda(today: string, events: ViewEvent[]): { day: string; items: ViewEvent[] }[] {
-  return weekRow(today)
+  return rangeAgenda(weekRow(today), events)
+}
+
+export function rangeAgenda(days: string[], events: ViewEvent[]): { day: string; items: ViewEvent[] }[] {
+  return days
     .map((day) => ({ day, items: eventsOnDay(day, events) }))
     .filter((s) => s.items.length > 0)
 }
@@ -64,4 +69,16 @@ export function glanceLabel(today: string, expanded: boolean, offset: number): s
   const w = weekRow(addDays(today, offset * 7))
   const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`
   return `${md(w[0]!)}–${md(w[6]!)}`
+}
+
+// 首頁清單跟著速覽換期間：收合看那一週；展開看那個月（offset 0 仍是本週，維持原本首頁的樣子）
+export function glanceAgendaDays(today: string, expanded: boolean, offset: number): string[] {
+  if (!expanded || offset === 0) return weekRow(addDays(today, (expanded ? 0 : offset) * 7))
+  const { year, month } = glanceMonth(today, offset)
+  const ym = `${year}-${String(month).padStart(2, '0')}`
+  return buildMonthWeeks(year, month).flat().filter((d) => d.startsWith(ym))
+}
+
+export function glanceAgendaTitle(today: string, expanded: boolean, offset: number): string {
+  return offset === 0 ? '本週行程' : `${glanceLabel(today, expanded, offset)}行程`
 }
