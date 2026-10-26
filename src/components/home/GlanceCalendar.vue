@@ -1,28 +1,36 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { ChevronRight } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import type { ViewEvent } from '../../utils/calendar/viewEvent'
 import { buildMonthWeeks } from '../../utils/calendar/monthLayout'
-import { cellTint, weekRow } from '../../utils/calendar/glance'
+import { cellTint, glanceLabel, glanceMonth, weekRow } from '../../utils/calendar/glance'
 import { eventsOnDay } from '../../utils/calendar/agendaRange'
-import { weekdayMon0 } from '../../utils/dateRange'
+import { addDays, weekdayMon0 } from '../../utils/dateRange'
+import { useHorizontalSwipe } from '../../composables/useHorizontalSwipe'
 import OwnerLegend from '../calendar/OwnerLegend.vue'
 
-const props = defineProps<{ events: ViewEvent[]; today: string; expanded: boolean; selected: string | null }>()
+// offset：收合時是幾週後、展開時是幾個月後（0 = 本週／本月）
+const props = defineProps<{ events: ViewEvent[]; today: string; expanded: boolean; selected: string | null; offset: number }>()
 const emit = defineEmits<{
   (e: 'toggle'): void
+  (e: 'shift', n: 1 | -1): void
+  (e: 'reset'): void
   (e: 'select', ymd: string): void
   (e: 'open-calendar'): void
 }>()
 
 const HEAD = ['一', '二', '三', '四', '五', '六', '日']
-const month = computed(() => Number(props.today.slice(5, 7)))
+const label = computed(() => glanceLabel(props.today, props.expanded, props.offset))
 const rows = computed<(string | null)[][]>(() => {
-  if (!props.expanded) return [weekRow(props.today)]
-  const y = Number(props.today.slice(0, 4))
-  // 月檢視：非本月的日期留空白（鄰月事件不在速覽範圍）
-  return buildMonthWeeks(y, month.value).map((w) => w.map((d) => (Number(d.slice(5, 7)) === month.value ? d : null)))
+  if (!props.expanded) return [weekRow(addDays(props.today, props.offset * 7))]
+  const { year, month } = glanceMonth(props.today, props.offset)
+  // 月檢視：非該月的日期留空白（鄰月事件不在速覽範圍）
+  return buildMonthWeeks(year, month).map((w) => w.map((d) => (Number(d.slice(5, 7)) === month ? d : null)))
 })
+
+// 卡片左右滑：收合換週、展開換月
+const card = ref<HTMLElement | null>(null)
+useHorizontalSwipe(card, (n) => emit('shift', n))
 
 const WEEKDAY = ['一', '二', '三', '四', '五', '六', '日']
 const ariaLabel = (d: string) => {
@@ -47,9 +55,20 @@ const cellStyle = (d: string) => {
       @click="emit('open-calendar')"
     >完整行事曆<ChevronRight class="w-4 h-4" /></button>
   </div>
-  <section class="bg-white/90 rounded-[28px] px-4 py-3.5">
+  <section ref="card" class="bg-white/90 rounded-[28px] px-4 py-3.5">
     <div class="flex items-center justify-between mb-1.5">
-      <span class="text-[15px] font-extrabold text-primary-900">{{ expanded ? `${month} 月` : '這週' }}</span>
+      <div class="flex items-center min-w-0 -ml-2.5">
+        <button type="button" class="w-11 h-11 shrink-0 flex items-center justify-center text-primary-600 rounded-full active:bg-primary-100" :aria-label="expanded ? '上個月' : '上一週'" @click="emit('shift', -1)"><ChevronLeft class="w-5 h-5" /></button>
+        <span v-if="offset === 0" class="text-[15px] font-extrabold text-primary-900 whitespace-nowrap">{{ label }}</span>
+        <button
+          v-else
+          type="button"
+          class="min-h-[44px] flex items-center gap-1.5 text-[15px] font-extrabold text-primary-900 whitespace-nowrap"
+          aria-label="回到今天"
+          @click="emit('reset')"
+        >{{ label }}<span class="px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 text-[11px] font-bold">今天</span></button>
+        <button type="button" class="w-11 h-11 shrink-0 flex items-center justify-center text-primary-600 rounded-full active:bg-primary-100" :aria-label="expanded ? '下個月' : '下一週'" @click="emit('shift', 1)"><ChevronRight class="w-5 h-5" /></button>
+      </div>
       <button
         type="button"
         class="min-h-[44px] px-3 rounded-[12px] bg-primary-100 text-primary-700 text-[13px] font-extrabold"

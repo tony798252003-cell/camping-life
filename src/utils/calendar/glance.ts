@@ -47,3 +47,21 @@ export function dayLabel(day: string, today: string, holidayName?: string | null
   const base = `${Number(day.slice(5, 7))}/${Number(day.slice(8))}（${WEEK[weekdayMon0(day)]}）`
   return `${base}${day === today ? '今天' : ''}${holidayName ? `・${holidayName}` : ''}`
 }
+
+// 速覽換期間：offset 是相對今天所在月份的位移（展開整月時用）
+export function glanceMonth(today: string, offset: number): { year: number; month: number } {
+  const idx = Number(today.slice(0, 4)) * 12 + Number(today.slice(5, 7)) - 1 + offset
+  return { year: Math.floor(idx / 12), month: (idx % 12) + 1 }
+}
+
+// 速覽標題：收合 offset 0 =「這週」、其他週「11/2–11/8」；展開「12 月」，不是今年才加年份
+export function glanceLabel(today: string, expanded: boolean, offset: number): string {
+  if (expanded) {
+    const { year, month } = glanceMonth(today, offset)
+    return year === Number(today.slice(0, 4)) ? `${month} 月` : `${year} 年 ${month} 月`
+  }
+  if (offset === 0) return '這週'
+  const w = weekRow(addDays(today, offset * 7))
+  const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`
+  return `${md(w[0]!)}–${md(w[6]!)}`
+}
