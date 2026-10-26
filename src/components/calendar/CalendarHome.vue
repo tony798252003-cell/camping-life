@@ -20,6 +20,7 @@ import { filterByOwner } from '../../utils/calendar/ownerFilter'
 import { buildMonthWeeks } from '../../utils/calendar/monthLayout'
 import { addDays, weekdayMon0 } from '../../utils/dateRange'
 import { useToday } from '../../composables/useToday'
+import { useHorizontalSwipe } from '../../composables/useHorizontalSwipe'
 import { Plus } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -59,6 +60,9 @@ const shiftMonth = (n: number) => {
 }
 const step = (n: 1 | -1) =>
   setQuery({ date: view.value === 'month' ? shiftMonth(n) : addDays(date.value, n * (view.value === 'week' ? 7 : 1)) })
+// 月／週／日內容區左右滑 = 上一個／下一個（同標頭的 ‹ ›）
+const swipeArea = ref<HTMLElement | null>(null)
+useHorizontalSwipe(swipeArea, step)
 
 const weekDays = computed(() => {
   const mon = addDays(date.value, -weekdayMon0(date.value))
@@ -162,6 +166,7 @@ const onAddOnDay = (ymd: string) => {
       @toggle-category="toggleCategory"
     />
 
+    <div ref="swipeArea">
     <template v-if="view === 'month'">
       <MonthGrid :year="year" :month="month" :events="feed" :today="today" :selected="selectedDate" @select="onSelectDay" />
       <AgendaList :items="agendaItems" :from="range.from" :to="range.to" :highlight="highlight" @open="onOpen" />
@@ -182,6 +187,7 @@ const onAddOnDay = (ymd: string) => {
       @select-day="(d) => setQuery({ date: d })"
       @open="onOpen"
     />
+    </div>
 
     <DayListSheet
       :open="sheetDate !== null"
