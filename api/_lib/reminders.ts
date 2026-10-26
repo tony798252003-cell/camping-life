@@ -122,7 +122,7 @@ export interface ReminderResult {
 }
 
 // 404／410：訂閱已失效；401／403：推播服務拒絕（VAPID 金鑰換過，舊訂閱永遠無法送達），都該刪
-const isGone = (e: unknown) => {
+export const isGone = (e: unknown) => {
   const s = (e as { statusCode?: number } | null)?.statusCode
   return s === 404 || s === 410 || s === 401 || s === 403
 }

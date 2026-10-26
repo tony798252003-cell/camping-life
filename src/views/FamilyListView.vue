@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { Check, ChevronDown, ChevronLeft, Plus, Star, Trash2 } from 'lucide-vue-next'
+import { Bell, BellRing, Check, ChevronDown, ChevronLeft, Plus, Star, Trash2 } from 'lucide-vue-next'
 import { useFamilyLists } from '../composables/useFamilyLists'
 import { useConfirm } from '../composables/useConfirm'
 import type { FamilyListItem } from '../types/database'
@@ -10,6 +10,8 @@ const { confirm } = useConfirm()
 
 const draft = ref('')
 const showDone = ref(false)
+// 「通知家人」開關：只對下一筆有效，新增成功後關回去
+const notifyOn = ref(false)
 
 // 直接開網址進來時 App 可能還沒載完；已載入就不重抓
 onMounted(() => {
@@ -20,7 +22,7 @@ const submit = async () => {
   const t = draft.value
   if (!t.trim()) return
   draft.value = ''
-  await addItem(t)
+  if (await addItem(t, notifyOn.value)) notifyOn.value = false
 }
 
 const askRemove = async (i: FamilyListItem) => {
@@ -77,6 +79,16 @@ const askClear = async () => {
           aria-label="新增項目"
           class="flex-1 min-w-0 min-h-[44px] rounded-[16px] bg-white px-4 text-[15px] text-primary-900 outline-none focus:ring-2 focus:ring-primary-400"
         />
+        <button
+          type="button"
+          :aria-pressed="notifyOn"
+          aria-label="通知家人"
+          class="min-w-[44px] min-h-[44px] rounded-[16px] bg-white flex items-center justify-center"
+          @click="notifyOn = !notifyOn"
+        >
+          <BellRing v-if="notifyOn" class="w-5 h-5" fill="#f59e0b" stroke="#f59e0b" aria-hidden="true" />
+          <Bell v-else class="w-5 h-5" fill="none" stroke="#94a3b8" aria-hidden="true" />
+        </button>
         <button
           type="submit"
           aria-label="新增"
