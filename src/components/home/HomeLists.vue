@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ChevronRight, Star } from 'lucide-vue-next'
+import { Bell, BellRing, ChevronRight, Star } from 'lucide-vue-next'
 import { useFamilyLists } from '../../composables/useFamilyLists'
 
 const { list, grouped, openTotal, loaded, loadFailed, hasFamily, load, addItem, toggle, toggleImportant } = useFamilyLists()
@@ -9,6 +9,8 @@ const MAX_SHOWN = 3
 const shown = computed(() => grouped.value.open.slice(0, MAX_SHOWN))
 const draft = ref('')
 const inputEl = ref<HTMLInputElement | null>(null)
+// 「通知家人」開關：只對下一筆有效，新增成功後關回去
+const notifyOn = ref(false)
 
 // App 登入後已載入；剛加入家庭或尚未載入時補載
 onMounted(() => {
@@ -21,7 +23,7 @@ const submit = async (e: Event) => {
   const t = draft.value
   if (!t.trim()) return
   draft.value = ''
-  await addItem(t)
+  if (await addItem(t, notifyOn.value)) notifyOn.value = false
 }
 
 // 「＋」：有字就送出，沒字就把游標移到輸入框（使用者會先點＋再打字）
@@ -97,6 +99,16 @@ const onPlus = (e: Event) => {
           class="flex-1 min-w-0 min-h-[48px] bg-transparent text-[15px] text-primary-900 placeholder:text-slate-400 outline-none"
           @keydown.enter.prevent="submit"
         />
+        <button
+          type="button"
+          :aria-pressed="notifyOn"
+          aria-label="通知家人"
+          class="min-w-[44px] min-h-[48px] flex items-center justify-center"
+          @click="notifyOn = !notifyOn"
+        >
+          <BellRing v-if="notifyOn" class="w-5 h-5" fill="#f59e0b" stroke="#f59e0b" aria-hidden="true" />
+          <Bell v-else class="w-5 h-5" fill="none" stroke="#94a3b8" aria-hidden="true" />
+        </button>
       </form>
     </div>
   </section>

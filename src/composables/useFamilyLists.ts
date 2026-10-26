@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { apiPost } from '../services/api'
 import { listQueries } from '../services/db/lists'
 import type { FamilyList, FamilyListItem } from '../types/database'
 import { groupItems, nextSortOrder, openCount, pickTodoList } from '../utils/familyLists'
@@ -28,7 +29,7 @@ const upsertRow = <T extends { id: string }>(arr: T[], row: T) => {
 export function useFamilyLists() {
   const { familyId } = useUserProfile()
   const { session } = useAuth()
-  const { error: notifyError } = useNotification()
+  const { error: notifyError, info: notifyInfo } = useNotification()
 
   const subscribe = (fid: string) => {
     if (channel && channelFid === fid) return
@@ -123,16 +124,34 @@ export function useFamilyLists() {
   const grouped = computed(() => groupItems(todoItems.value))
   const openTotal = computed(() => openCount(todoItems.value))
 
-  const addItem = async (text: string) => {
+  // 推播給家人（api/todo-notify）：不 await，通知失敗不影響已新增的項目
+  const notifyFamily = (itemId: string) => {
+    apiPost<{ sent: number; failed: number }>('/api/todo-notify', { itemId })
+      .then((r) => {
+        if (r.sent > 0) return
+        if (r.failed > 0) notifyError('通知家人失敗')
+        else notifyInfo('家人還沒開啟通知')
+      })
+      .catch((e) => {
+        console.error('[useFamilyLists] notifyFamily error:', e)
+        notifyError('通知家人失敗')
+      })
+  }
+
+  // 回傳是否新增成功（呼叫端據此重設「通知家人」開關）
+  const addItem = async (text: string, notify = false): Promise<boolean> => {
     const t = text.trim()
     const listId = list.value?.id
-    if (!t || !listId) return
+    if (!t || !listId) return false
     try {
       const row = await listQueries.addItem(listId, t, nextSortOrder(todoItems.value))
       items.value = upsertRow(items.value, row)
+      if (notify) notifyFamily(row.id)
+      return true
     } catch (e) {
       console.error('[useFamilyLists] addItem error:', e)
       notifyError('新增失敗，請檢查網路')
+      return false
     }
   }
 
