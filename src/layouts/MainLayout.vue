@@ -68,7 +68,8 @@ const go = (path: string) => router.push(path)
 
     <!-- Main Content Slot -->
     <!-- We use router-view here for child routes (Home, List, etc) -->
-    <main class="flex-1 overflow-y-auto pb-24">
+    <!-- overflow-y-auto 會讓 overflow-x 也算成 auto，內容一被位移（滑動動畫）整頁就能左右拖；明確關掉橫向捲動 -->
+    <main class="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none pb-24">
         <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
                  <component :is="Component" />

@@ -6,6 +6,7 @@ import MonthGrid from './MonthGrid.vue'
 import AgendaList from './AgendaList.vue'
 import WeekView from './WeekView.vue'
 import DayView from './DayView.vue'
+import SwipePager from './SwipePager.vue'
 import DayListSheet from './DayListSheet.vue'
 import EventDetailSheet from './EventDetailSheet.vue'
 import CpblGameSheet from './CpblGameSheet.vue'
@@ -19,6 +20,7 @@ import { agendaRange, dayClickAction, eventsOnDay } from '../../utils/calendar/a
 import { filterByOwner } from '../../utils/calendar/ownerFilter'
 import { buildMonthWeeks } from '../../utils/calendar/monthLayout'
 import { addDays, weekdayMon0 } from '../../utils/dateRange'
+import { glanceMonth } from '../../utils/calendar/glance'
 import { useToday } from '../../composables/useToday'
 import { useHorizontalSwipe } from '../../composables/useHorizontalSwipe'
 import { Plus } from 'lucide-vue-next'
@@ -60,9 +62,11 @@ const shiftMonth = (n: number) => {
 }
 const step = (n: 1 | -1) =>
   setQuery({ date: view.value === 'month' ? shiftMonth(n) : addDays(date.value, n * (view.value === 'week' ? 7 : 1)) })
-// 月／週／日內容區左右滑 = 上一個／下一個（同標頭的 ‹ ›）
+// 週／日內容區左右滑 = 上一個／下一個（同標頭的 ‹ ›）；月檢視改用 SwipePager 只輪播月格
 const swipeArea = ref<HTMLElement | null>(null)
 useHorizontalSwipe(swipeArea, step)
+// 月格輪播的每一格：o = -1／0／1 是上個月／這個月／下個月
+const monthAt = (o: number) => glanceMonth(date.value, o)
 
 const weekDays = computed(() => {
   const mon = addDays(date.value, -weekdayMon0(date.value))
@@ -114,7 +118,8 @@ const focusAgendaDay = (ymd: string, smooth: boolean) => {
   while (sc && !/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement
   if (!sc) return
   const headerBottom = document.querySelector('[data-cal-header]')?.getBoundingClientRect().bottom ?? 0
-  const cellTop = document.querySelector(`[data-cell="${ymd}"]`)?.getBoundingClientRect().top
+  // 月格輪播的鄰月也有相同日期的格子，只找目前這一格
+  const cellTop = document.querySelector(`[data-pager-current] [data-cell="${ymd}"]`)?.getBoundingClientRect().top
   let delta = sec.getBoundingClientRect().top - headerBottom - 8
   if (cellTop !== undefined) delta = Math.min(delta, cellTop - headerBottom - 4)
   sc.scrollTo({ top: sc.scrollTop + Math.max(0, delta), behavior: smooth ? 'smooth' : 'auto' })
@@ -166,13 +171,26 @@ const onAddOnDay = (ymd: string) => {
       @toggle-category="toggleCategory"
     />
 
-    <div ref="swipeArea">
     <template v-if="view === 'month'">
-      <MonthGrid :year="year" :month="month" :events="feed" :today="today" :selected="selectedDate" @select="onSelectDay" />
+      <SwipePager :period="`${year}-${month}`" @change="step">
+        <template #default="{ offset }">
+          <MonthGrid
+            :year="monthAt(offset).year"
+            :month="monthAt(offset).month"
+            :events="feed"
+            :today="today"
+            :selected="selectedDate"
+            @select="onSelectDay"
+          />
+        </template>
+      </SwipePager>
       <AgendaList :items="agendaItems" :from="range.from" :to="range.to" :highlight="highlight" @open="onOpen" />
     </template>
+    <!-- 外層裁切：滑動時內容整個滑出／滑入，頁面本身不會被拖得左右晃 -->
+    <div v-else class="overflow-hidden">
+    <div ref="swipeArea" style="touch-action: pan-y">
     <WeekView
-      v-else-if="view === 'week'"
+      v-if="view === 'week'"
       :days="weekDays"
       :events="feed"
       :today="today"
@@ -187,6 +205,7 @@ const onAddOnDay = (ymd: string) => {
       @select-day="(d) => setQuery({ date: d })"
       @open="onOpen"
     />
+    </div>
     </div>
 
     <DayListSheet
