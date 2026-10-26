@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { Bell, BellRing, ChevronRight, Star } from 'lucide-vue-next'
 import { useFamilyLists } from '../../composables/useFamilyLists'
 
-const { list, grouped, openTotal, loaded, loadFailed, hasFamily, load, addItem, toggle, toggleImportant } = useFamilyLists()
+const { list, grouped, openTotal, loaded, loadFailed, hasFamily, load, addItem, toggle, toggleImportant, removeItem } = useFamilyLists()
 
 const MAX_SHOWN = 3
 const shown = computed(() => grouped.value.open.slice(0, MAX_SHOWN))
@@ -24,6 +24,60 @@ const submit = async (e: Event) => {
   if (!t.trim()) return
   draft.value = ''
   if (await addItem(t, notifyOn.value)) notifyOn.value = false
+}
+
+// 往左滑或長按露出「刪除」（同時只開一列）；點刪除才真的刪，所以不再跳確認
+const DELETE_W = 80
+const openId = ref<string | null>(null)
+const drag = ref<{ id: string; x0: number; y0: number; dx: number; horizontal: boolean | null } | null>(null)
+let pressTimer: ReturnType<typeof setTimeout> | undefined
+let suppressClick = false // 長按放開後瀏覽器還會補一個 click，不能讓它勾掉待辦
+const offsetOf = (id: string) => {
+  if (drag.value?.id === id && drag.value.horizontal) {
+    const base = openId.value === id ? -DELETE_W : 0
+    return Math.min(0, Math.max(-DELETE_W, base + drag.value.dx))
+  }
+  return openId.value === id ? -DELETE_W : 0
+}
+const onTouchStart = (id: string, e: TouchEvent) => {
+  const t = e.touches[0]!
+  if (openId.value && openId.value !== id) openId.value = null
+  drag.value = { id, x0: t.clientX, y0: t.clientY, dx: 0, horizontal: null }
+  clearTimeout(pressTimer)
+  pressTimer = setTimeout(() => {
+    if (drag.value && !drag.value.horizontal) { openId.value = id; suppressClick = true }
+  }, 500)
+}
+const onTouchMove = (e: TouchEvent) => {
+  const d = drag.value
+  if (!d) return
+  const t = e.touches[0]!
+  const dx = t.clientX - d.x0
+  const dy = t.clientY - d.y0
+  if (d.horizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+    d.horizontal = Math.abs(dx) > Math.abs(dy)
+    clearTimeout(pressTimer)
+  }
+  if (d.horizontal) d.dx = dx
+}
+const onTouchEnd = () => {
+  clearTimeout(pressTimer)
+  const d = drag.value
+  if (d?.horizontal) openId.value = offsetOf(d.id) < -DELETE_W / 2 ? d.id : null
+  drag.value = null
+}
+// 列開著時點內容＝收回，不觸發完成／星號
+const onRowClickCapture = (id: string, e: MouseEvent) => {
+  if (suppressClick || openId.value === id) {
+    e.stopPropagation()
+    e.preventDefault()
+    if (!suppressClick) openId.value = null
+    suppressClick = false
+  }
+}
+const onDelete = async (id: string) => {
+  openId.value = null
+  await removeItem(id)
 }
 
 // 「＋」：有字就送出，沒字就把游標移到輸入框（使用者會先點＋再打字）
@@ -61,7 +115,26 @@ const onPlus = (e: Event) => {
     <div v-else-if="list" class="bg-white rounded-[20px] px-3">
       <p v-if="!shown.length" class="pt-3 px-1 text-[13px] text-slate-400">還沒有待辦</p>
       <ul>
-        <li v-for="i in shown" :key="i.id" class="flex items-center border-b border-slate-100">
+        <li v-for="i in shown" :key="i.id" class="relative overflow-hidden border-b border-slate-100">
+          <button
+            type="button"
+            :aria-label="`刪除：${i.text}`"
+            :tabindex="openId === i.id ? 0 : -1"
+            class="absolute inset-y-0 right-0 flex items-center justify-center bg-red-500 text-white text-[15px] font-bold"
+            :style="{ width: `${DELETE_W}px` }"
+            @click="onDelete(i.id)"
+          >刪除</button>
+          <div
+            class="relative flex items-center bg-white select-none"
+            :class="drag?.id === i.id ? '' : 'transition-transform duration-200'"
+            :style="{ transform: `translateX(${offsetOf(i.id)}px)` }"
+            @touchstart.passive="onTouchStart(i.id, $event)"
+            @touchmove.passive="onTouchMove"
+            @touchend="onTouchEnd"
+            @touchcancel="onTouchEnd"
+            @contextmenu.prevent
+            @click.capture="onRowClickCapture(i.id, $event)"
+          >
           <button
             type="button"
             :aria-label="`完成：${i.text}`"
@@ -80,6 +153,7 @@ const onPlus = (e: Event) => {
           >
             <Star class="w-5 h-5" :fill="i.important ? '#f59e0b' : 'none'" :stroke="i.important ? '#f59e0b' : '#cbd5e1'" aria-hidden="true" />
           </button>
+          </div>
         </li>
       </ul>
       <form class="flex items-center" @submit.prevent>
