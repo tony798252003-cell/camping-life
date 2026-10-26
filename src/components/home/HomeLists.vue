@@ -8,6 +8,7 @@ const { list, grouped, openTotal, loaded, loadFailed, hasFamily, load, addItem, 
 const MAX_SHOWN = 3
 const shown = computed(() => grouped.value.open.slice(0, MAX_SHOWN))
 const draft = ref('')
+const inputEl = ref<HTMLInputElement | null>(null)
 
 // App 登入後已載入；剛加入家庭或尚未載入時補載
 onMounted(() => {
@@ -21,6 +22,12 @@ const submit = async (e: Event) => {
   if (!t.trim()) return
   draft.value = ''
   await addItem(t)
+}
+
+// 「＋」：有字就送出，沒字就把游標移到輸入框（使用者會先點＋再打字）
+const onPlus = (e: Event) => {
+  if (draft.value.trim()) submit(e)
+  else inputEl.value?.focus()
 }
 </script>
 
@@ -74,8 +81,14 @@ const submit = async (e: Event) => {
         </li>
       </ul>
       <form class="flex items-center" @submit.prevent>
-        <span class="min-w-[44px] min-h-[48px] flex items-center justify-center text-xl text-primary-700" aria-hidden="true">＋</span>
+        <button
+          type="button"
+          aria-label="加入待辦"
+          class="min-w-[44px] min-h-[48px] flex items-center justify-center text-xl text-primary-700"
+          @click="onPlus"
+        >＋</button>
         <input
+          ref="inputEl"
           v-model="draft"
           type="text"
           enterkeyhint="done"
