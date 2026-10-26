@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { swipeDirection } from './useHorizontalSwipe'
+import { dragOffset, swipeDirection } from './useHorizontalSwipe'
 
 describe('swipeDirection', () => {
   it('左滑是下一段、右滑是上一段', () => {
@@ -23,5 +23,12 @@ describe('swipeDirection', () => {
     // 慢慢拖（例如按住在找東西）不是「滑一下」，超過 600ms 不觸發
     expect(swipeDirection(-120, 0, 600)).toBeNull()
     expect(swipeDirection(-120, 0, 599)).toBe(1)
+  })
+})
+
+describe('dragOffset', () => {
+  it('偏水平才跟手、而且打折；偏垂直捲動時畫面不能左右晃', () => {
+    expect(dragOffset(-100, 10)).toBe(-70)
+    expect(dragOffset(30, 80)).toBe(0)
   })
 })
