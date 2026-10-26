@@ -98,9 +98,18 @@ export interface DriveBand {
 // 剛好 60 分鐘算「1 小時內」：使用者說「1 小時內」時會把剛好 1 小時算進去；後面各級同理
 export const DRIVE_BANDS: DriveBand[] = [
     { key: 'lt1h', label: '1 小時內', maxSeconds: 3600 },
-    { key: '1-2h', label: '1–2 小時', maxSeconds: 7200 },
-    { key: '2-3h', label: '2–3 小時', maxSeconds: 10800 },
+    { key: '1-1.5h', label: '1–1.5 小時', maxSeconds: 5400 },
+    { key: '1.5-2h', label: '1.5–2 小時', maxSeconds: 7200 },
+    { key: '2-2.5h', label: '2–2.5 小時', maxSeconds: 9000 },
+    { key: '2.5-3h', label: '2.5–3 小時', maxSeconds: 10800 },
     { key: 'gt3h', label: '3 小時以上', maxSeconds: null },
+]
+
+// 車程出發地：家裡（個人資料座標）或固定地點（兒子練球的三鶯壘球場 A，Google 地點座標）
+export interface DriveOrigin { key: string; label: string; lat?: number; lng?: number }
+export const DRIVE_ORIGINS: DriveOrigin[] = [
+    { key: 'home', label: '家裡' },
+    { key: 'sanying', label: '三鶯壘球場', lat: 24.9357797, lng: 121.3507221 },
 ]
 
 // 未知車程（沒座標或查詢失敗）回 null，不歸到任何級距
