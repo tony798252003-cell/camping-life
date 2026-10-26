@@ -8,6 +8,7 @@ import { toCampsites } from '../utils/dbRows'
 import {
   ALTITUDE_BANDS,
   DRIVE_BANDS,
+  DRIVE_ORIGINS,
   FEATURE_CHIPS,
   altitudeBandKey,
   isHiddenByGoogle,
@@ -194,8 +195,13 @@ const fetchCampsites = async () => {
   }
 }
 
-// 起點：家裡座標，沒設定就用預設起點
+// 起點：家裡（沒設定就用預設起點）或固定地點；記在這台裝置，下次打開還是同一個
+const ORIGIN_KEY = 'camping_drive_origin'
+const originKey = ref((() => { try { return localStorage.getItem(ORIGIN_KEY) || 'home' } catch { return 'home' } })())
+watch(originKey, (k) => { try { localStorage.setItem(ORIGIN_KEY, k) } catch { /* 無痕模式只是不記住 */ } })
 const driveOrigin = computed(() => {
+  const fixed = DRIVE_ORIGINS.find(o => o.key === originKey.value && o.lat !== undefined)
+  if (fixed) return { lat: fixed.lat!, lng: fixed.lng! }
   const o = userOrigin()
   return { lat: o?.latitude || DEFAULT_ORIGIN.lat, lng: o?.longitude || DEFAULT_ORIGIN.lng }
 })
@@ -367,7 +373,15 @@ onMounted(() => {
           </select>
         </label>
         <label class="col-span-2 bg-white border border-gray-200 rounded-2xl min-h-[44px] px-3 flex items-center justify-between gap-2 text-[13px] font-bold">
-          <span class="flex-shrink-0">車程</span>
+          <span class="flex-shrink-0 flex items-center gap-1">車程
+            <select
+              v-model="originKey"
+              class="bg-transparent text-gray-500 font-bold outline-none"
+              aria-label="車程出發地"
+            >
+              <option v-for="o in DRIVE_ORIGINS" :key="o.key" :value="o.key">從{{ o.label }}</option>
+            </select>
+          </span>
           <select
             v-model="driveBand"
             class="min-w-0 bg-transparent text-sky-600 font-bold text-right outline-none"

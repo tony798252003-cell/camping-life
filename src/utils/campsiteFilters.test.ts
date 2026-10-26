@@ -174,16 +174,18 @@ describe('排序', () => {
 })
 
 describe('車程級距', () => {
-    it('剛好 60 分鐘算「1 小時內」，多 1 秒才進「1–2 小時」，各級上限都含在該級', () => {
+    it('每半小時一級；剛好 60 分鐘算「1 小時內」，多 1 秒才進下一級，各級上限都含在該級', () => {
         expect(driveBandKey(3600)).toBe('lt1h')
-        expect(driveBandKey(3601)).toBe('1-2h')
-        expect(driveBandKey(7200)).toBe('1-2h')
-        expect(driveBandKey(7201)).toBe('2-3h')
-        expect(driveBandKey(10800)).toBe('2-3h')
+        expect(driveBandKey(3601)).toBe('1-1.5h')
+        expect(driveBandKey(5400)).toBe('1-1.5h')
+        expect(driveBandKey(5401)).toBe('1.5-2h')
+        expect(driveBandKey(7200)).toBe('1.5-2h')
+        expect(driveBandKey(9000)).toBe('2-2.5h')
+        expect(driveBandKey(10800)).toBe('2.5-3h')
         expect(driveBandKey(10801)).toBe('gt3h')
     })
     it('每個已知車程只落在一個級距，下拉選單不會漏掉或重複營區', () => {
-        for (const sec of [0, 1800, 3600, 3601, 7200, 7201, 10800, 10801, 30000]) {
+        for (const sec of [0, 1800, 3600, 3601, 5400, 5401, 7200, 7201, 9000, 9001, 10800, 10801, 30000]) {
             expect(DRIVE_BANDS.filter(b => matchesDriveBand(sec, b.key))).toHaveLength(1)
         }
     })
